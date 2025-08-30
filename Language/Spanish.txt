@@ -1,0 +1,389 @@
+# Spanish text version - non-fluent translation
+
+# This .txt file is up-to-date with Gen 6 CTRPluginFramework 0.1.1. File parsing and language support is based off of Lukas' ACNL plugin.
+# To edit the plugin's text to your own liking, change the text behind the "::" ONLY.
+# "\n" means new line so do not remove that.
+# Every Line that starts with "#" is just a note and does not need to be changed.
+
+# If translating to other languages, ONLY replace texts after "::".
+
+BATTLE :: Combate
+BATTLE_ACCESS_BAG :: Acceder a la Bolsa
+BATTLE_ALLOW_MEGAS :: Permitir más de una Megaevolución
+BATTLE_ALWAYS_SHINY :: Siempre variocolor
+BATTLE_CAPTURE_RATE_100 :: Tasa de captura 100%
+BATTLE_CAPTURE_TRAINER_POKEMON :: Capturar Pokémon de entrenador
+BATTLE_CONDITION :: Estado
+BATTLE_DISABLE_SHINY_LOCK :: Desactivar bloqueo shiny
+BATTLE_EXP_MULTIPLIER :: Multiplicador de Exp.
+BATTLE_HEALTH_AND_MANA :: PS y PP
+BATTLE_IN_BATTLE :: En combate
+BATTLE_ITEM :: Objeto
+BATTLE_MOVES :: Movimientos
+BATTLE_MUSIC :: Música
+BATTLE_MUSIC_TYPE_NOTE :: Selecciona el archivo de música de combate a usar
+BATTLE_MUSIC_TYPE_TRAINER :: Entrenador
+BATTLE_MUSIC_TYPE_WILD :: Encuentro salvaje
+BATTLE_NO_WILD_POKEMON :: Sin Pokémon salvajes
+BATTLE_OTHER :: Otro
+BATTLE_PARTY_POSITION :: Posición del equipo:
+BATTLE_RESPAWN_LEGENDARY :: Reaparecer legendario
+BATTLE_STATS :: Estadísticas
+BATTLE_VIEW_POKEMON_INFOS :: Ver información del Pokémon.
+BATTLE_WILD_POKEMON_SPAWNER :: Generador de Pokémon salvajes
+CONFIG_LANGUAGE :: Idioma
+CONFIG_LANGUAGE_RESET :: Restablecer
+EDITOR :: PKHeX
+EDITOR_BAG :: Bolsa
+EDITOR_BAG_BERRIES :: Bayas
+EDITOR_BAG_ITEMS :: Objetos
+EDITOR_BAG_KEY_ITEMS :: Objetos clave
+EDITOR_BAG_MEDICINE :: Medicina
+EDITOR_BAG_SPECIAL :: MT y MO + Objetos clave
+EDITOR_BAG_TMS_HMS :: MT y MO
+EDITOR_BATTLE_POINTS :: Puntos de Batalla
+EDITOR_BOX :: Caja:
+EDITOR_BOXES_ALREADY_UNLOCKED :: ¡Todas las cajas ya están desbloqueadas!
+EDITOR_BOXES_UNLOCKED :: ¡Todas las cajas desbloqueadas!
+EDITOR_CLONE_BOX_POSITION :: Qué posición en la caja
+EDITOR_CLONE_FAILED_DATA :: No se pudo obtener el Pokémon de origen
+EDITOR_CLONE_FAILED_INIT :: No se pudo iniciar la clonación
+EDITOR_CLONE_FAILED_PASTE :: No se pudo poner el Pokémon en el destino
+EDITOR_CLONE_PASTE_BOX :: Pegar en la caja:
+EDITOR_CLONE_PASTE_BOX_POSITION :: A qué posición en la caja:
+EDITOR_CLONE_START_BOX :: Copiar desde la caja:
+EDITOR_CLONE_SUCCESS :: Pokémon clonado con éxito
+EDITOR_CLONING :: Clonación
+EDITOR_CLONING_POKEMON :: Clonar Pokémon
+EDITOR_CONTEST_BEAUTY :: Belleza
+EDITOR_CONTEST_COOL :: Carisma
+EDITOR_CONTEST_CUTE :: Dulzura
+EDITOR_CONTEST_SHEEN :: Brillo
+EDITOR_CONTEST_SMART :: Ingenio
+EDITOR_CONTEST_TOUGH :: Dureza
+EDITOR_COPY_POKEMON_IN_TRADE :: Copiar Pokémon en intercambio
+EDITOR_COPY_POKEMON_IN_TRADE_NOTE :: Esto sobrescribirá cualquier Pokémon colocado en la casilla 1 de la caja 1. Si lo entiendes, puedes pulsar las siguientes teclas rápidas.
+EDITOR_CURRENCY :: Moneda
+EDITOR_GAME_LANGUAGE :: Idioma del juego
+EDITOR_IGN :: Nombre
+EDITOR_INFO :: Info
+EDITOR_INVALID_POSITION :: Posición no válida
+EDITOR_KEEP_ORIGINAL_POKEMON :: Mantener Pokémon original
+EDITOR_KEEP_ORIGINAL_POKEMON_NOTE :: El Pokémon no se verá afectado si se mueve, edita o reemplaza, seguirá estando allí.
+EDITOR_MONEY :: Dinero
+EDITOR_PC :: Editor
+EDITOR_PC_ABILITY :: Habilidad
+EDITOR_PC_ANYWHERE :: PC en cualquier parte
+EDITOR_PC_BOX :: Caja PC
+EDITOR_PC_BOXES :: 31 Cajas desbloqueadas
+EDITOR_PC_COUNTRY :: País
+EDITOR_PC_EXPORT_IMPORT :: Exportar e Importar
+EDITOR_PC_FORM :: Forma
+EDITOR_PC_FRIENDSHIP :: Amistad
+EDITOR_PC_GENDER :: Sexo
+EDITOR_PC_HELD_ITEM :: Objeto equipado
+EDITOR_PC_IS_EGG :: Huevo
+EDITOR_PC_IS_NICKNAMED :: Apodado
+EDITOR_PC_LANGUAGE :: Idioma
+EDITOR_PC_LEVEL :: Nivel
+EDITOR_PC_MAIN :: Principal
+EDITOR_PC_MISC :: Varios
+EDITOR_PC_MISC_LATEST_OT :: Último poseedor (no EO)
+EDITOR_PC_MISC_OT_NAME :: Nombre EO
+EDITOR_PC_MISC_SID :: SID
+EDITOR_PC_MISC_TID :: ID
+EDITOR_PC_MOVES :: Movimientos
+EDITOR_PC_MOVES_CURRENT :: Movimientos actuales
+EDITOR_PC_NATURE :: Naturaleza
+EDITOR_PC_NICKNAME :: Apodo
+EDITOR_PC_ORIGINS :: Orígenes
+EDITOR_PC_ORIGINS_BALL :: Poké Ball
+EDITOR_PC_ORIGINS_EGG_MET_DATE :: Fecha de encuentro del huevo
+EDITOR_PC_ORIGINS_GAME_FROM :: Juego de origen
+EDITOR_PC_ORIGINS_IS_FATEFUL_ENCOUNTER :: Encuentro fatídico
+EDITOR_PC_ORIGINS_MET_DATE :: Fecha de encuentro
+EDITOR_PC_ORIGINS_MET_LEVEL :: Nivel de encuentro
+EDITOR_PC_POSITION :: Posición
+EDITOR_PC_PP_UPS :: PP Plus
+EDITOR_PC_REGION :: Región 3DS
+EDITOR_PC_RELEARN_MOVES :: Movimientos por reaprender
+EDITOR_PC_SHINY :: Variocolor
+EDITOR_PC_SPECIES :: Especie
+EDITOR_PC_STATS :: Estadísticas
+EDITOR_PC_STATS_ATK :: Atq
+EDITOR_PC_STATS_CONTEST :: Concurso
+EDITOR_PC_STATS_DEF :: Def
+EDITOR_PC_STATS_EV :: EV
+EDITOR_PC_STATS_HP :: PS
+EDITOR_PC_STATS_IV :: IV
+EDITOR_PC_STATS_SPA :: At. Esp
+EDITOR_PC_STATS_SPD :: Def. Esp
+EDITOR_PC_STATS_SPE :: Vel
+EDITOR_PC_VIRUS :: Pokérus
+EDITOR_POKE_MILES :: Poké Millas
+EDITOR_POSITION :: Posición:
+EDITOR_TID_SID :: ID y SID
+EDITOR_TIME_PLAYED :: Tiempo jugado
+EDITOR_TRAINER :: Entrenador
+EDITOR_UNLOCK_DEX :: Desbloquear
+EDITOR_UNLOCK_FULL_DEX :: Desbloquear Pokédex completa
+GAME_LOC_AMBRETTE :: Pueblo Petroglifo
+GAME_LOC_ANCIENT_TOMB :: Tumba Antigua
+GAME_LOC_ANISTAR :: Ciudad Fractal
+GAME_LOC_BATTLE_RESORT :: Parque Batalla
+GAME_LOC_CAMPHRIER :: Pueblo Vánitas
+GAME_LOC_CAVE_OF_ORIGIN :: Cueva Ancestral
+GAME_LOC_CHAMBER :: Sala del Resplandor
+GAME_LOC_COUMARINE :: Ciudad Témpera
+GAME_LOC_COURIWAY :: Ciudad Fluxus
+GAME_LOC_CYLLAGE :: Ciudad Yantra
+GAME_LOC_DAY_CARE :: Guardería
+GAME_LOC_DENDEMILLE :: Pueblo Fresco
+GAME_LOC_DESERT_RUINS :: Ruinas Desierto
+GAME_LOC_DEWFORD_TOWN :: Pueblo Azuliza
+GAME_LOC_EVER_GRANDE_CITY :: Ciudad Colosalia
+GAME_LOC_FABLED_CAVE :: Cueva Quimera
+GAME_LOC_FACTORY :: Fábrica Poké Ball
+GAME_LOC_FALLARBOR_TOWN :: Pueblo Pardal
+GAME_LOC_FORTREE_CITY :: Ciudad Arborada
+GAME_LOC_FRIEND_SAFARI :: Safari de amigos
+GAME_LOC_GEOSENGE :: Pueblo Crómlech
+GAME_LOC_GNARLED_DEN :: Antro Retorcido
+GAME_LOC_GRANITE_CAVE :: Cueva Granito
+GAME_LOC_ISLAND_CAVE :: Cueva Insular
+GAME_LOC_KILOUDE :: Ciudad Batik
+GAME_LOC_LAB :: Laboratorio Pokémon
+GAME_LOC_LAVERRE :: Ciudad Romantis
+GAME_LOC_LEAGUE :: Liga Pokémon
+GAME_LOC_LILYCOVE_CITY :: Ciudad Calagua
+GAME_LOC_LITTLEROOT :: Pueblo Raíz
+GAME_LOC_LUMIOSE :: Ciudad Luminalia
+GAME_LOC_MAUVILLE :: Ciudad Malvalona
+GAME_LOC_METEOR_FALLS :: Cascada Meteoro
+GAME_LOC_MOSSDEEP :: Ciudad Algaria
+GAME_LOC_NAMELESS :: Caverna Anónima
+GAME_LOC_NEW_MAUVILLE :: Nueva Malvalona
+GAME_LOC_OLDALE :: Pueblo Escaso
+GAME_LOC_PACIFIDLOG :: Arrecípolis
+GAME_LOC_PETALBURG :: Ciudad Petalia
+GAME_LOC_PETALBURG_WOODS :: Bosque Petalia
+GAME_LOC_PILLAR :: Pilar Celeste
+GAME_LOC_RUSTBORO :: Ciudad Férrica
+GAME_LOC_RUSTURF :: Cueva Ferverus
+GAME_LOC_SANTALUNE :: Ciudad Novarte
+GAME_LOC_SANTALUNE_FOREST :: Bosque de Novarte
+GAME_LOC_SCORCHED :: Antro Calcinado
+GAME_LOC_SEA_MAUVILLE :: Malvalona Marina
+GAME_LOC_SEALED :: Cámara Sellada
+GAME_LOC_SECRET :: Prado Secreto
+GAME_LOC_SHALOUR :: Ciudad Relieve
+GAME_LOC_SLATEPORT :: Ciudad Portual
+GAME_LOC_SNOWBELLE :: Ciudad Fractal
+GAME_LOC_SOOTOPOLIS :: Arrecípolis
+GAME_LOC_SPIRIT_DEN :: Cueva del Espíritu Marino
+GAME_LOC_TEAM_FLARE :: Base del Team Flare
+GAME_LOC_TERMINUS_CAVE :: Cueva Desenlace
+GAME_LOC_UNKNOWN_DUNGEON :: Mazmorra Rara
+GAME_LOC_VANIVILLE :: Pueblo Boceto
+GAME_LOC_VERDANTURF :: Verdegal
+GAME_LOC_VICTORY_ROAD :: Calle Victoria
+GAME_LOC_VIDEO_STUDIO :: Estudio de vídeo
+GAME_TEXT_COLOR_BLUE :: Azul
+GAME_TEXT_COLOR_GREEN :: Verde
+GAME_TEXT_COLOR_LIGHT_BLUE :: Azul claro
+GAME_TEXT_COLOR_ORANGE :: Naranja
+GAME_TEXT_COLOR_PICK :: Color:
+GAME_TEXT_COLOR_PINK :: Rosa
+GAME_TEXT_COLOR_PURPLE :: Morado
+GAME_TEXT_COLOR_RED :: Rojo
+KB_BATTLE_AFFECTED :: Afectado
+KB_BATTLE_ASLEEP :: Dormido
+KB_BATTLE_BURNED :: Quemado
+KB_BATTLE_EMPTY :: [Vacío]
+KB_BATTLE_FROZEN :: Congelado
+KB_BATTLE_HEALTH :: PS
+KB_BATTLE_HEALTH_SET_TO :: PS ajustados a:
+KB_BATTLE_ITEM_CHANGED :: Objeto cambiado:
+KB_BATTLE_MANA :: PP
+KB_BATTLE_MANA_SET_TO :: PP ajustados a:
+KB_BATTLE_MOVE :: Movimiento
+KB_BATTLE_NO_STATUS_EFFECTS :: Ninguno
+KB_BATTLE_PARALYZED :: Paralizado
+KB_BATTLE_POISONED :: Envenenado
+KB_BATTLE_POSITION :: Posición:
+KB_BATTLE_SELECTED_POSITION :: Posición seleccionada en combate:
+KB_BATTLE_STAT_ACCURACY :: Precisión
+KB_BATTLE_STAT_ATTACK :: Ataque
+KB_BATTLE_STAT_BOOSTED :: Aumentado
+KB_BATTLE_STAT_DEFENSE :: Defensa
+KB_BATTLE_STAT_EVASIVENESS :: Evasión
+KB_BATTLE_STAT_SP_ATTACK :: At. Esp.
+KB_BATTLE_STAT_SP_DEFENSE :: Def. Esp.
+KB_BATTLE_STAT_SPEED :: Velocidad
+KB_BATTLE_STAT_UPDATED :: Actualizado
+KB_BATTLE_STATS_BASE :: Base
+KB_BATTLE_STATS_BOOST :: Aumentos
+KB_BATTLE_STATUS_APPLIED :: Estado alterado aplicado:
+KB_BATTLE_STATUS_REMOVED :: Estado alterado eliminado
+KB_PSS_BATTLE :: Combates
+KB_PSS_CLEAR_HISTORY :: Borrar
+KB_PSS_GREET_TODAY :: Hoy
+KB_PSS_GREET_TOTAL :: Total
+KB_PSS_GREETS :: Saludos:
+KB_PSS_HISTORY :: Historial:
+KB_PSS_HISTORY_CLEARED :: ¡Historial borrado!
+KB_PSS_ICON :: Icono:
+KB_PSS_IR :: IR
+KB_PSS_LINK :: Enlace
+KB_PSS_LINK_AMOUNT :: Cantidad:
+KB_PSS_LINKS :: Enlaces:
+KB_PSS_NICES :: Buenas:
+KB_PSS_PROFILE_GREETS :: Saludos
+KB_PSS_PROFILE_HISTORY :: Historial
+KB_PSS_PROFILE_ICONS :: Iconos
+KB_PSS_PROFILE_LINKS :: Enlaces
+KB_PSS_PROFILE_MESSAGE :: Mensaje:
+KB_PSS_PROFILE_MESSAGE_2 :: Mensaje
+KB_PSS_PROFILE_MINI_SURVEY :: Mini-encuesta
+KB_PSS_PROFILE_NICES :: Buenas
+KB_PSS_PROFILE_WISHES :: Deseos
+KB_PSS_SELECT_LINK :: Selecciona destino:\n\n
+KB_PSS_SURVEY :: ¡Mini-encuesta(s) duplicada(s)!
+KB_PSS_SURVEY_DUPLICATE :: Duplicar (Origen):
+KB_PSS_SURVEY_PASTE_TO :: A (Destino):
+KB_PSS_TOTAL_LINK :: Total:
+KB_PSS_TRADE :: Intercambios
+KB_PSS_USER_LIST_ACQUAINTANCES :: Conocidos
+KB_PSS_USER_LIST_CLEARED :: ¡Lista de jugadores borrada!
+KB_PSS_USER_LIST_FRIENDS :: Amigos
+KB_PSS_WIFI :: Wi-Fi
+KB_PSS_WISHES :: Deseos:
+KB_SPAWNER_FORM :: Forma:
+KB_SPAWNER_LEVEL :: Nivel:
+MISC :: Varios
+MISC_ACCESS_FLY_MAP :: Acceder al mapa Vuelo desde el resumen
+MISC_ACTION_MUSIC :: Música de acción
+MISC_BYPASS_TEXT_RESTRICT :: Omitir restricciones de texto
+MISC_CUSTOM_GAME_KEYBOARD :: Teclado personalizado del juego
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG :: Configuración del teclado
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_ERASED :: Todas las copias de seguridad han sido borradas.
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_EXPORT :: Exportar
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_FILE :: Teclado/
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_IMPORT :: Importar
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_LIMIT :: ¡Límite alcanzado! ¿Borrar copias de seguridad antiguas?
+MISC_CUSTOM_GAME_KEYBOARD_CONFIG_NOTE :: Solo para el teclado dentro del juego. Esto reemplaza la sección “Más”. Asegúrate de guardar copias de seguridad de tus teclados personalizados para no tener que volver a introducir los valores.
+MISC_CUSTOM_GAME_KEYBOARD_KEYS :: Teclas personalizadas
+MISC_CUSTOM_GAME_KEYBOARD_KEYS_NOTE :: Pulsa las teclas rápidas abajo para personalizar las teclas. Pulsa Y para borrar el teclado. Solo se aceptan valores unicode, que se pueden encontrar en otros lugares.
+MISC_CUSTOM_GAME_KEYBOARD_KEYS_UNICODE :: Unicode:
+MISC_CUSTOM_GAME_KEYBOARD_KEYS2 :: Teclas:
+MISC_CUSTOM_GAME_KEYBOARD_NAME :: Nombre:
+MISC_CUSTOM_GAME_KEYBOARD_NO_BACKUPS :: ¡Tienes 0 copia(s) de seguridad para recuperar!
+MISC_FAST_WALK_RUN :: Caminar y correr rápido
+MISC_HATCH_NOW :: Eclosionar huevo inmediatamente
+MISC_INSTANT_EGG :: Huevo instantáneo en la guardería
+MISC_LEARN_ANY :: Aprender cualquier MT y MO
+MISC_MODEL_SWAP :: Intercambio de modelo
+MISC_MOVEMENT :: Movimiento
+MISC_NO_OUTLINES :: Sin contornos
+MISC_OTHER :: Otro
+MISC_PATCH_COLOR_CRASHES :: Corregir errores de texto coloreado
+MISC_RENAME_POKEMON :: Renombrar Pokémon
+MISC_STAY_IN_ACTION :: Permanecer en modo acción
+MISC_SUPER_FAST_DIALOGS :: Diálogos ultrarrápidos
+MISC_TELEPORTATION :: Teletransporte
+MISC_UNLOCK_MAP :: Desbloquear mapa Vuelo completo
+MISC_VIEW_STATS_IN_SUMMARY :: Ver IV y EV en el resumen
+MISC_WALK_THROUGH_WALLS :: Atravesar paredes
+MISC_WEATHER :: Clima
+MISC_WEATHER_EAST_HOENN :: Este de Hoenn
+MISC_WEATHER_JAGGED_PASS :: Senda Ígnea
+MISC_WEATHER_PRIMAL_WEATHER :: Clima Primigenio:\n\n Rubí Omega = Sol abrasador | Zafiro Alfa = Lluvia intensa
+MISC_WEATHER_RAIN :: Lluvia
+MISC_WEATHER_ROUTE113 :: Ruta 113
+MISC_WEATHER_ROUTE119 :: Ruta 119
+MISC_WEATHER_ROUTE120 :: Ruta 120
+MISC_WEATHER_SNOW :: Nieve
+NOTE_ALREADY_UNLOCKED_MAP :: ¡Mapa Vuelo completo ya desbloqueado!
+NOTE_BACKUP_INVALID :: Elección no válida. Intenta de nuevo
+NOTE_BACKUP_LIMIT :: ¡Límite alcanzado! ¿Borrar las copias de seguridad antiguas?
+NOTE_BACKUP_NONE :: No hay copias de seguridad disponibles para recuperar
+NOTE_BACKUPS_ERASED :: Se han borrado todas las copias de seguridad
+NOTE_CANNOT_CHANGE_GENDER :: No se puede cambiar el sexo
+NOTE_EDITOR_EXPORT :: Exportar
+NOTE_EDITOR_FAILED_ENCRYPT :: ¡No se pudo cifrar o escribir los datos!
+NOTE_EDITOR_IMPORT :: Importar
+NOTE_EXPORT_FILE_NAME :: Nombre:
+NOTE_EXPORT_SUCCESS :: ¡Datos exportados con éxito!
+NOTE_FORM_UPDATE :: ¡Forma actualizada!
+NOTE_GAME_LANGUAGE :: Guarda y reinicia para cambiar a:
+NOTE_IMPORT_SUCCESS :: ¡Datos importados con éxito!
+NOTE_LANGUAGE_ENGLISH :: Inglés
+NOTE_LANGUAGE_FRENCH :: Francés
+NOTE_LANGUAGE_GERMAN :: Alemán
+NOTE_LANGUAGE_ITALIAN :: Italiano
+NOTE_LANGUAGE_JAPANESE :: Japonés
+NOTE_LANGUAGE_KOREAN :: Coreano
+NOTE_LANGUAGE_SPANISH :: Español
+NOTE_MET_DAY :: Día
+NOTE_MET_MONTH :: Mes
+NOTE_MET_YEAR :: Año
+NOTE_MUSIC_FILE :: Selecciona el archivo de música:
+NOTE_NO :: No
+NOTE_SHINIFY :: ¿Convertir la especie en variocolor?
+NOTE_SPECIES_FEMALE :: Hembra
+NOTE_SPECIES_MALE :: Macho
+NOTE_TELEPORT_KEY :: Mantén pulsada la tecla y entra en un edificio para teletransportarte
+NOTE_TIME_HOURS :: Horas
+NOTE_TIME_MINUTES :: Minutos
+NOTE_TIME_SECONDS :: Segundos
+NOTE_TIME_UPDATED :: Tiempo jugado actualizado.
+NOTE_UNLOCK_O_POWER_DONE :: ¡Ya se han desbloqueado todos los Poderes O!
+NOTE_UNLOCK_O_POWERS :: ¡Todos los Poderes O han sido desbloqueados!
+NOTE_VIRUS_CURED :: Curado
+NOTE_VIRUS_DAYS :: Días:
+NOTE_VIRUS_NON_CURED :: No curado
+NOTE_VIRUS_STRAIN :: Cepa:
+NOTE_YES :: Sí
+PK_VIEW_ABILITY :: Habilidad:
+PK_VIEW_ATK :: Atq
+PK_VIEW_DEF :: Def
+PK_VIEW_DISABLE :: Desactivar
+PK_VIEW_ENABLE :: Activar
+PK_VIEW_EV :: [EV]
+PK_VIEW_HP :: PS
+PK_VIEW_INFO :: Vista de información:
+PK_VIEW_ITEM :: Objeto:
+PK_VIEW_IV :: [IV]
+PK_VIEW_MOVES :: [Movimientos]
+PK_VIEW_NATURE :: Naturaleza:
+PK_VIEW_NONE :: Ninguno
+PK_VIEW_SLOT :: Casilla:
+PK_VIEW_SPA :: At. Esp
+PK_VIEW_SPD :: Def. Esp
+PK_VIEW_SPE :: Vel
+PK_VIEW_SPECIES :: Especie:
+PLAYER_SEARCH_SYSTEM :: Conexión Jugador
+PLAYER_SEARCH_SYSTEM_CLEAR_USERS_LIST :: Borrar lista de jugadores
+PLAYER_SEARCH_SYSTEM_IGNORE_ICONS :: Ignorar iconos no seleccionables
+PLAYER_SEARCH_SYSTEM_O_POWER_GAUGE :: Medidor de Poder O
+PLAYER_SEARCH_SYSTEM_PROFILE :: Perfil
+PLAYER_SEARCH_SYSTEM_SHOUT_OUT :: Mensaje destacado
+PLAYER_SEARCH_SYSTEM_UNLOCK_EVERY_O_POWER :: Desbloquear todos los Poderes O
+PLAYER_SEARCH_SYSTEM_UNLOCK_EVERY_O_POWER_NOTE :: Guarda la partida y reinicia para aplicar los cambios permanentemente.
+PLUGIN_ALREADY_DONE :: ¡Ya está hecho!
+PLUGIN_APPLIED_CHANGES :: Cambios aplicados
+PLUGIN_HOME_MENU :: Regresando al menú HOME
+PLUGIN_KB_CONTINUE :: Continúa escribiendo lo que buscas.
+PLUGIN_KB_TOO_MANY :: Demasiados resultados encontrados:
+PLUGIN_KB_TRY_AGAIN :: Lamentablemente no encontramos nada que\ncoincida con tu entrada.\n\nReinicia e inténtalo de nuevo
+PLUGIN_KB_TYPE_MORE :: No escribiste lo suficiente para realizar la búsqueda
+PLUGIN_KB_TYPE_SOMETHING :: Escribe algo para comenzar la búsqueda
+PLUGIN_SETTING :: Configuración
+PLUGIN_SUCCESS :: ¡Éxito!
+SEARCH_ABILITY :: Habilidad:
+SEARCH_ITEM :: Objeto:
+SEARCH_MOVE :: Movimiento:
+SEARCH_SPECIES :: Especie:
+SET_COLOR :: ¿Coloreado?
+SPAWNER_INVALID :: Especie seleccionada no válida
+SPAWNER_SPAWNING :: Generando:

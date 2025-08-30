@@ -24,6 +24,7 @@
    void UnlockTMsAndHMs(MenuEntry *entry);
    void UnlockKeyItems(MenuEntry *entry);
    void KeyItems(MenuEntry *entry);
+   void UnlockFullDex(MenuEntry *entry);
 
    struct PK6 {
       u32 encryptionConstant;
@@ -168,6 +169,10 @@
    }
 
    void ExportImport(MenuEntry *entry);
+   void Cloning(MenuEntry *entry);
+   void CopyPokemonInTrade(MenuEntry *entry);
+   void SetKeepOriginalPokemon(MenuEntry *entry);
+   void KeepOriginalPokemon(MenuEntry *entry);
    void PCAnywhere(MenuEntry *entry);
    void BoxesUnlocked(MenuEntry *entry);
 }

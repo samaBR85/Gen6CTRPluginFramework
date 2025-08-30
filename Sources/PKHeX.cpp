@@ -1,6 +1,7 @@
 #include <CTRPluginFramework.hpp>
 #include <unordered_set>
 #include "Helpers.hpp"
+#include "Parser.hpp"
 #include <functional>
 #include <array>
 
@@ -14,14 +15,14 @@ namespace CTRPluginFramework {
             // Prompt the user to enter a value then write it to memory if successful.
             if (KeyboardHandler<u32>::Set(options[selectedID] + ":", true, false, 5, trainerID[selectedID], 0, 1, 65535, nullptr)) {
                 Process::Write16(addresses[selectedID], trainerID[selectedID]);
-                OSD::Notify("Success!");
+                MessageBox(CenterAlign(getLanguage->Get("PLUGIN_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)();
             }
         }
     }
 
     void Identity(MenuEntry *entry) {
         static const vector<u32> addresses = {AutoGameSet({0x8C79C3C, 0x8C79C3E}, {0x8C81340, 0x8C81342})};
-        static const vector<string> options = {"TID", "SID"};
+        static const vector<string> options = {getLanguage->Get("EDITOR_PC_MISC_TID"), getLanguage->Get("EDITOR_PC_MISC_SID")};
         Keyboard keyboard;
 
         if (keyboard.Setup(entry->Name() + ":", true, options, selectedID) != -1)
@@ -36,7 +37,7 @@ namespace CTRPluginFramework {
         // Prompt the user to enter a value then write it to memory if successful.
         if (KeyboardHandler<string>::Set(entry->Name() + ":", true, 16, playerName, "", nullptr)) {
             Process::WriteString(address, playerName, StringFormat::Utf16);
-            OSD::Notify("In-game name changed to: " + playerName);
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_IGN") + ": " + playerName), DialogType::DialogOk, ClearScreen::Both)();
         }
     }
 
@@ -60,13 +61,13 @@ namespace CTRPluginFramework {
             // Prompt the user to enter a value then write it to memory if successful.
             if (KeyboardHandler<u16>::Set(options[timeSelection] + ":", true, false, numDigits, playTime[timeSelection], 0, 1, limit, nullptr)) {
                 canUpdateTime[timeSelection] = 1;
-                OSD::Notify("Time played updated");
+                MessageBox(CenterAlign(getLanguage->Get("NOTE_TIME_UPDATED")), DialogType::DialogOk, ClearScreen::Both)();
             }
         }
     }
 
     void PlayTime(MenuEntry *entry) {
-        static const vector<string> options = {"Hours", "Minutes", "Seconds"};
+        static const vector<string> options = {getLanguage->Get("NOTE_TIME_HOURS"), getLanguage->Get("NOTE_TIME_MINUTES"), getLanguage->Get("NOTE_TIME_SECONDS")};
         Keyboard keyboard;
         keyboard.Setup(entry->Name() + ":", true, options, timeSelection);
         ConfigurePlayTime(options);
@@ -89,13 +90,22 @@ namespace CTRPluginFramework {
     static int language;
 
     void GameLanguage(MenuEntry *entry) {
-        static const vector<string> options = {"Japanese", "English", "French", "Italian", "German", "Spanish", "Korean"}; // Korean
+        static const vector<string> options = {
+            getLanguage->Get("NOTE_LANGUAGE_JAPANESE"),
+            getLanguage->Get("NOTE_LANGUAGE_ENGLISH"),
+            getLanguage->Get("NOTE_LANGUAGE_FRENCH"),
+            getLanguage->Get("NOTE_LANGUAGE_ITALIAN"),
+            getLanguage->Get("NOTE_LANGUAGE_GERMAN"),
+            getLanguage->Get("NOTE_LANGUAGE_SPANISH"),
+            getLanguage->Get("NOTE_LANGUAGE_KOREAN")
+        };
+
         Keyboard keyboard;
 
         // Setup the keyboard input for language selection.
         if (keyboard.Setup(entry->Name() + ":", true, options, language) != -1) {
+            MessageBox(CenterAlign(getLanguage->Get("NOTE_GAME_LANGUAGE") + " " + string(options[language])), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(UpdateLanguage);
-            OSD::Notify("Save and restart to change language to: " + string(options[language]));
         }
     }
 
@@ -117,8 +127,8 @@ namespace CTRPluginFramework {
     void Money(MenuEntry *entry) {
         // Prompt the user to enter a value then write it to memory if successful.
         if (KeyboardHandler<u32>::Set(entry->Name() + ":", true, false, 7, amountOfMoney, 0, 0, 9999999, nullptr)) {
+            MessageBox(CenterAlign(entry->Name() + ": " + to_string(amountOfMoney)), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(ApplyMoney);
-            OSD::Notify("Money set to: " + to_string(amountOfMoney));
         }
     }
 
@@ -136,8 +146,8 @@ namespace CTRPluginFramework {
     void BattlePoints(MenuEntry *entry) {
         // Prompt the user to enter a value then write it to memory if successful.
         if (KeyboardHandler<u16>::Set(entry->Name() + ":", true, false, 4, battlePoints, 0, 0, 9999, nullptr)) {
+            MessageBox(CenterAlign(entry->Name() + ": " + to_string(battlePoints)), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(ApplyBattlePoints);
-            OSD::Notify("Battle Points set to: " + to_string(battlePoints));
         }
     }
 
@@ -155,8 +165,8 @@ namespace CTRPluginFramework {
     void PokeMiles(MenuEntry *entry) {
         // Prompt the user to enter a value then write it to memory if successful.
         if (KeyboardHandler<u32>::Set(entry->Name() + ":", true, false, 7, miles, 0, 0, 9999999, nullptr)) {
+            MessageBox(CenterAlign(entry->Name() + ": " + to_string(miles)), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(ApplyPokeMiles);
-            OSD::Notify("P-Miles set to: " + to_string(miles));
         }
     }
 
@@ -174,8 +184,8 @@ namespace CTRPluginFramework {
     void Items(MenuEntry *entry) {
         // Prompt the user to enter a value then write it to memory if successful.
         if (KeyboardHandler<u16>::Set(entry->Name() + ":", true, false, 3, itemAmount, 0, 0, 999, Callback<u16>)) {
+            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(UpdateItems);
-            OSD::Notify("Applied changes to Items!");
         }
     }
 
@@ -209,8 +219,8 @@ namespace CTRPluginFramework {
 
     void Medicines(MenuEntry *entry) {
         if (KeyboardHandler<u16>::Set(entry->Name() + ":", true, false, 3, medAmount, 0, 0, 999, Callback<u16>)) {
+            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(UpdateMedicines);
-            OSD::Notify("Applied changes to Medicines!");
         }
     }
 
@@ -242,8 +252,8 @@ namespace CTRPluginFramework {
 
     void Berries(MenuEntry *entry) {
         if (KeyboardHandler<u16>::Set(entry->Name() + ":", true, false, 3, berryAmount, 0, 0, 999, Callback<u16>)) {
+            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
             entry->SetGameFunc(UpdateBerries);
-            OSD::Notify("Applied changes to Berries!");
         }
     }
 
@@ -288,7 +298,7 @@ namespace CTRPluginFramework {
             else Process::Write32(address[0] + (0x4 * counter), getTeachables[counter] + (1 << 10));
         }
 
-        OSD::Notify("Unlocked all TMs & HMs!");
+        MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES")), DialogType::DialogOk, ClearScreen::Both)();
     }
 
     void UnlockKeyItems(void) {
@@ -315,17 +325,43 @@ namespace CTRPluginFramework {
         for (int counter = 0; counter < getKeyItems.size(); counter++)
             Process::Write32(address[0] + (0x4 * counter), getKeyItems[counter] | (1 << 16));
 
-        OSD::Notify("Unlocked all Key Items!");
+        MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES")), DialogType::DialogOk, ClearScreen::Both)();
     }
 
     static int unlockCase;
 
     void KeyItems(MenuEntry *entry) {
-        static const vector<string> options = {"TMs & HMs", "Key Items"};
+        static const vector<string> options = {getLanguage->Get("EDITOR_BAG_TMS_HMS"), getLanguage->Get("EDITOR_BAG_KEY_ITEMS")};
         Keyboard keyboard;
 
         if (keyboard.Setup(entry->Name() + ":", true, options, unlockCase) != -1)
             (unlockCase == 0 ? UnlockTMsAndHMs() : UnlockKeyItems());
+    }
+
+    // Adopted from old project
+    static int dexStatus;
+    static u8 dexByte;
+
+    void UnlockFullDex(MenuEntry *entry) {
+        static const vector<u32> address = {
+            AutoGameSet(
+                {0x8C7A948, 0x8C7A8E8, 0x8C7A812, 0x8C7A8E4},
+                {0x8C8204C, 0x8C81FEC, 0x8C81F20, 0x8C81FE8})
+        };
+
+        static const vector<string> options = {getLanguage->Get("EDITOR_UNLOCK_DEX")};
+        Keyboard keyboard;
+
+        if (keyboard.Setup(entry->Name() + ":", true, options, dexStatus) != -1) {
+            if ((Nibble::Read8(address[2], dexByte, true) && dexByte != 5) || (Nibble::Read8(address[3], dexByte, true) && dexByte != 7)) {
+                if (Nibble::Write8(address[2], 5, true)) {
+                    if (Nibble::Write8(address[3], 7, true))
+                        MessageBox(CenterAlign(getLanguage->Get("PLUGIN_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)();
+                }
+            }
+
+            else MessageBox(CenterAlign(getLanguage->Get("PLUGIN_ALREADY_DONE")), DialogType::DialogOk, ClearScreen::Both)();
+        }
     }
 
     void RemoveOldBackups(const string &directory, const vector<string> &fileList) {
@@ -337,11 +373,11 @@ namespace CTRPluginFramework {
         string fileName;
 
         // Prompt user to enter a file name
-        if (KeyboardHandler<string>::Set("Name:", true, 16, fileName, "", nullptr)) {
+        if (KeyboardHandler<string>::Set(getLanguage->Get("NOTE_EXPORT_FILE_NAME"), true, 16, fileName, "", nullptr)) {
             // Create a backup file and write data to it
             File backupFile(directory + fileName + fileExtension, File::RWC);
             backupFile.Dump(address, 215760);
-            OSD::Notify("Data exported successfully!"); // Notify user of success
+            MessageBox(CenterAlign(getLanguage->Get("NOTE_EXPORT_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)(); // Notify user of success
             return true;
         }
 
@@ -357,7 +393,7 @@ namespace CTRPluginFramework {
             // Open the selected file and restore data from it
             File restoreFile(directory + fileList[fileIndex]);
             restoreFile.Inject(address, 215760);
-            OSD::Notify("Data imported successfully!"); // Notify user of success
+            MessageBox(CenterAlign(getLanguage->Get("NOTE_IMPORT_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)(); // Notify user of success
             return true;
         }
 
@@ -384,16 +420,16 @@ namespace CTRPluginFramework {
 
         // Check if the number of backups has reached the limit
         if (backupFiles.size() >= maxBackups) {
-            if (MessageBox(CenterAlign("Limit reached! Erase old backups?"), DialogType::DialogYesNo, ClearScreen::Both)()) {
+            if (MessageBox(CenterAlign(getLanguage->Get("NOTE_BACKUP_LIMIT")), DialogType::DialogYesNo, ClearScreen::Both)()) {
                 RemoveOldBackups(backupDirectory, backupFiles); // Remove old backups
-                DisplayMessage("All backups have been erased", DialogType::DialogOk); // Notify user
+                DisplayMessage(getLanguage->Get("NOTE_BACKUPS_ERASED"), DialogType::DialogOk); // Notify user
             }
 
             return; // Exit if limit is reached and old backups are erased
         }
 
         // Present options to user and handle their choice
-        vector<string> options = {"Export", "Import"};
+        vector<string> options = {getLanguage->Get("NOTE_EDITOR_EXPORT"), getLanguage->Get("NOTE_EDITOR_IMPORT")};
         Keyboard keyboard;
         int userSelection = -1;
 
@@ -411,7 +447,7 @@ namespace CTRPluginFramework {
 
                 case 1: // Import case
                     if (backupFiles.empty()) {
-                        DisplayMessage("No backups available for recovery", DialogType::DialogOk); // Notify user of no backups
+                        DisplayMessage(getLanguage->Get("NOTE_BACKUP_NONE"), DialogType::DialogOk); // Notify user of no backups
                         return;
                     }
 
@@ -419,7 +455,7 @@ namespace CTRPluginFramework {
                     break;
 
                 default:
-                    DisplayMessage("Invalid choice. Please try again", DialogType::DialogOk); // Notify user of invalid choice
+                    DisplayMessage(getLanguage->Get("NOTE_BACKUP_INVALID"), DialogType::DialogOk); // Notify user of invalid choice
                     break;
             }
         }
@@ -561,7 +597,7 @@ namespace CTRPluginFramework {
             return true;
 
         // Displays an error message if encryption or writing fails
-        MessageBox(CenterAlign("Failed to encrypt or write data!"), DialogType::DialogOk)();
+        MessageBox(CenterAlign(getLanguage->Get("NOTE_EDITOR_FAILED_ENCRYPT")), DialogType::DialogOk)();
         return false;
     }
 
@@ -771,11 +807,11 @@ namespace CTRPluginFramework {
 
         bool ConfigureBoxAndPosition() {
             // Prompt for box number and validate input
-            if (!KeyboardHandler<u8>::Set("Box:", true, false, 2, gBoxNumber, 0, 1, 31))
+            if (!KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_BOX"), true, false, 2, gBoxNumber, 0, 1, 31))
                 return false; // Invalid box number input
 
             // Prompt for position number and validate input
-            if (!KeyboardHandler<u8>::Set("Position:", true, false, 2, gPositionNumber, 0, 1, 30))
+            if (!KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_POSITION"), true, false, 2, gPositionNumber, 0, 1, 30))
                 return false; // Invalid position number input
 
             // Calculate the pointer to the Pokemon data based on box and position
@@ -785,9 +821,9 @@ namespace CTRPluginFramework {
 
         void Position(MenuEntry *entry) {
             if (ConfigureBoxAndPosition()) // Handle setup failure if necessary
-                entry->Name() = "Position: " << Color::Gray << "B" << to_string(gBoxNumber) << " at: " << to_string(gPositionNumber);
+                entry->Name() = getLanguage->Get("EDITOR_POSITION") + " " << Color::Gray << "B" << to_string(gBoxNumber) << " @: " << to_string(gPositionNumber);
 
-            else OSD::Notify("Invalid position");
+            else MessageBox(CenterAlign(getLanguage->Get("EDITOR_INVALID_POSITION")), DialogType::DialogOk, ClearScreen::Both)();
         }
 
         bool VerifyPokemonData(u32 pointer, PK6 *pokemon) {
@@ -802,7 +838,7 @@ namespace CTRPluginFramework {
             if (VerifyPokemonData(dataPointer, &pokemon)) {
                 if (processFunc(pokemon)) {
                     if (SetPokemon(dataPointer, &pokemon)) {
-                        OSD::Notify(getMessage());
+                        MessageBox(CenterAlign(getMessage()), DialogType::DialogOk, ClearScreen::Both)();
                         return true;
                     }
                 }
@@ -812,7 +848,7 @@ namespace CTRPluginFramework {
         }
 
         void Shiny(MenuEntry *entry) {
-            static const vector<string> options = {"No", "Yes"};
+            static const vector<string> options = {getLanguage->Get("NOTE_NO"), getLanguage->Get("NOTE_YES")};
             Keyboard keyboard;
             PK6 pokemon;
             int makeShiny;
@@ -827,7 +863,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Species made shiny? " + options[makeShiny];
+                return entry->Name() + ": " + options[makeShiny];
             });
         }
 
@@ -850,12 +886,12 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Species updated successfully to: " + string(speciesList[getSpecies - 1]);
+                return entry->Name() + ": " + string(speciesList[getSpecies - 1]);
             });
         }
 
         void IsNicknamed(MenuEntry *entry) {
-            static const vector<string> options = {"No", "Yes"};
+            static const vector<string> options = {getLanguage->Get("NOTE_NO"), getLanguage->Get("NOTE_YES")};
             Keyboard keyboard;
             PK6 pokemon;
             int isNick;
@@ -868,7 +904,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Nickname status updated to: " + options[isNick];
+                return entry->Name() + ": " + options[isNick];
             });
         }
 
@@ -882,14 +918,14 @@ namespace CTRPluginFramework {
                         SetNickname(&data, nickname); // Update Pokemon nickname
                         return true;
                     }, [&]() -> string {
-                        return "Nickname updated to: " + nickname;
+                        return entry->Name() + ": " + nickname;
                     });
                 }
             }
         }
 
         void Gender(MenuEntry *entry) {
-            static const vector<string> options = {"Male", "Female"};
+            static const vector<string> options = {getLanguage->Get("NOTE_SPECIES_MALE"), getLanguage->Get("NOTE_SPECIES_FEMALE")};
             Keyboard keyboard;
             PK6 pokemon;
             int genderChoice = 0; // Declare genderChoice outside the lambda
@@ -898,7 +934,7 @@ namespace CTRPluginFramework {
                 // Check for fixed gender
                 for (const auto &fixed : genderCannotChange) {
                     if (data.species == fixed) {
-                        OSD::Notify("Cannot change gender");
+                        MessageBox(CenterAlign(getLanguage->Get("NOTE_CANNOT_CHANGE_GENDER")), DialogType::DialogOk, ClearScreen::Both)();
                         return false; // Exit if gender cannot be changed
                     }
                 }
@@ -912,7 +948,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Gender updated to: " + options[genderChoice];
+                return entry->Name() + ": " + options[genderChoice];
             });
         }
 
@@ -937,7 +973,7 @@ namespace CTRPluginFramework {
 
             // Lambda function to generate a dynamic message
             auto getMessage = [&]() -> string {
-                return "Level set to: " + to_string(level);
+                return entry->Name() + ": " + to_string(level);
             };
 
             // Call HandlePokemonData with the lambda functions
@@ -957,7 +993,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Nature updated to: " + natureList[nature];
+                return entry->Name() + ": " + natureList[nature];
             });
         }
 
@@ -972,7 +1008,7 @@ namespace CTRPluginFramework {
                         AssignForm(&data, form); // Update Pokemon form
                         return true;
                     }, [&]() -> string {
-                        return "Form updated";
+                        return getLanguage->Get("NOTE_FORM_UPDATE");
                     });
                 }
             }
@@ -993,7 +1029,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Held item updated to: " + string(heldItemList[item - 1]);
+                return entry->Name() + ": " + string(heldItemList[item - 1]);
             });
         }
 
@@ -1012,7 +1048,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Ability updated to: " + string(abilityList[getAbility - 1]);
+                return entry->Name() + ": " + string(abilityList[getAbility - 1]);
             });
         }
 
@@ -1028,7 +1064,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Friendship level updated to: " + to_string(friendship);
+                return entry->Name() + ": " + to_string(friendship);
             });
         }
 
@@ -1046,12 +1082,12 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Language updated to: " + options[languageChoice];
+                return entry->Name() + ": " + options[languageChoice];
             });
         }
 
         void IsEgg(MenuEntry *entry) {
-            static const vector<string> options = {"No", "Yes"};
+            static const vector<string> options = {getLanguage->Get("NOTE_NO"), getLanguage->Get("NOTE_YES")};
             Keyboard keyboard;
             PK6 pokemon;
             static int eggChoice;
@@ -1064,12 +1100,12 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Egg status updated to: " + options[eggChoice];
+                return entry->Name() + ": " + options[eggChoice];
             });
         }
 
         void Pokerus(MenuEntry *entry) {
-            static const vector<string> options = {"Cured", "Non-Cured"};
+            static const vector<string> options = {getLanguage->Get("NOTE_VIRUS_CURED"), getLanguage->Get("NOTE_VIRUS_NON_CURED")};
             Keyboard keyboard;
             PK6 pokemon;
             static u8 pkrsVal[2];
@@ -1078,15 +1114,15 @@ namespace CTRPluginFramework {
             HandlePokemonData(pokemon, entry, [&](PK6 &data) -> bool {
                 if (keyboard.Setup(entry->Name() + ":", true, options, cureChoice) != -1) {
                     if (cureChoice == 0) { // Cured
-                        if (KeyboardHandler<u8>::Set("Strain:", true, false, 1, pkrsVal[1], 0, 0, 3, Callback<u8>)) {
+                        if (KeyboardHandler<u8>::Set(getLanguage->Get("NOTE_VIRUS_STRAIN"), true, false, 1, pkrsVal[1], 0, 0, 3, Callback<u8>)) {
                             SetPokerusStatus(&data, 0, pkrsVal[1]);
                             return true;
                         }
                     }
 
                     else { // Non-Cured
-                        if (KeyboardHandler<u8>::Set("Days:", true, false, 2, pkrsVal[0], 0, 1, 15, Callback<u8>)) {
-                            if (KeyboardHandler<u8>::Set("Strain:", true, false, 1, pkrsVal[1], 0, 0, 3, Callback<u8>)) {
+                        if (KeyboardHandler<u8>::Set(getLanguage->Get("NOTE_VIRUS_DAYS"), true, false, 2, pkrsVal[0], 0, 1, 15, Callback<u8>)) {
+                            if (KeyboardHandler<u8>::Set(getLanguage->Get("NOTE_VIRUS_STRAIN"), true, false, 1, pkrsVal[1], 0, 0, 3, Callback<u8>)) {
                                 SetPokerusStatus(&data, pkrsVal[0], pkrsVal[1]);
                                 return true;
                             }
@@ -1096,7 +1132,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Pokerus status updated";
+                return getLanguage->Get("PLUGIN_SUCCESS");
             });
         }
 
@@ -1120,7 +1156,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Country updated to: " + options[getPlayerCountry];
+                return entry->Name() + ": " + options[getPlayerCountry];
             });
         }
 
@@ -1138,7 +1174,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Console region updated to: " + options[consRegion];
+                return entry->Name() + ": " + options[consRegion];
             });
         }
 
@@ -1168,7 +1204,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Origin game updated to: " + string(originList[getOrigin].name);
+                return entry->Name() + ": " + string(originList[getOrigin].name);
             });
         }
 
@@ -1191,7 +1227,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Ball updated to: " + string(ballList[getBall].name);
+                return entry->Name() + ": " + string(ballList[getBall].name);
             });
         }
 
@@ -1207,7 +1243,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Met level updated to: " + to_string(levelMetAt);
+                return entry->Name() + ": " + to_string(levelMetAt);
             });
         }
 
@@ -1222,7 +1258,7 @@ namespace CTRPluginFramework {
         }
 
         void MetDate(MenuEntry *entry) {
-            static const vector<string> options = {"Year", "Month", "Day"};
+            static const vector<string> options = {getLanguage->Get("NOTE_MET_YEAR"), getLanguage->Get("NOTE_MET_MONTH"), getLanguage->Get("NOTE_MET_DAY")};
             Keyboard keyboard;
             PK6 pokemon;
             static u8 date[3];
@@ -1240,12 +1276,12 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Met date updated";
+                return getLanguage->Get("PLUGIN_SUCCESS");
             });
         }
 
         void IsFatefulEncounter(MenuEntry *entry) {
-            static const vector<string> options = {"No", "Yes"};
+            static const vector<string> options = {getLanguage->Get("NOTE_NO"), getLanguage->Get("NOTE_YES")};
             Keyboard keyboard;
             PK6 pokemon;
             static int encChoice;
@@ -1258,12 +1294,12 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Fateful encounter status updated to: " + options[encChoice];
+                return entry->Name() + ": " + options[encChoice];
             });
         }
 
         void EggMetDate(MenuEntry *entry) {
-            static const vector<string> options = {"Year", "Month", "Day"};
+            static const vector<string> options = {getLanguage->Get("NOTE_MET_YEAR"), getLanguage->Get("NOTE_MET_MONTH"), getLanguage->Get("NOTE_MET_DAY")};
             Keyboard keyboard;
             PK6 pokemon;
             static u8 eggDate[3];
@@ -1281,12 +1317,20 @@ namespace CTRPluginFramework {
                     }
                 }
             }, [&]() -> string {
-                return "Egg date updated";
+                return getLanguage->Get("PLUGIN_SUCCESS");
             });
         }
 
         void IV(MenuEntry *entry) {
-            static const vector<string> options = {"HP", "Atk", "Def", "Spe", "SpA", "SpD"};
+            static const vector<string> options = {
+                getLanguage->Get("EDITOR_PC_STATS_HP"),
+                getLanguage->Get("EDITOR_PC_STATS_ATK"),
+                getLanguage->Get("EDITOR_PC_STATS_DEF"),
+                getLanguage->Get("EDITOR_PC_STATS_SPE"),
+                getLanguage->Get("EDITOR_PC_STATS_SPA"),
+                getLanguage->Get("EDITOR_PC_STATS_SPD")
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static u8 ivs[6];
@@ -1307,7 +1351,15 @@ namespace CTRPluginFramework {
         }
 
         void EV(MenuEntry *entry) {
-            static const vector<string> options = {"HP", "Atk", "Def", "Spe", "SpA", "SpD"};
+            static const vector<string> options = {
+                getLanguage->Get("EDITOR_PC_STATS_HP"),
+                getLanguage->Get("EDITOR_PC_STATS_ATK"),
+                getLanguage->Get("EDITOR_PC_STATS_DEF"),
+                getLanguage->Get("EDITOR_PC_STATS_SPE"),
+                getLanguage->Get("EDITOR_PC_STATS_SPA"),
+                getLanguage->Get("EDITOR_PC_STATS_SPD")
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static vector<u16> evAmount(6, 0);
@@ -1328,7 +1380,15 @@ namespace CTRPluginFramework {
         }
 
         void Contest(MenuEntry *entry) {
-            static const vector<string> options = {"Cool", "Beauty", "Cute", "Smart", "Tough", "Sheen"};
+            static const vector<string> options = {
+                getLanguage->Get("EDITOR_CONTEST_COOL"),
+                getLanguage->Get("EDITOR_CONTEST_BEAUTY"),
+                getLanguage->Get("EDITOR_CONTEST_CUTE"),
+                getLanguage->Get("EDITOR_CONTEST_SMART"),
+                getLanguage->Get("EDITOR_CONTEST_TOUGH"),
+                getLanguage->Get("EDITOR_CONTEST_SHEEN")
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static u16 contestStats[6];
@@ -1349,7 +1409,13 @@ namespace CTRPluginFramework {
         }
 
         void CurrentMove(MenuEntry *entry) {
-            static const vector<string> options = {"Move 1", "Move 2", "Move 3", "Move 4"};
+            const vector<string> options = {
+                getLanguage->Get("KB_BATTLE_MOVE") + " 1",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 2",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 3",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 4"
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static u16 moves;
@@ -1375,7 +1441,13 @@ namespace CTRPluginFramework {
         }
 
         void PPUp(MenuEntry *entry) {
-            static const vector<string> options = {"Move 1", "Move 2", "Move 3", "Move 4"};
+            const vector<string> options = {
+                getLanguage->Get("KB_BATTLE_MOVE") + " 1",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 2",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 3",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 4"
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static u8 ppUp[6];
@@ -1398,7 +1470,13 @@ namespace CTRPluginFramework {
         }
 
         void RelearnMove(MenuEntry *entry) {
-            static const vector<string> options = {"Move 1", "Move 2", "Move 3", "Move 4"};
+            const vector<string> options = {
+                getLanguage->Get("KB_BATTLE_MOVE") + " 1",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 2",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 3",
+                getLanguage->Get("KB_BATTLE_MOVE") + " 4"
+            };
+
             Keyboard keyboard;
             PK6 pokemon;
             static u16 relearnMoves;
@@ -1435,7 +1513,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "SID: " + to_string(value);
+                return entry->Name() + ": " + to_string(value);
             });
         }
 
@@ -1451,7 +1529,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "TID: " + to_string(value);
+                return entry->Name() + ": " + to_string(value);
             });
         }
 
@@ -1467,7 +1545,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "OT: " + originalTrainerName;
+                return entry->Name() + ": " + originalTrainerName;
             });
         }
 
@@ -1483,7 +1561,7 @@ namespace CTRPluginFramework {
 
                 return false;
             }, [&]() -> string {
-                return "Latest OT: " + handler;
+                return entry->Name() + ": " + handler;
             });
         }
     }
@@ -1506,10 +1584,10 @@ namespace CTRPluginFramework {
         // Read the current box status and check if they are not fully unlocked
         if (Process::Read8(address, checkUnlockedBox) && !isBoxesUnlocked(checkUnlockedBox)) {
             if (unlockBoxes())
-                OSD::Notify("All boxes unlocked!"); // Notify the user that all boxes are unlocked
+                MessageBox(CenterAlign(getLanguage->Get("EDITOR_BOXES_UNLOCKED")), DialogType::DialogOk, ClearScreen::Both)(); // Notify the user that all boxes are unlocked
         }
 
-        else OSD::Notify("Already unlocked all boxes!"); // If all boxes are already unlocked
+        else MessageBox(CenterAlign(getLanguage->Get("EDITOR_BOXES_ALREADY_UNLOCKED")), DialogType::DialogOk, ClearScreen::Both)(); // If all boxes are already unlocked
     }
 
     void PCAnywhere(MenuEntry *entry) {
@@ -1521,6 +1599,10 @@ namespace CTRPluginFramework {
             return;
     }
 
+    u32 GetSpeciesPointer(void) {
+        return AutoGameSet(0x8C861C8, 0x8C9E134);
+    }
+
     bool ClonePokemon(u8 srcBox, u8 srcPosition, u8 destBox, u8 destPosition) {
         PK6 pokemon; // Pokemon object to hold data
 
@@ -1530,17 +1612,17 @@ namespace CTRPluginFramework {
 
         // Retrieve Pokemon data from source
         if (!GetPokemon(source, &pokemon)) {
-            OSD::Notify("Failed to retrieve Pokemon from source");
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_DATA")), DialogType::DialogOk, ClearScreen::Both)();
             return false;
         }
 
         // Set Pokemon data to destination
         if (!SetPokemon(destination, &pokemon)) {
-            OSD::Notify("Failed to set Pokemon to destination");
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_PASTE")), DialogType::DialogOk, ClearScreen::Both)();
             return false;
         }
 
-        OSD::Notify("Pokemon cloned successfully");
+        MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)();
         return true;
     }
 
@@ -1550,34 +1632,103 @@ namespace CTRPluginFramework {
 
     bool SetBoxPosition(u8 &srcBox, u8 &srcPosition, u8 &destBox, u8 &destPosition) {
         // Get source box and position from the user
-        if (!KeyboardHandler<u8>::Set("Copy from which box:", true, false, 2, srcBox, 1, 1, 31) ||
-            !KeyboardHandler<u8>::Set("Which position in box " + Utils::ToString(srcBox, 0) + ":", true, false, 2, srcPosition, 1, 1, 31)) {
-            OSD::Notify("Failed to get source box or position");
+        if (!KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_CLONE_START_BOX"), true, false, 2, srcBox, 1, 1, 31) ||
+            !KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_CLONE_BOX_POSITION") + " " + Utils::ToString(srcBox, 0) + ":", true, false, 2, srcPosition, 1, 1, 31)) {
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_INIT")), DialogType::DialogOk, ClearScreen::Both)();
             return false;
         }
 
         // Get destination box and position from the user
-        if (!KeyboardHandler<u8>::Set("Paste to box:", true, false, 2, destBox, 1, 1, 31) ||
-            !KeyboardHandler<u8>::Set("Which position in box " + Utils::ToString(destBox, 0) + " to paste:", true, false, 2, destPosition, 1, 1, 31)) {
-            OSD::Notify("Failed to get destination box or position");
+        if (!KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_CLONE_PASTE_BOX"), true, false, 2, destBox, 1, 1, 31) ||
+            !KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_CLONE_PASTE_BOX_POSITION") + " " + Utils::ToString(destBox, 0), true, false, 2, destPosition, 1, 1, 31)) {
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_INIT")), DialogType::DialogOk, ClearScreen::Both)();
             return false;
         }
 
         // Validate the box and position ranges
         if (!ValidateBoxPosition(srcBox, srcPosition) || !ValidateBoxPosition(destBox, destPosition)) {
-            OSD::Notify("Invalid box or position input");
+            MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_INIT")), DialogType::DialogOk, ClearScreen::Both)();
             return false;
         }
 
         return true;
     }
 
-    void HandleCloneProcess(MenuEntry *entry) {
+    void Cloning(MenuEntry *entry) {
         u8 srcBox = 0, srcPosition = 0, destBox = 0, destPosition = 0;
 
         if (SetBoxPosition(srcBox, srcPosition, destBox, destPosition))
             ClonePokemon(srcBox, srcPosition, destBox, destPosition);
 
-        else OSD::Notify("Invalid box or position input");
+        else MessageBox(CenterAlign(getLanguage->Get("EDITOR_CLONE_FAILED_INIT")), DialogType::DialogOk, ClearScreen::Both)();
+    }
+
+    static u32 tradeData;
+
+    // Adopted from old project, credit: developer of Multi-Pokemon Framework & H4x0rSpooky
+    void CopyPokemonInTrade(MenuEntry *entry) {
+        static const vector<u32> address = {
+            AutoGameSet(
+                {0x850CC94, 0x850CCC4, 0x8C861C8},
+                {0x8523D14, 0x8523D68, 0x8C9E134}),
+        };
+
+        // Check if the user is in trade or not
+        if (Process::Read32(address[0], tradeData) && tradeData == 0x5544) {
+            // Must have the user hold down the hotkey
+            if (entry->Hotkeys[0].IsDown()) {
+                // Reads if the Pokemon data is empty or not, otherwise copy the offered Pokemon
+                if (Process::Read32(address[1], tradeData) && tradeData != 0)
+                    Process::CopyMemory((u8*)address[2], (u8*)address[1], 0xE8);
+            }
+        }
+    }
+
+    // Adopted from old project
+    static u8 originalLoc[2];
+    static u32 original[0xE8];
+
+    void OriginalPokemonTemp(void) {
+        PK6 pokemon;
+        File temp("temp.bin", File::RWC);
+        u32 location = (((originalLoc[1] - 1) * 0xE8) + ((originalLoc[0] - 1) * 6960 + GetSpeciesPointer()));
+
+        if (GetPokemon(location, &pokemon)) {
+            if (temp.Dump(location, 0xE8) == RS_SUCCESS) {
+                File readTemp("temp.bin");
+
+                if (readTemp.Read(original, 0xE8) == RS_SUCCESS) {
+                    MessageBox(CenterAlign(getLanguage->Get("PLUGIN_SUCCESS")), DialogType::DialogOk, ClearScreen::Both)();
+                    return;
+                }
+            }
+        }
+    }
+
+    void SetKeepOriginalPokemon(MenuEntry *entry) {
+        if (KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_BOX"), true, false, 2, originalLoc[0], 0, 1, 31, nullptr)) {
+            if (KeyboardHandler<u8>::Set(getLanguage->Get("EDITOR_POSITION"), true, false, 2, originalLoc[1], 0, 1, 30, nullptr)) {
+                OriginalPokemonTemp();
+                return;
+            }
+        }
+    }
+
+    void KeepOriginalPokemon(MenuEntry *entry) {
+        u32 location = (((originalLoc[1] - 1) * 0xE8) + ((originalLoc[0] - 1) * 6960 + GetSpeciesPointer()));
+
+        if (entry->IsActivated()) {
+            if (original[0] != 0)  {
+                if (!Process::CopyMemory((u8*)location, original, 0xE8))
+                    return;
+            }
+
+            else entry->Disable();
+        }
+
+        if (!entry->IsActivated()) {
+            if (File::Exists("temp.bin"))
+                File::Remove("temp.bin");
+        }
     }
 }
