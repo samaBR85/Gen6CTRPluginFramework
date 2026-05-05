@@ -315,7 +315,7 @@ namespace CTRPluginFramework {
             *movement += new MenuEntry(getLanguage->Get("MISC_MODEL_SWAP"), nullptr, ModelSwap); // <W, tested: O3DS/O2DS - Y/OR
 
         *movement += new MenuEntry(getLanguage->Get("MISC_FAST_WALK_RUN"), FastWalkRun); // <W, tested: O3DS/O2DS - Y/OR
-        *movement += new MenuEntry(getLanguage->Get("MISC_WALK_THROUGH_WALLS"), WalkThroughWalls); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_WALK_THROUGH_WALLS"), WalkThroughWalls), {Key::R, ""}); // <W, tested: O3DS/O2DS - Y/OR
         *movement += new MenuEntry(getLanguage->Get("MISC_STAY_IN_ACTION"), StayInAction); // <W, tested: O3DS/O2DS - Y/OR
         *movement += new MenuEntry(getLanguage->Get("MISC_ACTION_MUSIC"), ApplyMusic, ActionMusic); // <W, tested: O3DS/O2DS - Y/OR
         *movement += HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_TELEPORTATION"), nullptr, Teleportation), {Key::L, ""}); // <W, tested: O3DS/O2DS - Y/OR
@@ -351,7 +351,7 @@ namespace CTRPluginFramework {
     }
 
     int main(void) {
-        PluginMenu *menu = new PluginMenu("Gen 6 CTRPluginFramework", 0, 1, 2, "Gen 6 CTRPluginFramework is a 3gx plugin for Pokemon X, Y, Omega Ruby, and Alpha Sapphire on the Nintendo 3DS console. This plugin is a continuation of Multi-Pokémon Framework, which is no longer active.\n\nRepository:\ngithub.com/biometrix76");
+        PluginMenu *menu = new PluginMenu("Gen 6 CTRPluginFramework", 0, 1, 3, "Gen 6 CTRPluginFramework is a 3gx plugin for Pokemon X, Y, Omega Ruby, and Alpha Sapphire on the Nintendo 3DS console. This plugin is a continuation of Multi-Pokémon Framework, which is no longer active.\n\nRepository:\ngithub.com/biometrix76");
         // Enable menu synchronization with the game's frame rate
         menu->SynchronizeWithFrame(true);
         // Pause the execution for 100 milliseconds to ensure the menu is properly initialized

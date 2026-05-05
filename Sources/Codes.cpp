@@ -1365,7 +1365,7 @@ namespace CTRPluginFramework {
         };
 
         if (Process::Write32(address[0], {0xE3A01000, 0xE12FFF1E, 0xE3A06000, 0xE12FFF1E}, original, entry, saved)) {
-            if (entry->IsActivated()) {
+            if (entry->IsActivated() && entry->Hotkeys[0].IsDown()) {
                 updateMemory(
                     true,
                     address,
