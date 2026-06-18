@@ -6,6 +6,18 @@
 namespace CTRPluginFramework {
     using GSPFormat = GSPGPU_FramebufferFormat;
 
+    // Set by the plugin's "Show ON/OFF notifications" checkbox; read by the menu's entry-toggle
+    // handler (PluginMenuHome::_TriggerEntry) to decide whether to pop a toast the INSTANT a
+    // built-in cheat is toggled. Firing there (not from the cheat's per-frame GameFunc) makes the
+    // toast appear as soon as the menu closes instead of seconds later.
+    extern bool g_entryToggleNotif;
+
+    // The MenuEntry* of that very "Show ON/OFF notifications" checkbox (stored as void* to avoid a
+    // Menu header dependency). _TriggerEntry uses it to (a) update g_entryToggleNotif the instant
+    // the checkbox is toggled and (b) give the checkbox a single "Notifications: ON/OFF" toast
+    // instead of the generic "<name>: ON/OFF" — avoiding a double toast.
+    extern void *g_entryToggleNotifSrc;
+
     class Screen {
         public:
             bool IsTop;

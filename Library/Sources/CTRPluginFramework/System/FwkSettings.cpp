@@ -17,6 +17,13 @@ namespace CTRPluginFramework {
         settings.BackgroundSecondaryColor = Color::BlackGrey;
         settings.CursorFadeValue = 0.2f;
 
+        // Menu accents (original look: white cursor glow, plain light-gray buttons)
+        settings.MenuCursorAccent = Color::White;
+        {
+            auto &hb = settings.HomeButtons;
+            hb.Favorites = hb.GameGuide = hb.AppGuide = hb.Search = hb.ActionReplay = hb.Tools = Color::Gainsboro;
+        }
+
         // Keyboard colors
         {
             auto &kb = settings.Keyboard;

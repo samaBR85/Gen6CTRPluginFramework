@@ -77,6 +77,7 @@ namespace CTRPluginFramework {
             PluginMenuTools *_tools;
             PluginMenuExecuteLoop *_executeLoop;
             GuideReader *_guide;
+            GuideReader *_appGuide;
             HexEditor _hexEditor;
             vector<CallbackPointer> _callbacks;
             vector<CallbackPointer> _callbacksTrashBin;

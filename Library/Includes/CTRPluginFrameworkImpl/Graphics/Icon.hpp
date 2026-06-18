@@ -223,7 +223,7 @@ namespace CTRPluginFramework {
             static int DrawCustomIcon(const CustomIcon &icon, int posX, int posY);
 
         private:
-            static int DrawImg(u8 *img, int posX, int posY, int sizeX, int sizeY);
+            static int DrawImg(u8 *img, int posX, int posY, int sizeX, int sizeY, bool tintable = true);
     };
 }
 

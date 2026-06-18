@@ -12,6 +12,7 @@ namespace CTRPluginFramework {
         SCREENSHOT,
         MISCELLANEOUS,
         SETTINGS,
+        HOTKEYS,
     };
 
     static int g_mode = NORMAL;
@@ -22,6 +23,7 @@ namespace CTRPluginFramework {
         _miscellaneousMenu("Miscellaneous"),
         _screenshotMenu("Screenshots"),
         _settingsMenu("Settings"),
+        _hotkeysMenu("Hotkeys"),
         _hexEditorEntry(nullptr),
         _hexEditor(hexEditor),
         _menu(&_mainMenu, nullptr),
@@ -34,26 +36,51 @@ namespace CTRPluginFramework {
 
     static void MenuHotkeyModifier(void) {
         u32 keys = Preferences::MenuHotkeys;
-        (HotkeysModifier(keys, "Select the hotkeys you'd like to use to open the menu."))();
+        (HotkeysModifier(keys, "Pick the button(s) to open or close the\nplugin menu.\n\nDefault: Select."))();
 
         if (keys != 0)
             Preferences::MenuHotkeys = keys;
     }
 
+    static void FavoriteHotkeyModifier(void) {
+        u32 keys = Preferences::FavoriteHotkeys;
+        (HotkeysModifier(keys, "Pick the button(s) to FAVORITE the\nhighlighted item.\n\nWorks while the menu is open.\nDefault: X."))();
+
+        if (keys != 0)
+            Preferences::FavoriteHotkeys = keys;
+    }
+
+    static void InfoHotkeyModifier(void) {
+        u32 keys = Preferences::InfoHotkeys;
+        (HotkeysModifier(keys, "Pick the button(s) to show the INFO\nnote of the highlighted item.\n\nWorks while the menu is open.\nDefault: Y."))();
+
+        if (keys != 0)
+            Preferences::InfoHotkeys = keys;
+    }
+
+    static void KeyboardHotkeyModifier(void) {
+        u32 keys = Preferences::KeyboardHotkeys;
+        (HotkeysModifier(keys, "Pick the button(s) to open the highlighted\nitem's editor.\n\nWorks while the menu is open.\nDefault: START."))();
+
+        if (keys != 0)
+            Preferences::KeyboardHotkeys = keys;
+    }
+
     void PluginMenuTools::UpdateSettings(void) {
-        auto item = _settingsMenu.begin() + 2;
+        // The 5 checkbox entries are indices 0..4; "Set Backlight" (index 5) is a non-checkbox action, skipped.
+        auto item = _settingsMenu.begin();
 
-        if (Preferences::IsEnabled(Preferences::UseFloatingBtn))
-            (*item++)->AsMenuEntryTools().Enable();
-
-        else (*item++)->AsMenuEntryTools().Disable();
-
-        if (Preferences::IsEnabled(Preferences::AutoSaveCheats))
+        if (Preferences::IsEnabled(Preferences::AutoSaveFavorites))
             (*item++)->AsMenuEntryImpl().Enable();
 
         else (*item++)->AsMenuEntryImpl().Disable();
 
-        if (Preferences::IsEnabled(Preferences::AutoSaveFavorites))
+        if (Preferences::IsEnabled(Preferences::AutoLoadFavorites))
+            (*item++)->AsMenuEntryImpl().Enable();
+
+        else (*item++)->AsMenuEntryImpl().Disable();
+
+        if (Preferences::IsEnabled(Preferences::AutoSaveCheats))
             (*item++)->AsMenuEntryImpl().Enable();
 
         else (*item++)->AsMenuEntryImpl().Disable();
@@ -63,10 +90,10 @@ namespace CTRPluginFramework {
 
         else (*item++)->AsMenuEntryImpl().Disable();
 
-        if (Preferences::IsEnabled(Preferences::AutoLoadFavorites))
-            (*item)->AsMenuEntryImpl().Enable();
+        if (Preferences::IsEnabled(Preferences::UseFloatingBtn))
+            (*item)->AsMenuEntryTools().Enable();
 
-        else (*item)->AsMenuEntryImpl().Disable();
+        else (*item)->AsMenuEntryTools().Disable();
 
         item = _miscellaneousMenu.begin();
 
@@ -345,7 +372,7 @@ namespace CTRPluginFramework {
                 ///< Hotkeys
                 case 1: {
                     u32 keys = Screenshot::Hotkeys;
-                    (HotkeysModifier(keys, "Select the hotkeys you'd like to use to take a new screenshot."))();
+                    (HotkeysModifier(keys, "Pick the button(s) to use to take a new\nscreenshot."))();
 
                     if (keys != 0)
                         Screenshot::Hotkeys = keys;
@@ -443,6 +470,7 @@ namespace CTRPluginFramework {
                 LCDBacklight *backlights = Preferences::Backlights;
                 backlights += userchoice == 2;
                 backlights->isEnabled = !backlights->isEnabled;
+                Preferences::MarkDirty(); // backlight enable/disable changed
                 continue;
             }
 
@@ -456,6 +484,7 @@ namespace CTRPluginFramework {
                 backlight = max(backlight, static_cast<u16>(2));
                 backlight = min(backlight, static_cast<u16>(0x3FF));
                 Preferences::Backlights[userchoice == 3].value = backlight;
+                Preferences::MarkDirty(); // backlight value changed
             }
         }
     }
@@ -469,6 +498,7 @@ namespace CTRPluginFramework {
         _mainMenu.Append(new MenuEntryTools("Miscellaneous", nullptr, Icon::DrawMore, new u32(MISCELLANEOUS)));
         _mainMenu.Append(new MenuEntryTools("Screenshots", nullptr, Icon::DrawUnsplash, new u32(SCREENSHOT)));
         _mainMenu.Append(new MenuEntryTools("Settings", nullptr, Icon::DrawSettings, this));
+        _mainMenu.Append(new MenuEntryTools("Hotkeys", nullptr, Icon::DrawGameController, new u32(HOTKEYS)));
         _mainMenu.Append(new MenuEntryTools("Power-off 3DS", Shutdown, Icon::DrawShutdown));
         _mainMenu.Append(new MenuEntryTools("Reboot 3DS", Reboot, Icon::DrawRestart));
 
@@ -482,14 +512,20 @@ namespace CTRPluginFramework {
         _screenshotMenu.Append(new MenuEntryTools("Config", ScreenshotMenuCallback, Icon::DrawSettings));
         _screenshotMenu.Append((g_screenshotEntry = new MenuEntryTools("Screenshot: " << Color::LimeGreen << KeysToString(Screenshot::Hotkeys) << "\x18, " << Color::Orange << "Both screens", Screenshot_Enabler, true)));
 
-        // Settings menu
-        _settingsMenu.Append(new MenuEntryTools("Change Menu Hotkeys", MenuHotkeyModifier, Icon::DrawGameController));
-        _settingsMenu.Append(new MenuEntryTools("Set Backlight (Experimental)", EditBacklight, false, false));
-        _settingsMenu.Append(new MenuEntryTools("Use Floating Button", [] {Preferences::Toggle(Preferences::UseFloatingBtn);}, true, Preferences::IsEnabled(Preferences::UseFloatingBtn)));
-        _settingsMenu.Append(new MenuEntryTools("Save Enabled Cheats", [] { Preferences::Toggle(Preferences::AutoSaveCheats);}, true, Preferences::IsEnabled(Preferences::AutoSaveCheats)));
+        // Hotkeys page — all 4 menu key binds grouped together (open the rebind screen on select)
+        _hotkeysMenu.Append(new MenuEntryTools("Open/Close Menu (default Select)", MenuHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools("Favorite item (default X)", FavoriteHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools("Show item Info (default Y)", InfoHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools("Open item Editor (default START)", KeyboardHotkeyModifier, Icon::DrawGameController));
+
+        // Settings menu — UpdateSettings() indexes the 5 checkbox entries by position (begin()+0 .. +4).
+        // "Set Backlight" is a non-checkbox action entry and MUST stay last (UpdateSettings skips it).
         _settingsMenu.Append(new MenuEntryTools("Save Favorites", [] {Preferences::Toggle(Preferences::AutoSaveFavorites);}, true, Preferences::IsEnabled(Preferences::AutoSaveFavorites)));
+        _settingsMenu.Append(new MenuEntryTools("Load Favorites at Start", [] {Preferences::Toggle(Preferences::AutoLoadFavorites);}, true, Preferences::IsEnabled(Preferences::AutoLoadFavorites)));
+        _settingsMenu.Append(new MenuEntryTools("Save Enabled Cheats", [] {Preferences::Toggle(Preferences::AutoSaveCheats);}, true, Preferences::IsEnabled(Preferences::AutoSaveCheats)));
         _settingsMenu.Append(new MenuEntryTools("Load Enabled Cheats at Start", [] {Preferences::Toggle(Preferences::AutoLoadCheats);}, true, Preferences::IsEnabled(Preferences::AutoLoadCheats)));
-        _settingsMenu.Append(new MenuEntryTools("Load Favorites at Start", [] {Preferences::Toggle(Preferences::AutoLoadFavorites);}, true, Preferences::IsEnabled(Preferences::AutoSaveFavorites)));
+        _settingsMenu.Append(new MenuEntryTools("Show Floating Menu Button", [] {Preferences::Toggle(Preferences::UseFloatingBtn);}, true, Preferences::IsEnabled(Preferences::UseFloatingBtn)));
+        _settingsMenu.Append(new MenuEntryTools("Set Backlight (Experimental)", EditBacklight, false, false));
     }
 
     bool PluginMenuTools::operator()(EventList &eventList, Time &delta) {
@@ -569,6 +605,11 @@ namespace CTRPluginFramework {
                 selector = _menu._selector;
                 UpdateScreenshotText();
                 _menu.Open(&_screenshotMenu);
+            }
+
+            else if (arg != nullptr && *(u32*)arg == HOTKEYS) {
+                selector = _menu._selector;
+                _menu.Open(&_hotkeysMenu);
             }
         }
 

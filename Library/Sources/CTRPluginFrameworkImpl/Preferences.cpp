@@ -7,7 +7,11 @@ namespace CTRPluginFramework {
     BMPImage *Preferences::bottomBackgroundImage = nullptr;
 
     u32 Preferences::MenuHotkeys = static_cast<u32>(Key::Select);
+    u32 Preferences::FavoriteHotkeys = static_cast<u32>(Key::X);
+    u32 Preferences::InfoHotkeys = static_cast<u32>(Key::Y);
+    u32 Preferences::KeyboardHotkeys = static_cast<u32>(Key::Start);
     u64 Preferences::Flags = 0;
+    bool Preferences::Dirty = false;
     LCDBacklight Preferences::Backlights[2];
     FwkSettings Preferences::Settings;
 
@@ -104,13 +108,25 @@ namespace CTRPluginFramework {
 
         if (OpenConfigFile(settings, header) == 0) {
             MenuHotkeys = header.hotkeys;
+            FavoriteHotkeys = header.reserved[0];
+            InfoHotkeys     = header.reserved[1];
+            KeyboardHotkeys = header.reserved[2];
             Flags = header.flags;
             memcpy(reinterpret_cast<void*>(Backlights), &header.lcdbacklights, sizeof(Backlights));
         }
 
-        // Check for hotkeys to be valid
+        // Check for hotkeys to be valid (0 = unset -> restore defaults)
         if (MenuHotkeys == 0)
             MenuHotkeys = Key::Select;
+
+        if (FavoriteHotkeys == 0)
+            FavoriteHotkeys = Key::X;
+
+        if (InfoHotkeys == 0)
+            InfoHotkeys = Key::Y;
+
+        if (KeyboardHotkeys == 0)
+            KeyboardHotkeys = Key::Start;
     }
 
     void Preferences::LoadSavedEnabledCheats(void) {
@@ -225,37 +241,61 @@ namespace CTRPluginFramework {
     }
 
     void Preferences::WriteSettings(void) {
-        OSDImpl::DrawSaveIcon = true;
+        // Skip the whole Data.bin rewrite when nothing persisted changed since the last save.
+        // This is what makes "open the menu and close it without changing anything" instant:
+        // no SAVE icon, no SD I/O. Dirty is set by Set/Clear/Toggle + MarkDirty() at every mutator
+        // (enabled cheats, favorites, hotkeys, backlights). The full rewrite on every close was the
+        // ~10s stall the user reported.
+        if (Dirty) {
+            OSDImpl::DrawSaveIcon = true;
+            bool ok = false; // only clear Dirty after a confirmed-complete write (else retry next close)
 
-        File settings;
-        int mode = File::READ | File::WRITE | File::CREATE | File::TRUNCATE | File::SYNC;
-        Header header = {0};
+            File settings;
+            // Keep the ORIGINAL File::SYNC. On 3DS the per-write FS_WRITE_FLUSH commits incrementally
+            // and is FAST (this is how upstream's save was instant); buffering everything and flushing
+            // once on Close was actually SLOWER here (~5s SAVE-icon linger). The `if (Dirty)` gate alone
+            // already removes the redundant saves; the per-save speed comes from SYNC. No explicit
+            // Close() (upstream never closed either — SYNC already committed each write).
+            int mode = File::READ | File::WRITE | File::CREATE | File::TRUNCATE | File::SYNC;
+            Header header = {0};
 
-        copy(g_signature, g_signature + 8, header.sig);
-        header.version = SETTINGS_VERSION;
-        header.hotkeys = MenuHotkeys;
-        header.flags = Flags;
-        memcpy(&header.lcdbacklights, Backlights, sizeof(header.lcdbacklights));
+            copy(g_signature, g_signature + 8, header.sig);
+            header.version = SETTINGS_VERSION;
+            header.hotkeys = MenuHotkeys;
+            header.reserved[0] = FavoriteHotkeys;
+            header.reserved[1] = InfoHotkeys;
+            header.reserved[2] = KeyboardHotkeys;
+            header.flags = Flags;
+            memcpy(&header.lcdbacklights, Backlights, sizeof(header.lcdbacklights));
 
-        if (File::Open(settings, "Data.bin", mode) == 0) {
-            if (settings.Write(&header, sizeof(Header)) != 0)
-                goto error;
+            if (File::Open(settings, "Data.bin", mode) == 0) {
+                if (settings.Write(&header, sizeof(Header)) != 0)
+                    goto error;
 
-            if (IsEnabled(AutoSaveCheats))
-                PluginMenuExecuteLoop::WriteEnabledCheatsToFile(header, settings);
+                if (IsEnabled(AutoSaveCheats))
+                    PluginMenuExecuteLoop::WriteEnabledCheatsToFile(header, settings);
 
-            if (IsEnabled(AutoSaveFavorites))
-                PluginMenuImpl::WriteFavoritesToFile(header, settings);
+                if (IsEnabled(AutoSaveFavorites))
+                    PluginMenuImpl::WriteFavoritesToFile(header, settings);
 
-            PluginMenuImpl::WriteHotkeysToFile(header, settings);
-            header.size = settings.Tell();
-            settings.Rewind();
-            settings.Write(&header, sizeof(Header));
+                PluginMenuImpl::WriteHotkeysToFile(header, settings);
+                header.size = settings.Tell();
+                settings.Rewind();
+                ok = (settings.Write(&header, sizeof(Header)) == 0); // full write completed
+            }
+
+            error:
+            OSDImpl::DrawSaveIcon = false;
+            // Keep Dirty=true on any failure (open failed / write error via goto) so the next menu
+            // close retries the save — avoids silently dropping the in-memory changes.
+            if (ok)
+                Dirty = false;
         }
 
-        error:
+        // AR codes live in a SEPARATE file and SaveCodes() early-returns instantly when there are no
+        // codes (the case for this plugin), so keep it OUTSIDE the Dirty gate: AR users never lose
+        // edits, and users without AR codes pay nothing.
         PluginMenuActionReplay::SaveCodes();
-        OSDImpl::DrawSaveIcon = false;
     }
 
     void Preferences::Initialize(void) {

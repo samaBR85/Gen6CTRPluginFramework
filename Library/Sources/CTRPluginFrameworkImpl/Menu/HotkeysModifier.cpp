@@ -92,13 +92,19 @@ namespace CTRPluginFramework {
 
         if (sleepClose)
             _keys = oldKeys;
+
+        // Central point for ALL hotkey edits (per-entry via Hotkey::AskForKeys, and the menu binds
+        // MenuHotkeys / Favorite / Info / Keyboard which pass their u32 by reference here). Only flag
+        // a real change so unrelated opens don't force a save.
+        if (_keys != oldKeys)
+            Preferences::MarkDirty();
     }
 
     void HotkeysModifier::_DrawTop(void) const {
         Renderer::SetTarget(TOP);
         Window::TopWindow.Draw("Hotkey Modifier");
         int posY = 61;
-        Renderer::DrawSysStringReturn((const u8*)_message.c_str(), 40, posY, 300, Preferences::Settings.MainTextColor);
+        Renderer::DrawSysStringReturn((const u8*)_message.c_str(), 40, posY, 358, Preferences::Settings.MainTextColor);
     }
 
     void HotkeysModifier::_DrawBottom(void) {

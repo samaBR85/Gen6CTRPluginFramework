@@ -14,7 +14,7 @@ namespace CTRPluginFramework {
         using EventList = vector<Event>;
 
         public:
-            GuideReader(void);
+            GuideReader(const string &folderPath = "Guide");
             ~GuideReader(void){};
 
             bool Draw(void);
@@ -27,6 +27,7 @@ namespace CTRPluginFramework {
 
         private:
             bool _ProcessEvent(Event &event);
+            void _HandleMenuResult(int ret, MenuItem *item);
             void _LoadBMP(void);
 
             bool _isOpen;

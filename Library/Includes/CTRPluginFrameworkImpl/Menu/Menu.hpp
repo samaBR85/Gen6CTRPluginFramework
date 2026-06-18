@@ -40,6 +40,10 @@ namespace CTRPluginFramework {
             void Insert(MenuItem *item);
             MenuItem *Pop(void);
             int ProcessEvent(Event &event, MenuItem **userchoice);
+            // Draw the list on a chosen screen (TOP or BOTTOM). Additive: does not affect Draw().
+            void DrawAt(Target target) const;
+            // Select/activate an item by a touch on the BOTTOM screen. Returns a MenuEvent.
+            int ProcessTouch(int touchX, int touchY, MenuItem **userchoice);
             bool drawFooter;
 
         private:

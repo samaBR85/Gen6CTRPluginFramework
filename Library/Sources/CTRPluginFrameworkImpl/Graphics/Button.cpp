@@ -80,6 +80,11 @@ namespace CTRPluginFramework {
         return ret;
     }
 
+    void Button::SetFillColor(const Color &color) {
+        _customFillColor = color;
+        _useCustomFillColor = true;
+    }
+
     void Button::Draw(void) {
         if (!_isEnabled)
             return;
@@ -89,7 +94,7 @@ namespace CTRPluginFramework {
             return;
         }
 
-        const Color &fillColor = _isLocked ? Color::Gray : (_isPressed ? Color::DimGrey : (_isToggleBtn && _state ? Color::LimeGreen : Color::Gainsboro));
+        const Color &fillColor = _isLocked ? Color::Gray : (_isPressed ? Color::DimGrey : (_isToggleBtn && _state ? Color::LimeGreen : (_useCustomFillColor ? _customFillColor : Color::Gainsboro)));
         const Color &textColor = Color::Black;
 
         if (_isRounded)

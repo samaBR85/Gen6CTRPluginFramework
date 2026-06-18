@@ -77,7 +77,7 @@ namespace CTRPluginFramework {
         int pitch = tier / 10;
         int j = 0;
         float fading = 0.0f;
-        Color l(255, 255, 255);
+        Color l = Preferences::Settings.MenuCursorAccent; // theme-customizable cursor accent
         posY += height;
         u8 *dst = screen->GetLeftFrameBuffer(posX + (width - tier), posY);
         u8 *rtier = dst;
@@ -101,7 +101,7 @@ namespace CTRPluginFramework {
             rtier += rowstride;
         }
 
-        l = Color(255, 255, 255);
+        l = Preferences::Settings.MenuCursorAccent; // theme-customizable cursor accent
 
         // Middle tier
         for (int i = 0; i < tier; ++i) {

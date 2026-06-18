@@ -30,6 +30,7 @@ namespace CTRPluginFramework {
 
     // Adopted from old project, credit: developer of Multi-Pokemon Framework & H4x0rSpooky
     void IgnoreUnclickableIcons(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x4AF688, 0x4E7194);
         static u32 original;
         static bool saved = false;
@@ -788,6 +789,194 @@ namespace CTRPluginFramework {
     static int  infoViewState = 0, // State of the Pokemon info view (0: Enable, 1: Disable)
                 screenDisplay = 0; // Current information screen
 
+    // The EXP-to-level table is defined in PKHeX.cpp (CTRPluginFramework::PKHeX::growthTable)
+    namespace PKHeX { extern const int growthTable[100][6]; }
+
+    // Derive a Pokemon's level from its species growth rate and current EXP
+    static int GetPokemonLevel(u16 species, u32 exp) {
+        int type = 0; // Growth-rate index (0-5)
+
+        for (size_t t = 0; t < growthType.size(); ++t)
+            if (find(growthType[t].begin(), growthType[t].end(), (int)species) != growthType[t].end()) {
+                type = (int)t;
+                break;
+            }
+
+        // Highest level whose EXP threshold is still <= the current EXP
+        for (int l = 100; l >= 1; --l)
+            if (exp >= (u32)PKHeX::growthTable[l - 1][type])
+                return l;
+
+        return 1;
+    }
+
+    // Scan all PC boxes (31 boxes x 30 slots, 0xE8 bytes each) for the given species
+    static bool IsSpeciesInBox(u16 species) {
+        if (species == 0)
+            return false;
+
+        const u32 base = GetSpeciesPointer(); // Address of box 1 / slot 1
+        PK6 boxmon;
+
+        for (int box = 0; box < 31; ++box)
+            for (int slot = 0; slot < 30; ++slot) {
+                u32 location = base + (box * 6960) + (slot * 0xE8);
+
+                if (GetPokemon(location, &boxmon) && boxmon.species == species)
+                    return true;
+            }
+
+        return false;
+    }
+
+    // Search all PC boxes for a species (keyboard search) and list every box/slot it is in
+    void FindPokemonInBoxes(MenuEntry *entry) {
+        SearchForSpecies(entry); // fills the global speciesID (1-based dex) via keyboard search
+        int sp = speciesID;
+
+        if (sp <= 0)
+            return; // cancelled or no match
+
+        u16 species = (u16)sp;
+        const u32 base = GetSpeciesPointer(); // box 1 / slot 1
+        PK6 boxmon;
+        vector<string> locations;
+
+        for (int box = 0; box < 31; ++box)
+            for (int slot = 0; slot < 30; ++slot) {
+                u32 location = base + (box * 6960) + (slot * 0xE8);
+
+                if (GetPokemon(location, &boxmon) && boxmon.species == species)
+                    locations.push_back("Box " + to_string(box + 1) + " - Slot " + to_string(slot + 1));
+            }
+
+        string name = speciesList[species - 1];
+
+        if (locations.empty()) {
+            MessageBox(name + ": not found in any PC box.", DialogType::DialogOk, ClearScreen::Both)();
+            return;
+        }
+
+        // One location per line, left-aligned. No CenterAlign: on multi-line it clipped AND dropped lines.
+        string msg = name + " - found " + to_string((int)locations.size()) + ":\n\n";
+        int shown = (int)locations.size() < 10 ? (int)locations.size() : 10;
+
+        for (int i = 0; i < shown; ++i)
+            msg += locations[i] + "\n";
+
+        if ((int)locations.size() > shown)
+            msg += "...and " + to_string((int)locations.size() - shown) + " more";
+
+        MessageBox(msg, DialogType::DialogOk, ClearScreen::Both)();
+    }
+
+    // Color an IV by quality (31 perfect -> gold, 0 -> red)
+    static Color IvColor(u8 iv) {
+        if (iv == 31) return Color(0xF2, 0xCE, 0x70);
+        if (iv >= 26) return Color::LimeGreen;
+        if (iv >= 16) return Color::White;
+        if (iv >= 1)  return Color::Orange;
+        return Color::Red;
+    }
+
+    // Color an EV by investment (252 maxed -> gold, trained -> green, 0 -> gray)
+    static Color EvColor(u8 ev) {
+        if (ev >= 252) return Color(0xF2, 0xCE, 0x70);
+        if (ev > 0)    return Color::LimeGreen;
+        return Color::Gray;
+    }
+
+    // Color a stat label (display index i, 0=HP) by nature: green if raised, red if lowered, else 'def'
+    static Color NatureStatColor(int i, int boost, int lower, Color def) {
+        if (boost == lower) return def; // neutral nature
+        if (i >= 1 && i - 1 == boost) return Color::LimeGreen;
+        if (i >= 1 && i - 1 == lower) return Color::Red;
+        return def;
+    }
+
+    // Hidden Power types in HP index order (0-15)
+    static const char *hiddenPowerTypes[16] = {
+        "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel",
+        "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark"
+    };
+
+    // Base HP per National Dex species (index = species - 1). Used for max HP = ((2*base+IV+EV/4)*Lv/100)+Lv+10.
+    static const u16 baseHP[721] = {
+        45,60,80,39,58,78,44,59,79,45,       // 1
+        50,60,40,45,65,40,63,83,30,55,       // 11
+        40,65,35,60,35,60,50,75,55,70,       // 21
+        90,46,61,81,70,95,38,73,115,140,     // 31
+        40,75,45,60,75,35,60,60,70,10,       // 41
+        35,40,65,50,80,40,65,55,90,40,       // 51
+        65,90,25,40,55,70,80,90,50,65,       // 61
+        80,40,80,40,55,80,50,65,90,95,       // 71
+        25,50,52,35,60,65,90,80,105,30,      // 81
+        50,30,45,60,35,60,85,30,55,40,       // 91
+        60,60,95,50,60,50,50,90,40,65,       // 101
+        80,105,250,65,105,30,55,45,80,30,    // 111
+        60,40,70,65,65,65,65,75,20,95,       // 121
+        130,48,55,130,65,65,65,35,70,30,     // 131
+        60,80,160,90,90,90,41,61,91,106,     // 141
+        100,45,60,80,39,58,78,50,65,85,      // 151
+        35,85,60,100,40,55,40,70,85,75,      // 161
+        125,20,50,90,35,55,40,65,55,70,      // 171
+        90,75,70,100,70,90,35,55,75,55,      // 181
+        30,75,65,55,95,65,95,60,95,60,       // 191
+        48,190,70,50,75,100,65,75,60,90,     // 201
+        65,70,20,80,55,60,90,40,50,50,       // 211
+        100,55,35,75,45,65,65,45,75,75,      // 221
+        90,90,85,73,55,35,50,45,45,45,       // 231
+        95,255,90,115,100,50,70,100,106,106, // 241
+        100,40,50,70,45,60,80,50,70,100,     // 251
+        35,70,38,78,45,50,60,50,60,40,       // 261
+        60,80,40,70,90,40,60,40,60,28,       // 271
+        38,68,40,70,60,60,60,80,150,31,      // 281
+        61,1,64,84,104,72,144,50,30,50,      // 291
+        70,50,50,50,60,70,30,60,40,70,       // 301
+        60,60,65,65,50,70,100,45,70,130,     // 311
+        170,60,70,70,60,80,60,45,50,80,      // 321
+        50,70,45,75,73,73,90,90,50,110,      // 331
+        43,63,40,60,66,86,45,75,20,95,       // 341
+        70,60,44,64,20,40,99,75,65,95,       // 351
+        50,80,70,90,110,35,55,55,100,43,     // 361
+        45,65,95,40,60,80,80,80,80,80,       // 371
+        80,100,100,105,100,50,55,75,95,44,   // 381
+        64,76,53,64,84,40,55,85,59,79,       // 391
+        37,77,45,60,80,40,60,67,97,30,       // 401
+        60,40,60,70,30,70,60,55,85,45,       // 411
+        70,76,111,75,90,150,55,65,60,100,    // 421
+        49,71,45,63,103,57,67,50,20,100,     // 431
+        76,50,58,68,108,135,40,70,68,108,    // 441
+        40,70,48,83,74,49,69,45,60,90,       // 451
+        70,70,110,115,100,75,75,85,86,65,    // 461
+        65,75,110,85,68,60,45,70,50,75,      // 471
+        80,75,100,90,91,110,150,120,80,100,  // 481
+        70,100,120,100,45,60,75,65,90,110,   // 491
+        55,75,95,45,60,45,65,85,41,64,       // 501
+        50,75,50,75,50,75,76,116,50,62,      // 511
+        80,45,75,55,70,85,65,67,60,110,      // 521
+        103,75,85,105,50,75,105,120,75,45,   // 531
+        55,75,30,40,60,40,60,45,70,70,       // 541
+        50,60,95,70,105,75,50,70,55,65,      // 551
+        72,38,58,54,74,55,75,50,80,40,       // 561
+        60,55,75,45,60,70,45,65,110,62,      // 571
+        75,36,51,71,60,80,55,50,70,69,       // 581
+        114,55,100,165,50,70,44,74,40,60,    // 591
+        60,35,65,85,55,75,50,60,60,46,       // 601
+        66,76,55,95,80,50,80,109,45,65,      // 611
+        77,59,89,45,65,95,70,100,70,110,     // 621
+        85,58,52,72,92,55,85,91,91,91,       // 631
+        79,79,100,100,89,125,91,100,71,56,   // 641
+        61,88,40,59,75,41,54,72,38,85,       // 651
+        45,62,78,38,45,80,62,86,44,54,       // 661
+        78,66,123,67,95,75,62,74,45,59,      // 671
+        60,78,101,62,82,53,86,42,72,50,      // 681
+        65,50,71,44,62,58,82,77,123,95,      // 691
+        78,67,50,45,68,90,57,43,85,49,       // 701
+        65,55,95,40,85,126,126,108,50,80,    // 711
+        80                                   // 721
+    };
+
     // Callback function to display Pokemon information
     bool ViewInfoCallback(const Screen &screen) {
         // Static data for Pokemon and UI settings
@@ -823,9 +1012,15 @@ namespace CTRPluginFramework {
         if (Controller::IsKeyPressed(Key::L) && (currentOffset - stepSize) >= address)
             currentOffset -= stepSize;
 
+        // Party slot index (0..5) for this position
+        u32 slotIndex = (currentOffset - address) / stepSize;
+
         // Fetch the current Pokemon data
-        if (!IsValid(currentOffset, pokemon))
-            return false;
+        if (!IsValid(currentOffset, pokemon)) {
+            // Empty party slot: show just its number in white so it's clear the slot exists but is empty.
+            screen.DrawSysfont("[#" + to_string(slotIndex + 1) + "]", 5, 5, Color::White);
+            return true;
+        }
 
         // Get UI settings for colors and positions, for screen drawing
         const FwkSettings &settings = FwkSettings::Get();
@@ -835,21 +1030,80 @@ namespace CTRPluginFramework {
         int lineHeight = 12; // Line height for text spacing
 
         // Display basic Pokemon information for the first and default screen
-        if (screenDisplay == 0) {
-            const CTRPluginFramework::Screen &screen = CTRPluginFramework::OSD::GetTopScreen();
-            u32 slotIndex = (currentOffset - address) / stepSize; // Calculate Pokemon slot index
-            screen.DrawSysfont(headerColor << "[" << getLanguage->Get("PK_VIEW_SLOT") << " " << Utils::ToString(slotIndex + 1, 0) << "]", xPos, yPos, textColor);
-            yPos += lineHeight;
-            screen.DrawSysfont(getLanguage->Get("PK_VIEW_SPECIES") << " " << Color(0xF2, 0xCE, 0x70) << speciesList[pokemon->species - 1], xPos, yPos, textColor);
-            yPos += lineHeight;
-            screen.DrawSysfont(getLanguage->Get("PK_VIEW_NATURE") << " " << textColor << natureList[pokemon->nature], xPos, yPos, textColor);
-            yPos += lineHeight;
-            screen.DrawSysfont(getLanguage->Get("PK_VIEW_ITEM") << " " << (pokemon->heldItem == 0 ? Color::Gray : textColor) << (pokemon->heldItem == 0 ? getLanguage->Get("PK_VIEW_NONE") : heldItemList[pokemon->heldItem - 1]), xPos, yPos, textColor);
-            yPos += lineHeight;
-            screen.DrawSysfont(getLanguage->Get("PK_VIEW_ABILITY") << " " << textColor << abilityList[pokemon->ability - 1], xPos, yPos, textColor);
-        }
+        // Two info panels side by side. The right-column X is tuned per page:
+        // the Basic page has a wide left column (long "Ability:" line); the IV/EV page is narrow.
+        const int leftX = 5;
 
-        else if (screenDisplay == 1) {
+        if (screenDisplay == 0) {
+            const int rightX = 155; // Basic | Moves (labels abbreviated, so the column moved left)
+            // Left column: basic info
+            xPos = leftX; yPos = 5;
+            int level = GetPokemonLevel(pokemon->species, pokemon->exp);
+
+            // Box-ownership (cached per slot) -> colors the [Sl N] bracket green/red
+            static u16 cachedSpecies[6] = {0};
+            static bool cachedInBox[6] = {false};
+            if (slotIndex < 6 && cachedSpecies[slotIndex] != pokemon->species) {
+                cachedSpecies[slotIndex] = pokemon->species;
+                cachedInBox[slotIndex] = IsSpeciesInBox(pokemon->species);
+            }
+            bool inBox = slotIndex < 6 && cachedInBox[slotIndex];
+
+            // Gender symbol: 0 = Male (blue), 1 = Female (pink), 2 = Genderless (none)
+            int gender = (pokemon->fatefulEncounterGenderForm & 0x6) >> 1;
+            string genderSym;
+            if (gender == 0) genderSym = Color::DodgerBlue << "\xE2\x99\x82";
+            else if (gender == 1) genderSym = Color::Magenta << "\xE2\x99\x80";
+
+            bool shiny = (u16)(pokemon->TID ^ pokemon->SID ^ (u16)pokemon->PID ^ (u16)(pokemon->PID >> 16)) < 16;
+            bool pkrs = pokemon->infected != 0;
+
+            // Precompute max HP (standard formula; works for every Pokemon) and Hidden Power type (IV LSBs)
+            u8 ivHP = pokemon->iv32 & 0x1F;
+            u8 evHP = pokemon->EV[0];
+            int bHP = (pokemon->species >= 1 && pokemon->species <= 721) ? baseHP[pokemon->species - 1] : 0;
+            int maxHP = (pokemon->species == 292) ? 1 // Shedinja is always 1 HP
+                      : ((2 * bHP + ivHP + evHP / 4) * level / 100) + level + 10;
+            int hpSum = (pokemon->iv32 & 1)
+                      + (((pokemon->iv32 >> 5) & 1) << 1)
+                      + (((pokemon->iv32 >> 10) & 1) << 2)
+                      + (((pokemon->iv32 >> 15) & 1) << 3)
+                      + (((pokemon->iv32 >> 20) & 1) << 4)
+                      + (((pokemon->iv32 >> 25) & 1) << 5);
+
+            // Line 1: [#N] (green = owned in box / red = not) <species gold> <gender>
+            string l1 = (inBox ? Color::LimeGreen : Color::Red) << "[#" << Utils::ToString(slotIndex + 1, 0) << "] " << Color(0xF2, 0xCE, 0x70) << speciesList[pokemon->species - 1];
+            if (!genderSym.empty()) l1 = l1 << " " << genderSym;
+            screen.DrawSysfont(l1, xPos, yPos, textColor);
+            yPos += lineHeight;
+
+            // Line 2: Lv.X - HP: Y [star] [pkrs]
+            string l2 = textColor << "Lv." << Utils::ToString(level, 0) << " - HP: " << to_string(maxHP);
+            if (shiny) l2 = l2 << " " << Color(0xF2, 0xCE, 0x70) << "\xE2\x98\x85";
+            if (pkrs) l2 = l2 << " " << Color::Magenta << "pkrs";
+            screen.DrawSysfont(l2, xPos, yPos, textColor);
+            yPos += lineHeight;
+
+            // Nature (the raised/lowered stat is colored on the IV/EV page)
+            screen.DrawSysfont("Ntr: " << textColor << natureList[pokemon->nature], xPos, yPos, textColor);
+            yPos += lineHeight;
+
+            // Ability (cyan + "(HA)" when it is the Hidden Ability)
+            bool hiddenAbility = pokemon->abilityNumber == 4;
+            string abilityLine = "Abt: " << (hiddenAbility ? Color::Cyan : textColor) << abilityList[pokemon->ability - 1];
+            if (hiddenAbility) abilityLine = abilityLine << Color::Cyan << " (HA)";
+            screen.DrawSysfont(abilityLine, xPos, yPos, textColor);
+            yPos += lineHeight;
+
+            // Hidden Power
+            screen.DrawSysfont("Hid.P: " << Color::White << hiddenPowerTypes[hpSum * 15 / 63], xPos, yPos, textColor);
+            yPos += lineHeight;
+
+            // Item (label spelled out, per user preference)
+            screen.DrawSysfont("Item: " << (pokemon->heldItem == 0 ? Color::Gray : textColor) << (pokemon->heldItem == 0 ? getLanguage->Get("PK_VIEW_NONE") : heldItemList[pokemon->heldItem - 1]), xPos, yPos, textColor);
+
+            // Right column: moves
+            xPos = rightX; yPos = 5;
             screen.DrawSysfont(headerColor << getLanguage->Get("PK_VIEW_MOVES"), xPos, yPos, textColor);
             yPos += lineHeight;
 
@@ -861,29 +1115,37 @@ namespace CTRPluginFramework {
             }
         }
 
-        // Display Pokemon IVs
-        else if (screenDisplay == 2) {
+        else if (screenDisplay == 1) {
+            const int rightX = 105; // IV | EV (short values, so the columns sit much closer)
+            int boost = pokemon->nature / 5, lower = pokemon->nature % 5;
+
+            // Left column: IVs. Stat name colored by nature (green raised / red lowered); value colored by quality.
+            xPos = leftX; yPos = 5;
             screen.DrawSysfont(headerColor << getLanguage->Get("PK_VIEW_IV"), xPos, yPos, textColor);
             yPos += lineHeight;
 
-            // Loop through and display each IV value
-            for (int i = 0; i < statNames.size(); i++) {
-                u8 ivValue = (u8)(pokemon->iv32 >> (5 * i)) & 0x1F; // Extract IV value
-                screen.DrawSysfont(statNames[i] + ": " + to_string(ivValue), xPos, yPos, textColor);
+            int ivTotal = 0;
+            for (int i = 0; i < (int)statNames.size(); i++) {
+                u8 ivValue = (pokemon->iv32 >> (5 * i)) & 0x1F; // Extract IV value
+                ivTotal += ivValue;
+                screen.DrawSysfont(NatureStatColor(i, boost, lower, textColor) << statNames[i] << textColor << ": " << IvColor(ivValue) << to_string(ivValue), xPos, yPos, textColor);
                 yPos += lineHeight;
             }
-        }
+            screen.DrawSysfont("IV: " << (ivTotal == 186 ? Color(0xF2, 0xCE, 0x70) : textColor) << to_string(ivTotal) << textColor << "/186", xPos, yPos, textColor);
 
-        // Display Pokemon EVs
-        else if (screenDisplay == 3) {
+            // Right column: EVs. Stat name colored by nature too; value colored by investment; total at the bottom.
+            xPos = rightX; yPos = 5;
             screen.DrawSysfont(headerColor << getLanguage->Get("PK_VIEW_EV"), xPos, yPos, textColor);
             yPos += lineHeight;
 
-            // Loop through and display each EV value
-            for (int i = 0; i < statNames.size(); i++) {
-                screen.DrawSysfont(statNames[i] + ": " + to_string(pokemon->EV[i]), xPos, yPos, textColor);
+            int evTotal = 0;
+            for (int i = 0; i < (int)statNames.size(); i++) {
+                u8 evValue = pokemon->EV[i];
+                evTotal += evValue;
+                screen.DrawSysfont(NatureStatColor(i, boost, lower, textColor) << statNames[i] << textColor << ": " << EvColor(evValue) << to_string(evValue), xPos, yPos, textColor);
                 yPos += lineHeight;
             }
+            screen.DrawSysfont("EV: " << (evTotal > 510 ? Color::Red : textColor) << to_string(evTotal) << textColor << "/510", xPos, yPos, textColor);
         }
 
         return true; // Successful execution of the callback function
@@ -892,9 +1154,10 @@ namespace CTRPluginFramework {
     void TogglePokemonInfo(MenuEntry *entry) {
         // Check if currently in battle and if entry is activated or not
         if (IfInBattle() && entry->IsActivated()) {
-            // Check if the first hotkey is pressed
-            if (entry->Hotkeys[0].IsPressed())
-                screenDisplay = (screenDisplay + 1) % 4; // Move to the next info screen, loop back if needed
+            // ZR (hardcoded) cycles between the 2 info pages: [Basic|Moves] and [IVs|EVs].
+            // ZL is intentionally left unused so the user is free to bind it to any other function.
+            if (Controller::IsKeyPressed(Key::ZR))
+                screenDisplay = (screenDisplay + 1) % 2;
 
             // Run the callback function to display Pokemon info
             OSD::Run(ViewInfoCallback);
@@ -931,6 +1194,7 @@ namespace CTRPluginFramework {
     static u8 data8;
 
     void AllowMultipleMegas(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x8C79D86, 0x8C79D86);
         static const u32 pointer = 0x8000178;
 
@@ -1000,6 +1264,7 @@ namespace CTRPluginFramework {
     }
 
     void NoWildPokemon(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet<u32>(0x436AC8, AutoGame(0x4640EC, 0x4640E4));
         static u32 original;
         static bool saved = false;
@@ -1124,7 +1389,33 @@ namespace CTRPluginFramework {
         MessageBox(CenterAlign(getLanguage->Get("SPAWNER_SPAWNING") + " " + string(speciesList[pokemon - 1]) + " (" + getLanguage->Get("KB_SPAWNER_FORM") + " " + to_string(form + 1) + ", " + getLanguage->Get("KB_SPAWNER_LEVEL") + " " + to_string(level) + ")"), DialogType::DialogOk, ClearScreen::Both)();
     }
 
+    // --- Toggle notifications (#3) ---
+    // The gate is now the framework-side bool `g_entryToggleNotif` (OSD.hpp), set the INSTANT the
+    // user toggles (PluginMenuHome::_TriggerEntry) so toasts fire immediately and the checkbox shows
+    // a single clean "Notifications: ON/OFF" with no duplicate.
+
+    // NEUTRALIZED: the cheat ON/OFF toast now fires from _TriggerEntry at toggle time. Kept as a
+    // no-op so the ~25 call sites don't need editing.
+    void NotifyToggle(MenuEntry *entry, bool &lastState) {
+        (void)entry;
+        (void)lastState;
+    }
+
+    // Free-form toast gated by the SAME "Show ON/OFF notifications" setting (theme switch, HUD
+    // pickers, ...) so nothing pops a toast while notifications are turned off.
+    void NotifyIfEnabled(const string &msg, Color color) {
+        if (g_entryToggleNotif)
+            OSD::Notify(msg, color);
+    }
+
+    // Menu checkbox GameFunc: just mirror its state into the gate (covers the boot-loaded state).
+    // The instant toggle update + the single self-feedback toast are handled by _TriggerEntry.
+    void ShowNotifications(MenuEntry *entry) {
+        g_entryToggleNotif = entry->IsActivated();
+    }
+
     void AlwaysShiny(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static MemoryManager manager(AutoGameSet(0x14F6A4, 0x14ECA4));
 
         if (entry->IsActivated()) {
@@ -1142,6 +1433,7 @@ namespace CTRPluginFramework {
 
     // Adopted from old project, credit: developer of Multi-Pokemon Framework & ShinyTop
     void DisableShinyLock(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const char *s = AutoGameSet("69K145", "69JH45");
         static u32 original;
         static bool saved = false;
@@ -1152,6 +1444,7 @@ namespace CTRPluginFramework {
     }
 
     void CaptureRate(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x8073334, 0x80737A4);
 
         // Ensure the player is in battle
@@ -1173,6 +1466,7 @@ namespace CTRPluginFramework {
     }
 
     void CatchTrainerPokemon(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x8075474, 0x8075858);
         // Vectors to store expected values for validation.
         vector<u32> check(3);
@@ -1331,6 +1625,7 @@ namespace CTRPluginFramework {
     }
 
     void FastWalkRun(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const vector<u32> address = AutoGameSet({0x8092DE4, 0x8092F34}, {0x80845E8, 0x808475C});
 
         // Function to update memory with validation.
@@ -1348,6 +1643,7 @@ namespace CTRPluginFramework {
     }
 
     void WalkThroughWalls(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const vector<u32> address = {
             AutoGameSet(
                 {0x53ED50, AutoGame(0x80B5820, 0x80B5824), AutoGame(0x80B3A1C, 0x80B3A20)},
@@ -1390,6 +1686,7 @@ namespace CTRPluginFramework {
     }
 
     void StayInAction(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static MemoryManager manager(AutoGameSet<u32>(0x3B9C30, 0x3D5EC8));
 
         if (entry->IsActivated()) {
@@ -1424,6 +1721,7 @@ namespace CTRPluginFramework {
     }
 
     void ApplyMusic(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         if (!musicApplied)
             return;
 
@@ -1580,6 +1878,7 @@ namespace CTRPluginFramework {
     }
 
     void FlyMapInSummary(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x8C61CF0, 0x8C69330);
 
         if (Process::Read32(address) == AutoGameSet(0x6B65C4, 0x7007C0))
@@ -1612,6 +1911,7 @@ namespace CTRPluginFramework {
     }
 
     void RenameAnyPokemon(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static MemoryManager manager(AutoGameSet<u32>(0x4B1680, AutoGame(0x4EA990, 0x4EA998)));
 
         if (entry->IsActivated()) {
@@ -1627,6 +1927,7 @@ namespace CTRPluginFramework {
     }
 
     void LearnAnyTeachable(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static MemoryManager manager(AutoGameSet<u32>(0x4A0540, AutoGame(0x4D051C, 0x4D0514)));
 
         if (entry->IsActivated()) {
@@ -1642,6 +1943,7 @@ namespace CTRPluginFramework {
     }
 
     void InstantEgg(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet<u32>(0x438C50, AutoGame(0x4658A4, 0x46589C));
         static const vector<u32> instruction = {0xE3A01001, 0xE5C011E8, 0xEA00209B};
 
@@ -1687,6 +1989,7 @@ namespace CTRPluginFramework {
     }
 
     void InstantEggHatch(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x4A22F4, 0x4D2278);
         static u32 original;
         static bool saved = false;
@@ -1696,6 +1999,7 @@ namespace CTRPluginFramework {
     }
 
     void ViewValuesInSummary(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const vector<u32> address = {
             AutoGameSet(
                 {0x153184, 0x153230, 0x4A23E4, 0x4A2430, 0x4A25E4, 0x4A2630, 0x4A2398},
@@ -1749,6 +2053,7 @@ namespace CTRPluginFramework {
     static const vector<int> weatherFlags = {1, 4, 1, 1, (int)AutoGame(2, 4)};
 
     void Weather(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const vector<vector<u32>> address = {{AutoGame(0x3FE54C, 0x3FE544)}, {0x8C81B56, 0x8C81B5E, 0x8C81B58, 0x8C81B5A, 0x8C81F37}};
         static u32 original;
         static bool saved = false;
@@ -1761,6 +2066,7 @@ namespace CTRPluginFramework {
     }
 
     void NoOutlines(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static MemoryManager manager(AutoGameSet<u32>(0x362ED8, 0x37A140));
 
         if (entry->IsActivated()) {
@@ -1777,6 +2083,7 @@ namespace CTRPluginFramework {
     }
 
     void FastDialogs(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const vector<u32> address = AutoGameSet({0x3F6FB4, 0x3F7818}, {0x419A34, 0x41A2A4});
         static const vector<u32> instruction = {0xE3A04003, 0xE3A05003};
 
@@ -1820,6 +2127,7 @@ namespace CTRPluginFramework {
 
     // Adopted from old project, credit: developer of Multi-Pokemon Framework & H4x0rSpooky
     void BypassTextRestrictions(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x38DE64, 0x3A47D4);
         static u32 original;
         static bool saved = false;
@@ -1943,6 +2251,7 @@ namespace CTRPluginFramework {
     }
 
     void PatchColorCrash(MenuEntry *entry) {
+        static bool s_was = false; NotifyToggle(entry, s_was);
         const char *s = AutoGameSet("8K2589", (currGameName == GameName::OmegaRuby ? "96FF7H" : "96FF79"));
         static u32 original;
         static bool saved = false;
@@ -1950,5 +2259,438 @@ namespace CTRPluginFramework {
 
         if (!Process::Write32(x + AutoGameSet(0x2000, 0), 0xE3B01000, original, entry, saved))
             return;
+    }
+
+    // ===================== HUD overlay (Slice 3) =====================
+    // A small optional on-screen display drawn over the game (top screen) via OSD::Run.
+    // The element/master on-off are checkbox MenuEntries (persist via Save Enabled Cheats);
+    // their state is READ live in the callback. Position + toggle button persist in HUD.txt.
+    static MenuEntry *g_hudMaster = nullptr;
+    static MenuEntry *g_hudClock  = nullptr;   // Show: Clock
+    static MenuEntry *g_hudMoney  = nullptr;   // Show: Money
+    static MenuEntry *g_hudBP     = nullptr;   // Show: Battle Points
+    static MenuEntry *g_hudStatus = nullptr;   // Show: Status Condition
+    static MenuEntry *g_hudMiles  = nullptr;   // Show: Pokémiles
+    static MenuEntry *g_hudParty  = nullptr;   // Show: Party count
+    static MenuEntry *g_hudXY     = nullptr;   // Show: X/Y pos
+    static MenuEntry *g_hudPanel  = nullptr;
+    static int  g_hudPosition = 0;             // 0..8 anchors (3x3)
+    static int  g_hudOpacity  = 50;            // panel opacity 0..100 (step 10), via ordered dither
+
+    // No-op GameFunc: these entries exist only as persisted checkboxes (state read in HudCallback)
+    static void HudNoop(MenuEntry *entry) {
+        (void)entry;
+    }
+
+    // 9 positions, reading order: 0=TL 1=TC 2=TR 3=ML 4=C 5=MR 6=BL 7=BC 8=BR
+    static void HudAnchor(int pos, int w, int h, int &x, int &y) {
+        const int SW = 400, SH = 240, M = 6; // top screen + margin
+
+        if (pos < 0 || pos > 8)
+            pos = 4; // safety -> center
+
+        const int col = pos % 3;
+        const int row = pos / 3;
+        const int xs[3] = { M, (SW - w) / 2, SW - w - M };
+        const int ys[3] = { M, (SH - h) / 2, SH - h - M };
+
+        x = xs[col];
+        y = ys[row];
+
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+    }
+
+    // Ordered (Bayer 4x4) dither thresholds, 0..15. A pixel is painted black when its
+    // threshold is below the requested coverage -> uniform, smooth-looking density.
+    static const u8 kBayer4[16] = {
+         0,  8,  2, 10,
+        12,  4, 14,  6,
+         3, 11,  1,  9,
+        15,  7, 13,  5
+    };
+
+    // Translucent panel WITHOUT reading the framebuffer (ReadPixel data-aborts in-game).
+    // Real alpha needs read+blend, which crashes on the game FB; so we fake translucency
+    // with a write-only ordered dither: opacity (0..100) -> how many of every 16 pixels are
+    // painted black. 0 = invisible, 100 = solid black. Bayer spreads the holes evenly so it
+    // reads as a uniform see-through panel at any level.
+    static void HudPanel(const Screen &screen, int x, int y, int w, int h, int opacity) {
+        if (opacity <= 0)
+            return;
+
+        const Color black(0, 0, 0);
+        const int thr = (opacity * 16 + 50) / 100; // 0..16 black pixels per 4x4 tile
+
+        for (int yy = y; yy < y + h; yy++)
+            for (int xx = x; xx < x + w; xx++)
+                if (kBayer4[((yy & 3) << 2) | (xx & 3)] < thr)
+                    screen.DrawPixel((u32)xx, (u32)yy, black);
+    }
+
+    bool HudCallback(const Screen &screen) {
+        if (!screen.IsTop || g_hudMaster == nullptr)
+            return false;
+
+        if (!g_hudMaster->IsActivated())
+            return false;
+
+        vector<string> lines;
+
+        if (g_hudMoney != nullptr && g_hudMoney->IsActivated()) {
+            u32 money = 0;
+            Process::Read32(AutoGameSet(0x8C6A6AC, 0x8C71DC0), money);
+            lines.push_back(Utils::Format("$%lu", (unsigned long)money));
+        }
+
+        if (g_hudClock != nullptr && g_hudClock->IsActivated()) {
+            u16 hrs = 0;
+            u8  mins = 0, secs = 0;
+            u32 ptAddr = AutoGameSet(0x8CE2814, 0x8CFBD88);
+            Process::Read16(ptAddr, hrs);
+            Process::Read8(ptAddr + 2, mins);
+            Process::Read8(ptAddr + 3, secs);
+            lines.push_back(Utils::Format("%u:%02u:%02u", hrs, mins, secs));
+        }
+
+        if (g_hudBP != nullptr && g_hudBP->IsActivated()) {
+            u16 bp = 0;
+            Process::Read16(AutoGameSet(0x8C6A6E0, 0x8C71DE8), bp);
+            lines.push_back(Utils::Format("BP: %u", (unsigned)bp));
+        }
+
+        if (g_hudStatus != nullptr && g_hudStatus->IsActivated()
+            && IfInBattle() && !battleOffset.empty()) {
+            u32 leadPtr = 0;
+            Process::Read32(battleOffset[0], leadPtr);
+            if (leadPtr != 0) {
+                u8 par = 0, slp = 0, frz = 0, brn = 0, psn = 0;
+                Process::Read8(leadPtr + 0x20, par);
+                Process::Read8(leadPtr + 0x24, slp);
+                Process::Read8(leadPtr + 0x28, frz);
+                Process::Read8(leadPtr + 0x2C, brn);
+                Process::Read8(leadPtr + 0x30, psn);
+                string s;
+                if (par) s += (s.empty() ? "" : "/") + string("PAR");
+                if (slp) s += (s.empty() ? "" : "/") + string("SLP");
+                if (frz) s += (s.empty() ? "" : "/") + string("FRZ");
+                if (brn) s += (s.empty() ? "" : "/") + string("BRN");
+                if (psn) s += (s.empty() ? "" : "/") + string("PSN");
+                if (!s.empty()) lines.push_back(s);
+            }
+        }
+
+        if (g_hudMiles != nullptr && g_hudMiles->IsActivated()) {
+            u32 miles = 0;
+            Process::Read32(AutoGameSet(0x8C82BA0, 0x8C8B36C), miles);
+            lines.push_back(Utils::Format("Miles: %lu", (unsigned long)miles));
+        }
+
+        if (g_hudParty != nullptr && g_hudParty->IsActivated()) {
+            const u32 partyBase = AutoGameSet(0x81FF744, 0x81FEEC8);
+            int count = 0;
+            for (int i = 0; i < 6; i++) {
+                u16 species = 0;
+                Process::Read16(partyBase + i * 0x1E4 + 0x08, species);
+                if (species > 0 && species <= 721) count++;
+            }
+            lines.push_back(Utils::Format("Party: %d/6", count));
+        }
+
+        if (g_hudXY != nullptr && g_hudXY->IsActivated()) {
+            u32 rawX = 0, rawY = 0;
+            Process::Read32(AutoGameSet(0x8C671A0, 0x8C6E894), rawX);
+            Process::Read32(AutoGameSet(0x8C671A8, 0x8C6E89C), rawY);
+            float posX = *reinterpret_cast<float*>(&rawX);
+            float posY = *reinterpret_cast<float*>(&rawY);
+            lines.push_back(Utils::Format("X:%.0f Y:%.0f", posX, posY));
+        }
+
+        if (lines.empty())
+            return false;
+
+        int w = 0;
+        for (size_t i = 0; i < lines.size(); i++) {
+            int lw = (int)OSD::GetTextWidth(true, lines[i]);
+            if (lw > w) w = lw;
+        }
+
+        const int lineH = 15;
+        int boxW = w + 8;
+        int boxH = (int)lines.size() * lineH + 4;
+        int x = 0, y = 0;
+        HudAnchor(g_hudPosition, boxW, boxH, x, y);
+
+        if (g_hudPanel != nullptr && g_hudPanel->IsActivated())
+            HudPanel(screen, x, y, boxW, boxH, g_hudOpacity);
+
+        int ty = y + 2;
+        for (size_t i = 0; i < lines.size(); i++) {
+            screen.DrawSysfont(lines[i], (u32)(x + 4), (u32)ty, Color::White);
+            ty += lineH;
+        }
+
+        return true;
+    }
+
+    static void SaveHudConfig(void) {
+        if (File::Exists(PATH_HUD_SETTINGS) == 0)
+            File::Create(PATH_HUD_SETTINGS);
+
+        File file(PATH_HUD_SETTINGS);
+        LineWriter writer(file);
+        writer << Utils::Format("%d", g_hudPosition) << LineWriter::endl()
+               << Utils::Format("%d", g_hudOpacity);
+        writer.Flush();
+        writer.Close();
+    }
+
+    // Parse a leading non-negative integer without atoi (exceptions are disabled).
+    // Returns true if at least one digit was read; the value lands in 'out'.
+    static bool HudParseInt(const string &line, int &out) {
+        int v = 0;
+        size_t i = 0;
+        bool any = false;
+
+        while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
+            v = v * 10 + (line[i++] - '0');
+            any = true;
+        }
+
+        if (any)
+            out = v;
+        return any;
+    }
+
+    void LoadHudConfig(void) {
+        if (File::Exists(PATH_HUD_SETTINGS) != 1)
+            return;
+
+        File file(PATH_HUD_SETTINGS);
+        LineReader reader(file);
+        string line;
+        int v = 0;
+
+        // line 1: position (0..8)
+        if (reader(line) && HudParseInt(line, v) && v >= 0 && v <= 8)
+            g_hudPosition = v;
+
+        // line 2: opacity 0..100 (older configs lack it -> keep the default)
+        if (reader(line) && HudParseInt(line, v) && v >= 0 && v <= 100)
+            g_hudOpacity = (v / 10) * 10;
+    }
+
+    // Spatial 3x3 picker: a grid on the bottom touch screen that mirrors the top screen;
+    // tap the cell where you want the HUD. Hand-rolled blocking loop using only public APIs.
+    static void HudSetPosition(MenuEntry *entry) {
+        (void)entry;
+
+        static const char *names[9] = {
+            "Top-Left", "Top-Center", "Top-Right",
+            "Left", "Center", "Right",
+            "Bottom-Left", "Bottom-Center", "Bottom-Right"
+        };
+
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+
+        const int GX = 40, GY = 30, CW = 80, CH = 60, PAD = 5; // bottom grid: cells 80x60, origin (40,30)
+
+        int  selected  = -1;
+        int  lastHover = -1;
+        bool wasDown   = true;
+        bool armed     = false; // true after the first no-touch frame -> ignores a held-over touch
+
+        while (true) {
+            Controller::Update();
+
+            if (Controller::IsKeyPressed(Key::B))
+                break; // cancel (selected stays -1)
+
+            bool down = Touch::IsDown();
+            int  hover = -1;
+
+            if (down) {
+                UIntVector tp = Touch::GetPosition();
+
+                for (int i = 0; i < 9; i++) {
+                    int cx = GX + (i % 3) * CW;
+                    int cy = GY + (i / 3) * CH;
+
+                    if ((int)tp.x >= cx && (int)tp.x < cx + CW - PAD &&
+                        (int)tp.y >= cy && (int)tp.y < cy + CH - PAD) {
+                        hover = i;
+                        break;
+                    }
+                }
+            }
+
+            // Select on RELEASE over a cell: the finger is already lifted, so the menu
+            // underneath never receives a phantom touch (no more mis-clicks).
+            if (armed && !down && wasDown && lastHover >= 0) {
+                selected = lastHover;
+                break;
+            }
+
+            if (!down)
+                armed = true;
+
+            if (down)
+                lastHover = hover;
+
+            wasDown = down;
+
+            // ---- TOP: instructions ----
+            top.DrawRect(0, 0, 400, 240, Color::Black, true);
+            top.DrawSysfont("Choose where the HUD appears", 90, 40, Color::White);
+            top.DrawSysfont("Tap a cell below - it mirrors this screen.", 56, 74, Color(200, 200, 200));
+            top.DrawSysfont("Gold = target.   Press B to cancel.", 80, 104, Color(200, 200, 200));
+
+            // ---- BOTTOM: 3x3 grid ----
+            bot.DrawRect(0, 0, 320, 240, Color::Black, true);
+
+            int highlight = (hover >= 0) ? hover : g_hudPosition; // gold follows the finger, else shows current
+
+            for (int i = 0; i < 9; i++) {
+                int cx = GX + (i % 3) * CW;
+                int cy = GY + (i / 3) * CH;
+                int cellW = CW - PAD, cellH = CH - PAD;
+
+                Color fill = (i == hover)     ? Color(70, 70, 110) : Color(30, 30, 38);
+                Color brd  = (i == highlight) ? Color(255, 203, 5) : Color(180, 180, 180);
+
+                bot.DrawRect(cx, cy, cellW, cellH, fill, true);
+                bot.DrawRect(cx, cy, cellW, cellH, brd, false);
+
+                // small marker placed in the cell at the matching anchor (spatial hint)
+                int mxs[3] = { cx + 4, cx + (cellW - 8) / 2, cx + cellW - 12 };
+                int mys[3] = { cy + 4, cy + (cellH - 6) / 2, cy + cellH - 10 };
+                bot.DrawRect(mxs[i % 3], mys[i / 3], 8, 6, brd, true);
+            }
+
+            OSD::SwapBuffers();
+        }
+
+        if (selected >= 0) {
+            g_hudPosition = selected;
+            SaveHudConfig();
+            NotifyIfEnabled(string("HUD position: ") + names[selected], Color::LimeGreen);
+        }
+    }
+
+    // Touch slider for the panel opacity (0..100, step 10), with a LIVE preview.
+    // Top screen mimics an in-game scene with the HUD panel drawn at the current opacity so
+    // you see exactly how see-through it is; the bottom screen is the draggable bar.
+    // Drag to set, A to confirm (saves), B to cancel. Hand-rolled loop, public APIs only.
+    static void HudSetOpacity(MenuEntry *entry) {
+        (void)entry;
+
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+
+        const int TX = 30, TY = 120, TW = 260, TH = 12; // slider track on the bottom screen
+        const int orig = g_hudOpacity;
+        bool confirmed = false;
+
+        // Sample HUD content (literal -> no memory reads inside this loop)
+        const string s0 = "$123456";
+        const string s1 = "1:23:45";
+        int w0 = (int)OSD::GetTextWidth(true, s0);
+        int w1 = (int)OSD::GetTextWidth(true, s1);
+        int sw = (w0 > w1) ? w0 : w1;
+        const int boxW = sw + 8;
+        const int boxH = 2 * 15 + 4;
+
+        while (true) {
+            Controller::Update();
+
+            if (Controller::IsKeyPressed(Key::A)) { confirmed = true; break; }
+            if (Controller::IsKeyPressed(Key::B)) { g_hudOpacity = orig; break; }
+
+            if (Touch::IsDown()) {
+                UIntVector tp = Touch::GetPosition();
+                int rel = (int)tp.x - TX;
+                if (rel < 0) rel = 0;
+                if (rel > TW) rel = TW;
+                int pct = (rel * 100 + TW / 2) / TW; // 0..100
+                pct = ((pct + 5) / 10) * 10;         // snap to nearest 10
+                if (pct > 100) pct = 100;
+                g_hudOpacity = pct;
+            }
+
+            // ---- TOP: live preview over a fake game scene ----
+            top.DrawRect(0, 0, 400, 240, Color(45, 95, 160), true);  // sky / water
+            top.DrawRect(0, 150, 400, 90, Color(70, 140, 70), true); // grass
+            top.DrawRect(0, 144, 400, 8, Color(120, 90, 50), true);  // ground edge
+            top.DrawRect(60, 96, 44, 44, Color(210, 90, 80), true);  // object
+            top.DrawRect(300, 60, 30, 30, Color(225, 205, 95), true);// object
+            top.DrawSysfont("Live preview", 150, 6, Color::White);
+
+            int px = 0, py = 0;
+            HudAnchor(g_hudPosition, boxW, boxH, px, py);
+            HudPanel(top, px, py, boxW, boxH, g_hudOpacity);
+            top.DrawSysfont(s0, (u32)(px + 4), (u32)(py + 2), Color::White);
+            top.DrawSysfont(s1, (u32)(px + 4), (u32)(py + 2 + 15), Color::White);
+
+            // ---- BOTTOM: slider control ----
+            bot.DrawRect(0, 0, 320, 240, Color(20, 20, 26), true);
+            bot.DrawSysfont("Panel opacity", 105, 30, Color::White);
+            bot.DrawSysfont(Utils::Format("%d%%", g_hudOpacity), 140, 60, Color(255, 203, 5));
+
+            // tick marks every 10%
+            for (int t = 0; t <= 100; t += 10) {
+                int tx = TX + (t * TW) / 100;
+                bot.DrawRect(tx, TY - 4, 1, TH + 8, Color(120, 120, 130), true);
+            }
+
+            int fillW = (g_hudOpacity * TW) / 100;
+            bot.DrawRect(TX, TY, TW, TH, Color(60, 60, 70), true);       // track base
+            bot.DrawRect(TX, TY, fillW, TH, Color(255, 203, 5), true);   // filled portion
+            bot.DrawRect(TX + fillW - 5, TY - 6, 10, TH + 12, Color::White, true); // knob
+
+            bot.DrawSysfont("Drag the bar to set opacity.", 60, 178, Color(200, 200, 200));
+            bot.DrawSysfont("A = OK     B = Cancel", 88, 202, Color(200, 200, 200));
+
+            OSD::SwapBuffers();
+        }
+
+        // Wait for the finger to lift so the resumed menu never gets a phantom touch.
+        while (Touch::IsDown()) {
+            Controller::Update();
+            OSD::SwapBuffers();
+        }
+
+        if (confirmed) {
+            SaveHudConfig();
+            NotifyIfEnabled(Utils::Format("HUD panel opacity: %d%%", g_hudOpacity), Color::LimeGreen);
+        }
+    }
+
+    MenuFolder *CreateHudMenu(void) {
+        MenuFolder *hud = new MenuFolder("Config HUD", "A small overlay shown over the game (top screen).\n\nTurn it on and pick what it shows and where. Tip: favorite 'Show HUD' (X button) to turn it on/off quickly.");
+
+        g_hudMaster = new MenuEntry("Display HUD", HudNoop, "Master switch for the on-screen overlay.");
+        g_hudMoney  = new MenuEntry("Show: Money", HudNoop, "Show how much money you have.");
+        g_hudClock  = new MenuEntry("Show: Clock", HudNoop, "Show your play time.");
+        g_hudBP     = new MenuEntry("Show: Battle Points", HudNoop, "Show your current Battle Points (BP).");
+        g_hudStatus = new MenuEntry("Show: Status Condition", HudNoop, "Show your lead Pokémon's status during battle (PSN / BRN / SLP / PAR / FRZ).\nOnly visible when in battle.");
+        g_hudMiles  = new MenuEntry("Show: Pokemiles", HudNoop, "Show your Pokemiles.");
+        g_hudParty  = new MenuEntry("Show: Party count", HudNoop, "Show how many Pokemon are in your party.");
+        g_hudXY     = new MenuEntry("Show: X/Y pos", HudNoop, "Show your current map coordinates.");
+        g_hudPanel  = new MenuEntry("Translucent panel", HudNoop, "A dark see-through box behind the text, for readability.");
+
+        *hud += g_hudMaster;
+        *hud += g_hudMoney;
+        *hud += g_hudClock;
+        *hud += g_hudBP;
+        *hud += g_hudStatus;
+        *hud += g_hudMiles;
+        *hud += g_hudParty;
+        *hud += g_hudXY;
+        *hud += g_hudPanel;
+        *hud += new MenuEntry("Panel opacity", nullptr, HudSetOpacity, "Set how see-through the panel is (0-100%). Drag the bar; the top screen previews it live.");
+        *hud += new MenuEntry("Set position", nullptr, HudSetPosition, "Choose which corner/area the overlay appears in.");
+
+        return hud;
     }
 }

@@ -13,6 +13,7 @@ namespace CTRPluginFramework {
         _tools(new PluginMenuTools(about, _hexEditor)),
         _executeLoop(new PluginMenuExecuteLoop()),
         _guide(new GuideReader()),
+        _appGuide(new GuideReader("AppGuide")),
         _hexEditor(0x00100000),
         _forceOpen(false),
         _hexEditorState(true)
@@ -33,6 +34,7 @@ namespace CTRPluginFramework {
         delete _tools;
         delete _executeLoop;
         delete _guide;
+        delete _appGuide;
     }
 
     void PluginMenuImpl::Append(MenuItem *item) const {
@@ -116,6 +118,7 @@ namespace CTRPluginFramework {
         PluginMenuTools &tools = *_tools;
         PluginMenuSearch &search = *_search;
         GuideReader &guide = *_guide;
+        GuideReader &appGuide = *_appGuide;
 
         Time delta;
         vector<Event>eventList;
@@ -240,6 +243,11 @@ namespace CTRPluginFramework {
 
                 else if (mode == 5) {
                     if (tools(eventList, delta))
+                        mode = 0;
+                }
+
+                else if (mode == 6) {
+                    if (appGuide(eventList, delta))
                         mode = 0;
                 }
 

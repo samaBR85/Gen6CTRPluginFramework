@@ -41,6 +41,7 @@ namespace CTRPluginFramework {
             void _keyboardBtn_OnClick(void);
             void _actionReplayBtn_OnClick(void);
             void _gameGuideBtn_OnClick(void);
+            void _appGuideBtn_OnClick(void);
             void _searchBtn_OnClick(void);
             void _toolsBtn_OnClick(void);
             void _InfoBtn_OnClick(void);
@@ -70,6 +71,7 @@ namespace CTRPluginFramework {
             Button _hidMapperBtn;
             Button _gameGuideBtn;
             Button _searchBtn;
+            Button _appGuideBtn;
             Button _arBtn;
             Button _toolsBtn;
 

@@ -82,6 +82,7 @@ namespace CTRPluginFramework {
 
         // Add the entry to the list
         vector.push_back(entry);
+        Preferences::MarkDirty(); // enabled-cheats set changed -> Data.bin needs saving
     }
 
     void PluginMenuExecuteLoop::Remove(MenuEntryImpl *entry) {
@@ -101,6 +102,7 @@ namespace CTRPluginFramework {
 
         // Remove the entry from list
         vector.erase(std::remove(vector.begin(), vector.end(), entry), vector.end());
+        Preferences::MarkDirty(); // enabled-cheats set changed -> Data.bin needs saving
     }
 
     void PluginMenuExecuteLoop::ExecuteBuiltin(void) {
@@ -124,6 +126,7 @@ namespace CTRPluginFramework {
         }
 
         list.push_back(entry);
+        Preferences::MarkDirty(); // enabled AR set changed
     }
 
     void PluginMenuExecuteLoop::RemoveAR(MenuEntryActionReplay *entry) {
@@ -146,6 +149,7 @@ namespace CTRPluginFramework {
 
         // Remove entry from list
         list.erase(std::remove(list.begin(), list.end(), entry), list.end());
+        Preferences::MarkDirty(); // enabled AR set changed
     }
 
     void PluginMenuExecuteLoop::ExecuteAR(void) {

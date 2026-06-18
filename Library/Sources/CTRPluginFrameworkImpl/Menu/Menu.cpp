@@ -188,6 +188,151 @@ namespace CTRPluginFramework {
         }
     }
 
+    // Same list as Draw(), but rendered on a chosen screen (used by the flipped GuideReader:
+    // titles on the BOTTOM touch screen). Geometry adapts to the screen width.
+    void Menu::DrawAt(Target target) const {
+        const Color &title = Preferences::Settings.WindowTitleColor;
+        const Color &selected = Preferences::Settings.MenuSelectedItemColor;
+        const Color &unselected = Preferences::Settings.MenuUnselectedItemColor;
+
+        const bool isTop = (target == TOP);
+        const int screenW = isTop ? 400 : 320;
+        const int xmax = isTop ? XMAX : 295;
+        const int posX = isTop ? 40 : 30;
+        const int selW = isTop ? 330 : 262;
+
+        int posY = 25;
+
+        Renderer::SetTarget(target);
+        (isTop ? Window::TopWindow : Window::BottomWindow).Draw();
+
+        // Draw title
+        Renderer::DrawSysString(_folder->name.c_str(), (screenW - Renderer::GetTextSize(_folder->name.c_str())) / 2, posY, xmax, title);
+        posY += 7;
+
+        // Draw entries
+        int max = _folder->ItemsCount();
+        if (max == 0) return;
+
+        int i = std::max(0, (int)(_selector - 6));
+        max = std::min(max, i + 8);
+
+        if (_iconCallback != nullptr) {
+            for (; i < max; i++) {
+                const Color &c = i == _selector ? selected : unselected;
+                MenuItem *item = _folder->_items[i];
+
+                if (i == _selector)
+                    Renderer::MenuSelector(posX - 5, posY - 3, selW, 20);
+
+                if (item->_type != MenuType::Folder) {
+                    _iconCallback(posX, posY);
+                    Renderer::DrawSysString(item->name.c_str(), posX + 20, posY, xmax, c);
+                }
+
+                else Renderer::DrawSysFolder(item->name.c_str(), posX, posY, xmax, c);
+
+                posY += 4;
+            }
+        }
+
+        else {
+            for (; i < max; i++) {
+                const Color &c = i == _selector ? selected : unselected;
+                MenuItem *item = _folder->_items[i];
+                float offset = 0.f;
+
+                if (i == _selector) {
+                    offset = _scrollOffset;
+                    Renderer::MenuSelector(posX - 5, posY - 3, selW, 20);
+                }
+
+                if (item->_type == MenuType::Entry)
+                    Renderer::DrawSysCheckBox(item->name.c_str(), posX, posY, xmax, c, item->AsMenuEntryImpl().IsActivated());
+
+                else if (item->_type == MenuType::EntryTools) {
+                    MenuEntryTools *e = reinterpret_cast<MenuEntryTools*>(item);
+
+                    if (e->UseCheckBox)
+                        Renderer::DrawSysCheckBox(item->name.c_str(), posX, posY, xmax, c, e->IsActivated());
+
+                    else {
+                        if (e->Icon != nullptr)
+                            e->Icon(posX, posY);
+
+                        Renderer::DrawSysString(item->name.c_str(), posX + 20, posY, xmax, c);
+                    }
+                }
+
+                else if (item->_type == MenuType::ActionReplay)
+                    Renderer::DrawSysCheckBox(item->name.c_str(), posX, posY, xmax, c, item->AsMenuEntryImpl().IsActivated(), offset);
+
+                else Renderer::DrawSysFolder(item->name.c_str(), posX, posY, xmax, c);
+
+                posY += 4;
+            }
+        }
+
+        if (_noteTB.IsOpen())
+            _noteTB.DrawConst();
+    }
+
+    // Map a BOTTOM-screen touch to a list item and activate it (same effect as pressing A).
+    // Geometry must mirror DrawAt()'s BOTTOM branch.
+    int Menu::ProcessTouch(int touchX, int touchY, MenuItem **userchoice) {
+        if (_noteTB.IsOpen())
+            return (MenuEvent::Nothing);
+
+        int count = _folder->ItemsCount();
+        if (count == 0)
+            return (MenuEvent::Nothing);
+
+        const int posX = 30;
+        const int selW = 262;
+
+        if (touchX < posX - 5 || touchX > posX - 5 + selW)
+            return (MenuEvent::Nothing);
+
+        int first = std::max(0, _selector - 6);
+        int last = std::min(count, first + 8);
+
+        for (int k = 0; first + k < last; k++) {
+            int rowTop = 45 + 20 * k; // entry baseline 48 - 3 (selector top), pitch 20
+
+            if (touchY >= rowTop && touchY < rowTop + 20) {
+                int idx = first + k;
+                _selector = idx;
+                MenuItem *item = _folder->_items[idx];
+
+                if (userchoice)
+                    *userchoice = item;
+
+                if (item->_type == MenuType::Entry) {
+                    MenuEntryImpl &e = item->AsMenuEntryImpl();
+
+                    if (e.IsActivated())
+                        e.Disable();
+
+                    else e.Enable();
+
+                    return (MenuEvent::EntrySelected);
+                }
+
+                else if (item->_type == MenuType::Folder) {
+                    MenuFolderImpl *folder = reinterpret_cast<MenuFolderImpl*>(item);
+                    folder->_Open(_folder, _selector);
+                    _folder = folder;
+                    _selector = 0;
+                    return (MenuEvent::FolderChanged);
+                }
+
+                return (MenuEvent::Nothing);
+            }
+        }
+
+        return (MenuEvent::Nothing);
+    }
+
     // Return a MenuEvent value
     int Menu::ProcessEvent(Event &event, MenuItem **userchoice) {
         if (_noteTB.IsOpen()) {

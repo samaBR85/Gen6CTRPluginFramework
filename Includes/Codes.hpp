@@ -36,6 +36,7 @@ namespace CTRPluginFramework {
     void AccessBag(MenuEntry *entry);
     void AllowMultipleMegas(MenuEntry *entry);
     bool IsValid(u32 pointer, PK6 *pkmn);
+    void FindPokemonInBoxes(MenuEntry *entry);
     bool ViewInfoCallback(const Screen &screen);
     void TogglePokemonInfo(MenuEntry *entry);
     void ViewPokemonInfo(MenuEntry *entry);
@@ -69,10 +70,16 @@ namespace CTRPluginFramework {
     void Weather(MenuEntry *entry);
     void NoOutlines(MenuEntry *entry);
     void FastDialogs(MenuEntry *entry);
+    void ShowNotifications(MenuEntry *entry);
     void BypassTextRestrictions(MenuEntry *entry);
     void CustomKeyboardConfig(MenuEntry *entry);
     void CustomKeys(MenuEntry *entry);
     void PatchColorCrash(MenuEntry *entry);
+
+    // HUD overlay (Slice 3): a small optional on-screen display during gameplay
+    MenuFolder *CreateHudMenu(void);
+    bool HudCallback(const Screen &screen);
+    void LoadHudConfig(void);
 }
 
 #endif

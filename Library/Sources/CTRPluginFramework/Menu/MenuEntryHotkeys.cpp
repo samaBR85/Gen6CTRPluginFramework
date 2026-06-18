@@ -28,7 +28,7 @@ namespace CTRPluginFramework {
     }
 
     void Hotkey::AskForKeys(void) {
-        HotkeysModifier(_keys, "Select the keys below you want to use from below:")();
+        HotkeysModifier(_keys, "Pick the button(s) below to use as the\nhotkey for this item.")();
     }
 
     u32 Hotkey::GetKeys(void) {

@@ -985,6 +985,11 @@ namespace CTRPluginFramework {
 
     void SearchForSpecies(MenuEntry *entry);
 
+    // Toast-on-toggle helper (defined in Codes.cpp; used by Codes.cpp + PKHeX.cpp).
+    // Gate lives framework-side now (CTRPluginFramework::g_entryToggleNotif, OSD.hpp).
+    void NotifyToggle(MenuEntry *entry, bool &lastState);
+    void NotifyIfEnabled(const string &msg, Color color);
+
     static const vector<string> formList(int dex) {
         vector<string> options;
 

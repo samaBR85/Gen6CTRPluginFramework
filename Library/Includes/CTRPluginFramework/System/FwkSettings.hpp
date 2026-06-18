@@ -39,6 +39,18 @@ namespace CTRPluginFramework {
         Color BackgroundBorderColor;
         float CursorFadeValue;
 
+        // Menu accent colors (theme-customizable: the selected-item cursor glow + the
+        // bottom-screen home buttons). Appended at the end of the struct on purpose.
+        Color MenuCursorAccent;
+        struct {
+            Color Favorites;
+            Color GameGuide;
+            Color AppGuide;
+            Color Search;
+            Color ActionReplay;
+            Color Tools;
+        } HomeButtons;
+
         // Keyboard colors
         struct {
             Color Background;

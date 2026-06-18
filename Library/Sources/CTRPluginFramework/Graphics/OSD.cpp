@@ -3,6 +3,9 @@
 namespace CTRPluginFramework {
     using namespace CTRPluginFrameworkImpl::Services;
 
+    bool g_entryToggleNotif = false;     // see OSD.hpp
+    void *g_entryToggleNotifSrc = nullptr; // see OSD.hpp
+
     u8 *Screen::GetFramebuffer(u32 posX, u32 posY, bool useRightFb) const {
         if (useRightFb && (!IsTop || !Is3DEnabled))
             return (nullptr);

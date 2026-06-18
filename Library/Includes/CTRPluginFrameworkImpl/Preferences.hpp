@@ -74,21 +74,35 @@ namespace CTRPluginFramework {
 
             static void Set(u64 setting) {
                 Flags |= setting;
+                Dirty = true;
             }
 
             static void Clear(u64 setting) {
                 Flags &= ~setting;
+                Dirty = true;
             }
 
             static void Toggle(u64 setting) {
                 Flags ^= setting;
+                Dirty = true;
+            }
+
+            // Set true whenever anything persisted in Data.bin changes (flags above, enabled cheats,
+            // favorites, hotkeys, backlights). WriteSettings skips the whole SD rewrite when this is
+            // false, so opening+closing the menu with no change no longer triggers the slow save.
+            static void MarkDirty(void) {
+                Dirty = true;
             }
 
             static BMPImage *topBackgroundImage;
             static BMPImage *bottomBackgroundImage;
 
             static u32 MenuHotkeys;
+            static u32 FavoriteHotkeys; // menu bind: favorite selected item (default X)
+            static u32 InfoHotkeys;     // menu bind: show selected item's INFO note (default Y)
+            static u32 KeyboardHotkeys; // menu bind: open selected item's editor (default START)
             static u64 Flags;
+            static bool Dirty; // unsaved-changes flag; gates WriteSettings (see MarkDirty)
             static LCDBacklight Backlights[2];
             static FwkSettings Settings;
 

@@ -13,7 +13,8 @@ namespace CTRPluginFramework {
         _showStarredBtn(Button::Toggle | Button::Sysfont | Button::Rounded, "Favorites", IntRect(45, 75, 110, 28), Icon::DrawFavorite),
         _hidMapperBtn(Button::Sysfont | Button::Rounded, "Mapper", IntRect(165, 75, 110, 28), Icon::DrawController),
         _gameGuideBtn(Button::Sysfont | Button::Rounded, "Game Guide", IntRect(45, 110, 110, 28), Icon::DrawGuide),
-        _searchBtn(Button::Sysfont | Button::Rounded, "Search", IntRect(165, 110, 110, 28), Icon::DrawSearch),
+        _searchBtn(Button::Sysfont | Button::Rounded, "Search", IntRect(165, 75, 110, 28), Icon::DrawSearch),
+        _appGuideBtn(Button::Sysfont | Button::Rounded, "App Guide", IntRect(165, 110, 110, 28), Icon::DrawGuide),
         _arBtn(Button::Sysfont | Button::Rounded, "ActionReplay", IntRect(45, 145, 110, 28)),
         _toolsBtn(Button::Sysfont | Button::Rounded, "Tools", IntRect(165, 145, 110, 28), Icon::DrawTools),
 
@@ -44,6 +45,9 @@ namespace CTRPluginFramework {
 
             // Temporary disable unused buttons
             _hidMapperBtn.Lock();
+
+            // Bottom-menu button colors are theme-driven: applied every frame in _RenderBottom()
+            // from Preferences::Settings.HomeButtons (so live theme switches take effect instantly).
 
             // Get strings x position
             g_textXpos[0] = (320 - Renderer::LinuxFontSize(g_ctrpfText)) / 2;
@@ -96,6 +100,22 @@ namespace CTRPluginFramework {
                 _ProcessEvent(eventList[i]);
         }
 
+        // Rebindable hardware shortcuts for the on-screen menu actions (defaults X/Y/START,
+        // changeable in Tools > Settings). We Execute() the matching button so its existing
+        // enable-gating + dispatch below apply (disabled button -> no-op, no crash).
+        if (!ShowNoteBottom) {
+            if (Preferences::FavoriteHotkeys && Controller::IsKeysPressed(Preferences::FavoriteHotkeys))
+                _AddFavoriteBtn.Execute();
+
+            if (Preferences::InfoHotkeys && Controller::IsKeysPressed(Preferences::InfoHotkeys)) {
+                _InfoBtn.SetState(!_InfoBtn.GetState());
+                _InfoBtn.Execute();
+            }
+
+            if (Preferences::KeyboardHotkeys && Controller::IsKeysPressed(Preferences::KeyboardHotkeys))
+                _keyboardBtn.Execute();
+        }
+
         if (_toolsBtn())
             _toolsBtn_OnClick();
 
@@ -105,6 +125,9 @@ namespace CTRPluginFramework {
 
             if (_gameGuideBtn())
                 _gameGuideBtn_OnClick();
+
+            if (_appGuideBtn())
+                _appGuideBtn_OnClick();
 
             if (_searchBtn())
                 _searchBtn_OnClick();
@@ -468,6 +491,18 @@ namespace CTRPluginFramework {
         if (max == 0)
             return;
 
+        // Vertical centering for root menu items in the free area below the header.
+        // posY here is already past the title+underline, so kBoxBottom - posY is
+        // the area below the header only. TopWindow: Window(30,20,340,200) → bottom Y=220.
+        // Per-item height ≈ 20px (DrawSysString ~16 + explicit posY+=4).
+        if (!folder->HasParent()) {
+            const int kBoxBottom = 220;
+            const int kItemH = 20;
+            int n = std::min(max, 7);
+            int pad = (kBoxBottom - posY - n * kItemH) / 2 - 10;
+            if (pad > 0) posY += pad;
+        }
+
         int i = std::max(0, _selector - 6);
         max = std::min(max, (i + 7));
 
@@ -486,18 +521,25 @@ namespace CTRPluginFramework {
                 MenuEntryImpl *entry = reinterpret_cast<MenuEntryImpl*>(item);
 
                 if (entry->GameFunc != nullptr)
-                    Renderer::DrawSysCheckBox(name, (folder->name == pluginName ? (370 - Renderer::GetTextSize(name)) / 2 : posX), posY, 350, fg, entry->IsActivated(), offset);
+                    Renderer::DrawSysCheckBox(name, (!folder->HasParent() ? (370 - Renderer::GetTextSize(name)) / 2 : posX), posY, 350, fg, entry->IsActivated(), offset);
 
                 else {
                     if (entry->MenuFunc != nullptr && !entry->_flags.isUnselectable)
-                        Icon::DrawSettings((folder->name == pluginName ? (370 - Renderer::GetTextSize(name)) / 2 : posX), posY);
+                        Icon::DrawSettings((!folder->HasParent() ? (370 - Renderer::GetTextSize(name)) / 2 : posX), posY);
 
-                    Renderer::DrawSysString(name, (folder->name == pluginName ? ((370 - Renderer::GetTextSize(name)) / 2) + 20 : posX + 20), posY, 350, fg, offset);
+                    Renderer::DrawSysString(name, (!folder->HasParent() ? ((370 - Renderer::GetTextSize(name)) / 2) + 20 : posX + 20), posY, 350, fg, offset);
                     posY += 1;
                 }
             }
 
-            else Renderer::DrawSysString(name, (folder->name == pluginName ? (400 - Renderer::GetTextSize(name)) / 2 : posX), posY, 350, fg, offset);
+            else {
+                if (!folder->HasParent())
+                    Renderer::DrawSysString(name, (400 - Renderer::GetTextSize(name)) / 2, posY, 350, fg, offset);
+                else {
+                    Icon::DrawFolder(posX, posY);
+                    Renderer::DrawSysString(name, posX + 20, posY, 350, fg, offset);
+                }
+            }
 
             posY += 4;
         }
@@ -512,6 +554,16 @@ namespace CTRPluginFramework {
         static bool framework = true;
         Renderer::SetTarget(BOTTOM);
         Window::BottomWindow.Draw();
+
+        // Apply theme-driven button colors (live: reflects the current theme each frame)
+        const auto &hb = Preferences::Settings.HomeButtons;
+        _showStarredBtn.SetFillColor(hb.Favorites);
+        _gameGuideBtn.SetFillColor(hb.GameGuide);
+        _appGuideBtn.SetFillColor(hb.AppGuide);
+        _searchBtn.SetFillColor(hb.Search);
+        _arBtn.SetFillColor(hb.ActionReplay);
+        _toolsBtn.SetFillColor(hb.Tools);
+
         int posY = 205;
 
         if (framework)
@@ -532,7 +584,7 @@ namespace CTRPluginFramework {
 
         else {
             _showStarredBtn.Draw();
-            _hidMapperBtn.Draw();
+            _appGuideBtn.Draw();
             _gameGuideBtn.Draw();
             _searchBtn.Draw();
             _arBtn.Draw();
@@ -640,6 +692,7 @@ namespace CTRPluginFramework {
             _showStarredBtn.Update(isTouched, touchPos);
             //_hidMapperBtn.Update(isTouched, touchPos);
             _gameGuideBtn.Update(isTouched, touchPos);
+            _appGuideBtn.Update(isTouched, touchPos);
             _searchBtn.Update(isTouched, touchPos);
             _arBtn.Update(isTouched, touchPos);
             _AddFavoriteBtn.Update(isTouched, touchPos);
@@ -671,6 +724,26 @@ namespace CTRPluginFramework {
                 // Change the state
                 bool just = entry->_flags.justChanged;
                 bool state = entry->_TriggerState();
+
+                // Persist on close for BOTH on and off. Add() marks dirty on enable, but the
+                // disable path below doesn't call Remove() at toggle time (justChanged was cleared),
+                // so mark here too — otherwise turning a cheat OFF wouldn't be saved.
+                Preferences::MarkDirty();
+
+                // Pop the ON/OFF toast NOW (queued instantly) so it shows the moment the menu closes,
+                // instead of waiting for the cheat's per-frame GameFunc to run after the game resumes.
+                if ((void *)entry->AsMenuEntry() == g_entryToggleNotifSrc) {
+                    // The notifications checkbox itself: update the gate immediately (so it's never
+                    // stale in-menu) and give it ONE clean self-feedback toast — NOT the generic
+                    // cheat toast (that would be a second, redundant toast).
+                    g_entryToggleNotif = state;
+                    OSD::Notify(state ? "Notifications: ON" : "Notifications: OFF",
+                                state ? Color::LimeGreen : Color::Gray);
+                }
+
+                else if (g_entryToggleNotif)
+                    OSD::Notify(entry->AsMenuEntry()->Name() + (state ? ": ON" : ": OFF"),
+                                state ? Color::LimeGreen : Color::Gray);
 
                 // If is activated add to executeLoop
                 if (state)
@@ -756,7 +829,13 @@ namespace CTRPluginFramework {
 
     void PluginMenuHome::_keyboardBtn_OnClick(void) {
         MenuFolderImpl *f = _starMode ? _starred : _folder;
-        MenuEntryImpl *e = reinterpret_cast<MenuEntryImpl*>((*f)[_selector]);
+        MenuItem *item = (*f)[_selector];
+
+        // Guard: only entries have a MenuFunc; folders would be a bad cast (crash via a key bind)
+        if (item == nullptr || !item->IsEntry())
+            return;
+
+        MenuEntryImpl *e = reinterpret_cast<MenuEntryImpl*>(item);
 
         if (e->MenuFunc != nullptr)
             e->MenuFunc(e->_owner);
@@ -768,6 +847,10 @@ namespace CTRPluginFramework {
 
     void PluginMenuHome::_gameGuideBtn_OnClick(void) {
         _mode = 2;
+    }
+
+    void PluginMenuHome::_appGuideBtn_OnClick(void) {
+        _mode = 6;
     }
 
     void PluginMenuHome::_searchBtn_OnClick(void) {
@@ -800,6 +883,8 @@ namespace CTRPluginFramework {
                 _starredConst->Append(item, true);
 
             else UnStar(item);
+
+            Preferences::MarkDirty(); // favorites list changed -> Data.bin needs saving
         }
     }
 
@@ -807,6 +892,7 @@ namespace CTRPluginFramework {
         MenuFolderImpl *folder = _starMode ? _starred : _folder;
 
         if (item != nullptr) {
+            Preferences::MarkDirty(); // favorites list changed -> Data.bin needs saving
             item->Flags.isStarred = false;
             int count = _starredConst->ItemsCount();
 

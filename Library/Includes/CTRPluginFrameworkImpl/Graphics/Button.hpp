@@ -36,6 +36,7 @@ namespace CTRPluginFramework {
             void Execute(void);
             void SetState(bool state);
             bool GetState(void) const;
+            void SetFillColor(const Color &color);
 
         private:
             u16 _posX;
@@ -45,6 +46,8 @@ namespace CTRPluginFramework {
             string _content;
             IntRect _bounds;
             Clock _clock;
+            Color _customFillColor{};
+            bool _useCustomFillColor{false};
 
             union {
                 u32 _bitfield{0};

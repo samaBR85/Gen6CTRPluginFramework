@@ -3,6 +3,7 @@
 
 #include "CTRPluginFramework/Graphics.hpp"
 #include "CTRPluginFrameworkImpl/Graphics.hpp"
+#include "CTRPluginFrameworkImpl/Preferences.hpp" // for Preferences::Settings (theme-aware icon tint)
 
 namespace CTRPluginFramework {
     extern "C" unsigned char *About15;
@@ -70,7 +71,7 @@ namespace CTRPluginFramework {
         u8 r;
     };
 
-    inline int Icon::DrawImg(u8 *img, int posX, int posY, int sizeX, int sizeY) {
+    inline int Icon::DrawImg(u8 *img, int posX, int posY, int sizeX, int sizeY, bool tintable) {
         u8 *framebuf = nullptr;
         u8 *imgb = img;
         u32 target = Renderer::GetContext()->target;
@@ -78,6 +79,13 @@ namespace CTRPluginFramework {
         int bpp;
         bool is3d = false;
         Color px;
+
+        // Theme-aware icon tint: on light-background themes, darken icons (multiply by the
+        // theme's text color) so light/white baked icons stay legible. Dark themes are left
+        // untouched. Reads immutable theme settings -> safe across the parallel top/bottom tasks.
+        const Color &tintFg = Preferences::Settings.MainTextColor;
+        const Color &tintBg = Preferences::Settings.BackgroundMainColor;
+        const bool tintIcons = tintable && (tintBg.r + tintBg.g + tintBg.b) > 300;
 
         posY += sizeY;
         GSPGPU_FramebufferFormat fmt;
@@ -114,6 +122,12 @@ namespace CTRPluginFramework {
                 px.r = pix->r;
                 px.g = pix->g;
                 px.b = pix->b;
+
+                if (tintIcons) {
+                    px.r = px.r * tintFg.r / 255;
+                    px.g = px.g * tintFg.g / 255;
+                    px.b = px.b * tintFg.b / 255;
+                }
 
                 // Skip pixels with less than 10% visibility
                 if (px.a > 25) {
@@ -165,7 +179,7 @@ namespace CTRPluginFramework {
 
     int Icon::DrawCheckBox(int posX, int posY, bool isChecked) {
         u8 *img = isChecked ? CheckedCheckbox : UnCheckedCheckbox;
-        return (DrawImg(img, posX, posY, 15, 15));
+        return (DrawImg(img, posX, posY, 15, 15, false)); // keep baked green so checked/unchecked stays distinguishable
     }
 
     /*
@@ -244,11 +258,11 @@ namespace CTRPluginFramework {
     ** 15px * 15px
     ***************/
     int Icon::DrawFolder(IntVector &pos) {
-        return (DrawImg(FolderFilled, pos.x, pos.y, 15, 15));
+        return (DrawImg(FolderFilled, pos.x, pos.y, 15, 15, false));
     }
 
     int Icon::DrawFolder(int posX, int posY) {
-        return (DrawImg(FolderFilled, posX, posY, 15, 15));
+        return (DrawImg(FolderFilled, posX, posY, 15, 15, false));
     }
 
     /*
