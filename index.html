@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gen6CTRPluginFramework — Nintendo 3DS Plugin for Pokémon Gen 6</title>
+  <meta name="description" content="A heavily overhauled 3gx plugin for Pokémon X, Y, Omega Ruby, and Alpha Sapphire on Nintendo 3DS. Features party summary, HUD overlay, 25 themes, and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0b0d14;
+      --bg2:       #111520;
+      --bg3:       #181d2e;
+      --surface:   #1e2438;
+      --border:    #2a3150;
+      --accent:    #5b8def;
+      --accent2:   #7c5be5;
+      --red:       #e05c6b;
+      --green:     #4ecb71;
+      --yellow:    #f5c842;
+      --text:      #e8ecf4;
+      --muted:     #8a93b0;
+      --radius:    12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,13,20,.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 700;
+      font-size: .95rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .875rem;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 600;
+      padding: .25rem .65rem;
+      border-radius: 20px;
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+    .nav-badge:hover { opacity: .85; }
+
+    /* ── HERO ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(91,141,239,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,91,229,.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: rgba(91,141,239,.12);
+      border: 1px solid rgba(91,141,239,.35);
+      color: var(--accent);
+      font-size: .8rem;
+      font-weight: 600;
+      padding: .35rem 1rem;
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+      letter-spacing: .04em;
+    }
+    .hero-badge::before {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      margin-bottom: 1rem;
+    }
+    .hero h1 .hl { color: var(--accent); }
+    .hero h1 .hl2 { color: var(--accent2); }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 2rem;
+    }
+    .hero-games {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 2.5rem;
+    }
+    .game-tag {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 500;
+      padding: .3rem .75rem;
+      border-radius: 6px;
+    }
+    .hero-cta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: .85rem 2rem;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: transform .2s, box-shadow .2s, opacity .2s;
+      box-shadow: 0 4px 24px rgba(91,141,239,.35);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(91,141,239,.5); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: transparent;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1rem;
+      padding: .85rem 1.75rem;
+      border-radius: var(--radius);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: border-color .2s, background .2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); background: rgba(91,141,239,.07); }
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .stat-num.loading { color: var(--muted); }
+    .stat-label { font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+
+    /* ── SECTIONS ─────────────────────────────────────── */
+    section { padding: 5rem 2rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-header { text-align: center; margin-bottom: 3rem; }
+    .section-tag {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .75rem;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+    .section-sub {
+      color: var(--muted);
+      margin-top: .75rem;
+      font-size: 1rem;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── FEATURES ─────────────────────────────────────── */
+    #features { background: var(--bg2); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+    }
+    .feature-card p { font-size: .875rem; color: var(--muted); }
+
+    /* ── SCREENSHOTS ──────────────────────────────────── */
+    #screenshots { background: var(--bg); }
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .screenshot-item {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform .2s, border-color .2s;
+      background: var(--surface);
+      aspect-ratio: 4/3;
+    }
+    .screenshot-item:hover { transform: scale(1.03); border-color: var(--accent); }
+    .screenshot-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity .3s;
+    }
+    .screenshot-caption {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.8));
+      padding: 1.5rem .75rem .6rem;
+      font-size: .78rem;
+      color: #ccc;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .screenshot-item:hover .screenshot-caption { opacity: 1; }
+
+    /* lightbox */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,.92);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      object-fit: contain;
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 1.2rem; right: 1.5rem;
+      font-size: 2rem;
+      color: #fff;
+      cursor: pointer;
+      background: none;
+      border: none;
+      line-height: 1;
+    }
+
+    /* ── THEMES ───────────────────────────────────────── */
+    #themes { background: var(--bg2); }
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .theme-card {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: transform .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .theme-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .theme-card img { width: 100%; height: 140px; object-fit: cover; display: block; }
+    .theme-name {
+      padding: .6rem .75rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── DOWNLOAD ─────────────────────────────────────── */
+    #download { background: var(--bg3); }
+    .download-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: center;
+    }
+    @media (max-width: 640px) {
+      .download-card { grid-template-columns: 1fr; }
+    }
+    .dl-version {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      background: rgba(91,141,239,.12);
+      border: 1px solid rgba(91,141,239,.3);
+      color: var(--accent);
+      padding: .3rem .75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .dl-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .5rem; }
+    .dl-meta { font-size: .875rem; color: var(--muted); }
+    .dl-meta span { color: var(--text); font-weight: 500; }
+    .dl-counter {
+      text-align: center;
+      padding: 1.5rem 2rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-width: 160px;
+    }
+    .dl-count-num {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .dl-count-label { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+    .dl-buttons { margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    /* releases list */
+    .releases-list { margin-top: 2rem; display: flex; flex-direction: column; gap: .75rem; }
+    .release-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .release-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+      font-weight: 600;
+      background: rgba(91,141,239,.12);
+      color: var(--accent);
+      padding: .25rem .6rem;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .release-date { font-size: .8rem; color: var(--muted); flex: 1; }
+    .release-downloads { font-size: .85rem; color: var(--green); font-weight: 600; }
+    .release-link {
+      font-size: .8rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .release-link:hover { text-decoration: underline; }
+
+    /* ── COMPAT ───────────────────────────────────────── */
+    #compat { background: var(--bg); }
+    .compat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .compat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      transition: border-color .2s;
+    }
+    .compat-card:hover { border-color: var(--accent2); }
+    .compat-icon { font-size: 2.4rem; margin-bottom: .75rem; display: block; }
+    .compat-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .compat-card p { font-size: .8rem; color: var(--muted); }
+    .compat-badge {
+      display: inline-block;
+      margin-top: .6rem;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: .2rem .55rem;
+      border-radius: 4px;
+    }
+    .badge-yes { background: rgba(78,203,113,.15); color: var(--green); border: 1px solid rgba(78,203,113,.3); }
+
+    /* ── INSTALL ──────────────────────────────────────── */
+    #install { background: var(--bg2); }
+    .steps { display: flex; flex-direction: column; gap: 1rem; }
+    .step {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-content h4 { font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+    .step-content p { font-size: .875rem; color: var(--muted); }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(91,141,239,.12);
+      color: var(--accent);
+      padding: .15rem .4rem;
+      border-radius: 4px;
+      font-size: .85em;
+    }
+
+    /* ── FOOTER ───────────────────────────────────────── */
+    footer {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+    .footer-inner { max-width: 600px; margin: 0 auto; }
+    .footer-logo { font-weight: 800; font-size: 1.1rem; margin-bottom: .75rem; }
+    .footer-logo span { color: var(--accent); }
+    .footer-desc { font-size: .85rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .footer-links { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .footer-links a { font-size: .85rem; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-copy { font-size: .78rem; color: var(--border); }
+
+    /* ── RESPONSIVE ───────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 0 1rem; }
+      .nav-links { display: none; }
+      .hero-stats { gap: 1.5rem; }
+      section { padding: 3.5rem 1.25rem; }
+    }
+
+    /* ── ANIMATIONS ───────────────────────────────────── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="10" stroke="#5b8def" stroke-width="1.5"/>
+      <path d="M6 11h10M11 6v10" stroke="#5b8def" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="3" fill="#5b8def"/>
+    </svg>
+    Gen6<span>CTR</span>Plugin
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#screenshots">Screenshots</a></li>
+    <li><a href="#themes">Themes</a></li>
+    <li><a href="#download">Download</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a class="nav-badge" href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.2.1</div>
+  <h1>
+    <span class="hl">Gen6</span> CTRPlugin<br/>
+    <span class="hl2">Framework</span> Overhauled
+  </h1>
+  <p class="hero-sub">
+    A heavily overhauled <strong>3gx cheat plugin</strong> for Pokémon Generation 6 on Nintendo 3DS — built for players, not programmers.
+  </p>
+  <div class="hero-games">
+    <span class="game-tag">⚔️ Pokémon X</span>
+    <span class="game-tag">🌿 Pokémon Y</span>
+    <span class="game-tag">🔴 Omega Ruby</span>
+    <span class="game-tag">🔵 Alpha Sapphire</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">
+      ⬇ Download Latest
+    </a>
+    <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-num" id="total-downloads">–</div>
+      <div class="stat-label">Total Downloads</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">v0.2.1</div>
+      <div class="stat-label">Latest Version</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">25</div>
+      <div class="stat-label">Color Themes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Games Supported</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">What's Inside</div>
+      <h2 class="section-title">Packed with Features</h2>
+      <p class="section-sub">Everything you need to enhance your Pokémon Gen 6 experience, explained in plain language.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <span class="feature-icon">📖</span>
+        <h3>20-Page App Guide</h3>
+        <p>Built-in instruction guide that walks you through every feature, sequenced to match your game progress.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">ℹ️</span>
+        <h3>Info Button on Everything</h3>
+        <p>Every cheat and option has a friendly (i) button with a plain-English explanation of what it does.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🃏</span>
+        <h3>Party Summary Cards</h3>
+        <p>View your team's IVs, EVs, Nature, Ability, item, and moves as sortable stat cards with ▲/▼ indicators.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⭐</span>
+        <h3>Smart Favorites</h3>
+        <p>Two-column favorites list with drag-to-reorder, custom aliases, and instant access to your most-used cheats.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🖥️</span>
+        <h3>On-Screen HUD</h3>
+        <p>Translucent overlay showing money, clock, Battle Points, Pokémiles, coordinates, and Pokémon status — all configurable.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⚔️</span>
+        <h3>Enemy Stats Overlay</h3>
+        <p>Read your opponent's Nature, Ability, IVs, and EVs during battle. Color-coded pages for quick reference.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🔔</span>
+        <h3>Friendly Notifications</h3>
+        <p>On-screen toasts confirm when cheats activate or deactivate — no more guessing if something worked.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🛡️</span>
+        <h3>Safety Guardrails</h3>
+        <p>Visual warnings for risky cheats (Key Items, TMs/HMs) protect your save file from accidental corruption.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⌨️</span>
+        <h3>Custom Hotkeys</h3>
+        <p>Map your favourite cheats to button combos via Tools → Hotkeys for one-press activation.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🎨</span>
+        <h3>25 Color Themes</h3>
+        <p>Instant preview of every theme: Game Boy, Persona 5, Cyberpunk, Pop Art, Wild West, and many more.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🗺️</span>
+        <h3>Game Guide Included</h3>
+        <p>Step-by-step Professor Oak Challenge walkthrough for ORAS baked right into the plugin.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🌐</span>
+        <h3>6 Languages</h3>
+        <p>Full support for English, French, German, Italian, Japanese, and Spanish.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- SCREENSHOTS -->
+<section id="screenshots">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">In Action</div>
+      <h2 class="section-title">Screenshots</h2>
+      <p class="section-sub">Click any image to view full size.</p>
+    </div>
+    <div class="screenshots-grid">
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_TrainerNavy_default_.png"
+             alt="Default Theme — Trainer Navy" loading="lazy" />
+        <div class="screenshot-caption">Default Theme — Trainer Navy</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/partysummary_card.png"
+             alt="Party Summary Cards" loading="lazy" />
+        <div class="screenshot-caption">Party Summary Cards</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/favorites.png"
+             alt="Favorites Grid" loading="lazy" />
+        <div class="screenshot-caption">Favorites Grid</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/config_hud.png"
+             alt="HUD Configuration" loading="lazy" />
+        <div class="screenshot-caption">HUD Configuration</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/stats_page01.png"
+             alt="Enemy Stats — Basic & Moves" loading="lazy" />
+        <div class="screenshot-caption">Enemy Stats — Basic &amp; Moves</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/stats_page02.png"
+             alt="Enemy Stats — IVs & EVs" loading="lazy" />
+        <div class="screenshot-caption">Enemy Stats — IVs &amp; EVs</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/display_enemy_stats.png"
+             alt="Display Enemy Stats Config" loading="lazy" />
+        <div class="screenshot-caption">Display Enemy Stats Config</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/tools_menu.png"
+             alt="Tools Menu" loading="lazy" />
+        <div class="screenshot-caption">Tools Menu</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" role="dialog" aria-modal="true">
+  <button id="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<hr class="divider" />
+
+<!-- THEMES -->
+<section id="themes">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">25 Built-in Themes</div>
+      <h2 class="section-title">Make It Yours</h2>
+      <p class="section-sub">Instant preview — the plugin remembers your choice between sessions.</p>
+    </div>
+    <div class="themes-grid">
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_GameBoyClassic.png"
+             alt="Game Boy Classic" loading="lazy" />
+        <div class="theme-name">Game Boy Classic</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_AlphaSapphire.png"
+             alt="Alpha Sapphire" loading="lazy" />
+        <div class="theme-name">Alpha Sapphire</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_WildWest.png"
+             alt="Wild West" loading="lazy" />
+        <div class="theme-name">Wild West</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_PopArt.png"
+             alt="Pop Art" loading="lazy" />
+        <div class="theme-name">Pop Art</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_ArtDeco.png"
+             alt="Art Deco" loading="lazy" />
+        <div class="theme-name">Art Deco</div>
+      </div>
+      <div class="theme-card fade-in" style="display:flex;align-items:center;justify-content:center;min-height:140px;background:var(--bg3);border:1px dashed var(--border);">
+        <div style="text-align:center;color:var(--muted);font-size:.85rem;padding:1rem;">
+          +20 more themes<br/>inside the plugin
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- COMPAT -->
+<section id="compat">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">Compatibility</div>
+      <h2 class="section-title">Supported Games</h2>
+      <p class="section-sub">Works with all four Generation 6 Pokémon titles on Nintendo 3DS.</p>
+    </div>
+    <div class="compat-grid">
+      <div class="compat-card fade-in">
+        <span class="compat-icon">⚔️</span>
+        <h3>Pokémon X</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge badge-yes">Supported</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🌿</span>
+        <h3>Pokémon Y</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge badge-yes">Supported</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🔴</span>
+        <h3>Omega Ruby</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge badge-yes">Supported</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🔵</span>
+        <h3>Alpha Sapphire</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge badge-yes">Supported</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">Get It Now</div>
+      <h2 class="section-title">Download</h2>
+    </div>
+    <div class="download-card fade-in">
+      <div>
+        <div class="dl-version">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
+          Latest Release
+        </div>
+        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.2.1</div>
+        <div class="dl-meta">
+          Released <span>June 20, 2026</span> &bull;
+          Platform <span>Nintendo 3DS (3gx)</span> &bull;
+          License <span>GNU GPL-3.0</span>
+        </div>
+        <div class="dl-buttons">
+          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.2.1/Gen6CTRPluginFramework-v0.2.1.zip" target="_blank" rel="noopener">
+            ⬇ Download v0.2.1 (.zip)
+          </a>
+          <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">
+            All Releases
+          </a>
+        </div>
+      </div>
+      <div class="dl-counter">
+        <div class="dl-count-num" id="download-count">–</div>
+        <div class="dl-count-label">Total Downloads</div>
+      </div>
+    </div>
+
+    <div class="releases-list fade-in">
+      <div class="release-row">
+        <span class="release-tag">v0.2.1</span>
+        <span class="release-date">Jun 20, 2026</span>
+        <span class="release-downloads" id="dl-v021">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.2.1/Gen6CTRPluginFramework-v0.2.1.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.2.0</span>
+        <span class="release-date">Jun 18, 2026</span>
+        <span class="release-downloads" id="dl-v020">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.2.0/Gen6CTRPluginFramework-v0.2.0.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag">Setup</div>
+      <h2 class="section-title">How to Install</h2>
+      <p class="section-sub">Requires a Nintendo 3DS with Luma3DS CFW and the Rosalina menu plugin loader.</p>
+    </div>
+    <div class="steps">
+      <div class="step fade-in">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Download the latest release</h4>
+          <p>Grab the <code>.zip</code> from the <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener" style="color:var(--accent)">Releases page</a> and extract its contents.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Copy the .3gx file to your SD card</h4>
+          <p>Place the plugin file in <code>/luma/plugins/</code> folder on your 3DS SD card. Create the folder if it doesn't exist.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Launch your Pokémon game</h4>
+          <p>Boot your Gen 6 game normally. Luma3DS will automatically load the plugin on startup.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Open the plugin menu</h4>
+          <p>Press the button combo configured in Rosalina (usually <code>L+Down+Select</code>) to open the plugin menu in-game.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Read the built-in guide</h4>
+          <p>Head to <strong>App Guide</strong> inside the plugin — 20 pages of beginner-friendly instructions are waiting for you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">Gen6<span>CTR</span>PluginFramework</div>
+    <p class="footer-desc">
+      An open-source 3gx plugin overhauling the Gen 6 Pokémon experience on Nintendo 3DS.<br/>
+      Built with C++ &amp; C. Licensed under GNU GPL-3.0.
+    </p>
+    <div class="footer-links">
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/issues" target="_blank" rel="noopener">Report Bug</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </div>
+    <div class="footer-copy">
+      &copy; 2026 samaBR85. Not affiliated with Nintendo or The Pokémon Company.
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ── Download counter from GitHub API ────────────── */
+  async function loadDownloads() {
+    try {
+      const res = await fetch('https://api.github.com/repos/samaBR85/Gen6CTRPluginFramework/releases');
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      let total = 0;
+      data.forEach(release => {
+        release.assets.forEach(asset => { total += asset.download_count; });
+      });
+
+      const v021 = data.find(r => r.tag_name === 'v0.2.1');
+      const v020 = data.find(r => r.tag_name === 'v0.2.0');
+
+      const count021 = v021 ? v021.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count020 = v020 ? v020.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+
+      animateCount('total-downloads', total);
+      animateCount('download-count', total);
+
+      const el021 = document.getElementById('dl-v021');
+      const el020 = document.getElementById('dl-v020');
+      if (el021) el021.textContent = count021 + ' downloads';
+      if (el020) el020.textContent = count020 + ' downloads';
+    } catch (e) {
+      const els = ['total-downloads','download-count','dl-v021','dl-v020'];
+      els.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '–';
+      });
+    }
+  }
+
+  function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let start = 0;
+    const duration = 1200;
+    const step = (timestamp) => {
+      if (!step.startTime) step.startTime = timestamp;
+      const progress = Math.min((timestamp - step.startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.floor(ease * target).toLocaleString();
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = target.toLocaleString();
+    };
+    requestAnimationFrame(step);
+  }
+
+  loadDownloads();
+
+  /* ── Scroll fade-in ──────────────────────────────── */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  /* ── Lightbox ────────────────────────────────────── */
+  function openLightbox(card) {
+    const img = card.querySelector('img');
+    document.getElementById('lightbox-img').src = img.src;
+    document.getElementById('lightbox-img').alt = img.alt;
+    document.getElementById('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) closeLightbox();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+</body>
+</html>
