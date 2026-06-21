@@ -45,6 +45,7 @@
 #include "CTRPluginFramework/Graphics/Color.hpp"
 #include "CTRPluginFramework/Graphics/OSD.hpp"
 #include "CTRPluginFramework/Graphics/Render.hpp"
+#include "CTRPluginFramework/Graphics/Image.hpp"
 #include "CTRPluginFramework/System/Controller.hpp"
 #include "CTRPluginFramework/System/Directory.hpp"
 #include "CTRPluginFramework/System/FwkSettings.hpp"

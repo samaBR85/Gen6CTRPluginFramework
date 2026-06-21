@@ -1,4 +1,4 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.2.1
+# Gen6CTRPluginFrameworkOverhauled — v0.3.0
 
 A heavily overhauled 3gx plugin for Pokémon X, Y, Omega Ruby, and Alpha Sapphire on the Nintendo 3DS.
 
@@ -12,7 +12,56 @@ CTRPluginFramework; all of that work is gratefully preserved (see Credits).
 > 🎯 **This release focuses on Pokémon Alpha Sapphire.** Tailored content for **Pokémon X**, **Y**
 > and **Omega Ruby** is already in the works — stay tuned!
 
-![Gen6CTRPluginFrameworkOverhauled running on Pokémon Alpha Sapphire](Screenshots/AS/export/theme_TrainerNavy_default_.png)
+![Gen6CTRPluginFrameworkOverhauled — the v0.3.0 main menu on Pokémon Alpha Sapphire](Screenshots/AS/export/home_v030.png)
+
+## 🆕 New in v0.3.0 — find anything, in seconds
+
+The headline of this release is three dual-screen **finders** that turn "I wish I could just *get* that
+Pokémon / item" into a few taps. Everything is built-in — no internet, no typing long names, no wikis.
+
+![The Pokémon Spawner & Trainer (PKHeX) menu](Screenshots/AS/export/special_features.png)
+
+### 🔎 Wild Pokémon Spawner
+
+Browse **every** wild Pokémon and spawn the one you pick. The top screen is a live, counted list; the bottom
+screen is a filter hub — narrow by **name / National Dex #**, **generation**, **type** (1st *and* 2nd),
+**traits** (evo stage, category, Mega), or just what you already **own** in your boxes.
+
+![Spawner — faceted dual-screen finder with live filters](Screenshots/AS/export/pokemonspawner_01.png)
+
+Open any result for a full character sheet: sprite, types, abilities (including the Hidden one), evolution
+stage, base stats, and the **four moves it knows at your chosen level**. Set the form and level, choose
+**Normal or Shiny**, and tap **SPAWN ON THE WILD**.
+
+![Spawner — detail sheet with stats, moves and spawn settings](Screenshots/AS/export/pokemonspawner_02.png)
+
+Then just step into grass, water or a cave — and there it is.
+
+![Spawner — "a wild Pokémon appeared!"](Screenshots/AS/export/pokemonspawner_03.png)
+
+### 🎒 Add Item to Inventory
+
+The same idea for your **whole bag** — Items, Medicines, Berries, TMs & HMs and Key Items in one searchable
+list, each row showing its icon and **how many you already own**. Filter by **pocket / category**, **type**,
+or even **status** (find every Burn / Sleep / Poison item — cures, orbs and status-move TMs alike).
+
+![Add Item — the whole bag in one searchable list](Screenshots/AS/export/additem_01.png)
+![Add Item — the Status filter (cure / inflict / teach)](Screenshots/AS/export/additem_03.png)
+
+Pick an item, set the amount, and **ADD TO BAG** — it lands in the first free slot and **never wipes** what
+you already have.
+
+![Add Item — quantity and Add to Bag](Screenshots/AS/export/additem_05.png)
+
+### ✨ Respawn Legendary
+
+Knocked one out or watched it flee? Respawn Legendary now lists every legendary in your game with its own
+character sheet and **real location** — pick it and send it back to where you found it.
+
+![Respawn Legendary — pick a legendary and send it back to its location](Screenshots/AS/export/respawnlegendary.png)
+
+> Plus a **completely re-organised menu**, **save-first guard-rails** on the risky cheats, a **theme-aware
+> keyboard**, and lots of polish — see the full changelog in the [release notes](https://github.com/samaBR85/Gen6CTRPluginFramework/releases/latest).
 
 ## 🌱 Made by a curious player, with Claude
 
@@ -40,6 +89,8 @@ Everything below exists because it solved an actual annoyance — not because a 
   actually help you. It reads like a guided adventure, not a manual.
 - ℹ️ **An INFO (i) note on every single function.** Highlight anything and press the info **(i)** button (or
   **X**) for a plain, beginner-friendly explanation of what it does and how to use it. No guessing, no wikis.
+- 🔎 **Dual-screen finders for Pokémon and items.** The **Wild Pokémon Spawner**, **Add Item to Inventory** and
+  **Respawn Legendary** — browse, filter and grab exactly what you want. *(New in v0.3.0 — [see above](#-new-in-v030--find-anything-in-seconds).)*
 - 📊 **View Party Summary — sortable stat cards.** See your team's real hidden numbers (stats, IVs, EVs,
   Nature, Ability, item, moves) as cards. Move a selector over a stat with **Up/Down**, press **A** to jump
   to the teammate with the **HIGHER** (or **LOWER**) value, flip the mode with **L**, and read ▲/▼ markers
@@ -48,7 +99,7 @@ Everything below exists because it solved an actual annoyance — not because a 
 
   ![View Party Summary — sortable stat card with HIGHER/LOWER markers](Screenshots/AS/export/partysummary_card.png)
 - ⭐ **Favorites that actually work for you.** A two-column Favorites list (more on screen, less scrolling),
-  **drag-to-reorder in any direction** (because chronological order made re-organizing a pain), and short
+  **reorder with L + D-Pad** (hold L, tap a direction — because chronological order made re-organizing a pain), and short
   **aliases** shown only in Favorites so the list stays clean and readable.
 
   ![Favorites — two-column grid with tidy aliases](Screenshots/AS/export/favorites.png)
@@ -148,6 +199,15 @@ exist.
 - [JourneyOver](https://github.com/JourneyOver) et al. — the extensive [ActionReplay code database](https://github.com/JourneyOver/CTRPF-AR-CHEAT-CODES)
 - [Alexander Hartmann](https://github.com/Hartie95) — the XY & ORAS foundation of this plugin
 
+**Image & data sources** (for the Spawner, item finder and Pokédex data)
+- **Pokémon sprites** — the Spawner sprites and Legendary icons are downscaled from the
+  [Pokémon Database](https://pokemondb.net) X/Y sprite set.
+- **Item / TM / HM icons** — from the [PokéAPI sprites](https://github.com/PokeAPI/sprites) repository.
+- **Pokédex, type, ability & move data** — [Pokémon Showdown](https://github.com/smogon/pokemon-showdown) and
+  [PokéAPI](https://pokeapi.co); **item names** from [PKHeX](https://github.com/kwsch/PKHeX/) (kwsch).
+- All Pokémon images and names are **© Nintendo / Game Freak / The Pokémon Company.** These community mirrors
+  are used only to build this free, non-commercial fan tool.
+
 **The bundled Game Guide** — the Professor Oak Challenge walkthrough
 - **Mewlax** ([u/mewlax84](https://www.reddit.com/user/mewlax84), Instagram [@pokemewlax](https://www.instagram.com/pokemewlax/),
   X [@Mewlax1](https://twitter.com/Mewlax1)) — author of the ORAS guide, shared through the
@@ -157,7 +217,7 @@ exist.
 - **Dynamite** — for the O-Power order info; **Likemeon** — for the Granite Cave chaining tip.
 
 **This fork**
-- Fork, overhaul and v0.2.1 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
+- Fork, overhaul and v0.3.0 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
   with **Claude** (Anthropic).
 
 ## License

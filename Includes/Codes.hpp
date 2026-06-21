@@ -44,6 +44,7 @@ namespace CTRPluginFramework {
     void NoWildPokemon(MenuEntry *entry);
     void UpdateWildSpawner(MenuEntry *entry);
     void WildSpawner(MenuEntry *entry);
+    void BagItemFinder(MenuEntry *entry); // unified Bag item-finder (#11 redesign)
     void AlwaysShiny(MenuEntry *entry);
     void DisableShinyLock(MenuEntry *entry);
     void CaptureRate(MenuEntry *entry);

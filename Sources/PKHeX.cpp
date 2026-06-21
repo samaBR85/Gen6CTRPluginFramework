@@ -3,6 +3,7 @@
 #include "Helpers.hpp"
 #include "Parser.hpp"
 #include "BaseStats.hpp"
+#include "BagItems.hpp"    // bagItemName[id] for the Bag pick-a-specific-item picker (#11)
 #include "MoveInfo.hpp"
 #include <functional>
 #include <array>
@@ -181,94 +182,98 @@ namespace CTRPluginFramework {
             Process::Write32(address, miles);
     }
 
-    static u16 itemAmount;
+    // ---- Bag pick-a-specific-item (#11) ----------------------------------------------------
+    // Replaces the old "fill the whole pocket" dump: choose ONE item from the pocket's list, set a
+    // quantity, and write it to the first FREE bag slot (or update it if already present) -- it
+    // never wipes existing items. Item names come from Includes/BagItems.hpp (bagItemName[id]).
+    static int s_bagPick = 0;
+    static void BagPickAndAdd(const string &pocket, u32 pocketBase, vector<int> ids) {
+        sort(ids.begin(), ids.end());
+        ids.erase(unique(ids.begin(), ids.end()), ids.end());
 
-    void Items(MenuEntry *entry) {
-        // Prompt the user to enter a value then write it to memory if successful.
-        if (KeyboardHandler<u16>::Set(entry->Name() + " (0-999):", true, false, 3, itemAmount, 0, 0, 999, Callback<u16>)) {
-            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
-            entry->SetGameFunc(UpdateItems);
+        const int NAMECOUNT = (int)(sizeof(bagItemName) / sizeof(bagItemName[0]));
+        vector<string> names;
+        names.reserve(ids.size());
+        for (size_t i = 0; i < ids.size(); i++) {
+            int id = ids[i];
+            const char *nm = (id >= 0 && id < NAMECOUNT && bagItemName[id][0]) ? bagItemName[id] : "";
+            names.push_back(nm[0] ? string(nm) : ("Item #" + to_string(id)));
         }
+
+        Keyboard keyboard;
+        if (s_bagPick < 0 || s_bagPick >= (int)ids.size()) s_bagPick = 0;
+        int choice = keyboard.Setup(pocket + ": choose an item to add", true, names, s_bagPick);
+        if (choice < 0) return; // cancelled
+        s_bagPick = choice;
+        int itemId = ids[choice];
+
+        u16 qty = 1;
+        if (!KeyboardHandler<u16>::Set("How many? (1-999):", true, false, 3, qty, 0, 1, 999, Callback<u16>))
+            return; // cancelled
+
+        // Bag pockets are front-packed: scan for the item (update its count) or the first empty
+        // slot (append). Each slot is u32 = itemId | (qty << 16).
+        int cap = (int)ids.size() + 16;
+        int existSlot = -1, freeSlot = -1;
+        for (int i = 0; i < cap; i++) {
+            u16 sid = (u16)(Process::Read32(pocketBase + 0x4 * i) & 0xFFFF);
+            if (sid == itemId) { existSlot = i; break; }
+            if (sid == 0 && freeSlot < 0) freeSlot = i;
+        }
+        int slot = (existSlot >= 0) ? existSlot : freeSlot;
+        if (slot < 0) {
+            MessageBox(CenterAlign("That pocket looks full - no free slot found."), DialogType::DialogOk, ClearScreen::Both)();
+            return;
+        }
+
+        Process::Write32(pocketBase + 0x4 * slot, (u32)itemId | ((u32)qty << 16));
+        MessageBox(CenterAlign("Added " + to_string(qty) + "x " + names[choice] + "\nto your " + pocket + " pocket."),
+                   DialogType::DialogOk, ClearScreen::Both)();
     }
+
+    void Items(MenuEntry *entry) { UpdateItems(entry); }
 
     static const vector<int> items = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 112, 116, 117, 118, 119, 135, 136, 213, 214, 215, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 492, 493, 494, 495, 496, 497, 498, 499, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 571, 572, 573, 576, 577, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 639, 640, 644, 646, 647, 648, 649, 650, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683, 684, 685, 699, 704, 710, 711, 715};
 
+    // Builds the Items pocket's id-list (base + game-specific extras) and runs the picker (#11).
     void UpdateItems(MenuEntry *entry) {
+        (void)entry;
         static const vector<u32> address = {AutoGameSet({0x8C67564, 0x8C67566}, {0x8C6EC70, 0x8C6EC72})};
-        vector<int> getItems;
-        copy(items.begin(), items.end(), back_inserter(getItems));
-
-        // Add specific items based on the currGameSeries
+        vector<int> ids(items.begin(), items.end());
         if (currGameSeries == GameSeries::XY)
-            getItems.insert(getItems.end(), {65, 66, 67}); // XY-specific items
-
+            ids.insert(ids.end(), {65, 66, 67}); // XY-specific items
         else if (currGameSeries == GameSeries::ORAS)
-            getItems.insert(getItems.end(), {534, 535, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 767, 768, 769, 770}); // ORAS-specific items
-
-        // Add common items for XY and ORAS
+            ids.insert(ids.end(), {534, 535, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 767, 768, 769, 770}); // ORAS-specific
         if (currGameSeries == GameSeries::XY || currGameSeries == GameSeries::ORAS)
-            getItems.insert(getItems.end(), {500, 652, 653, 654, 655});
-
-        // Sort items
-        sort(getItems.begin(), getItems.end());
-
-        // Write items to memory
-        for (int counter = 0; counter < getItems.size(); counter++)
-            Process::Write32(address[0] + (0x4 * counter), getItems[counter] | (itemAmount << 16));
+            ids.insert(ids.end(), {500, 652, 653, 654, 655});
+        BagPickAndAdd("Items", address[0], ids);
     }
 
-    static u16 medAmount;
-
-    void Medicines(MenuEntry *entry) {
-        if (KeyboardHandler<u16>::Set(entry->Name() + " (0-999):", true, false, 3, medAmount, 0, 0, 999, Callback<u16>)) {
-            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
-            entry->SetGameFunc(UpdateMedicines);
-        }
-    }
+    void Medicines(MenuEntry *entry) { UpdateMedicines(entry); }
 
     static const vector<int> medicines = {17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 134, 504, 565, 566, 567, 568, 569, 570, 591, 645, 708, 709};
 
+    // Builds the Medicines pocket's id-list and runs the picker (#11).
     void UpdateMedicines(MenuEntry *entry) {
+        (void)entry;
         static const vector<u32> address = {AutoGameSet({0x8C67ECC, 0x8C67ECE}, {0x8C6F5E0, 0x8C6F5E2})};
-        vector<int> getMedicines;
-        copy(medicines.begin(), medicines.end(), back_inserter(getMedicines));
-
-        // Add specific medicine based on the current game series
+        vector<int> ids(medicines.begin(), medicines.end());
         if (currGameSeries == GameSeries::XY || currGameSeries == GameSeries::ORAS)
-            getMedicines.push_back(571); // XY and ORAS-specific medicine
-
-        // Add additional items if not in XY (handled explicitly for ORAS)
+            ids.push_back(571);
         if (currGameSeries == GameSeries::ORAS)
-            getMedicines.insert(getMedicines.end(), {65, 66, 67});
-
-        // Sort medicines
-        sort(getMedicines.begin(), getMedicines.end());
-
-        // Write medicines to memory
-        for (int counter = 0; counter < getMedicines.size(); counter++)
-            Process::Write32(address[0] + (0x4 * counter), getMedicines[counter] | (medAmount << 16));
+            ids.insert(ids.end(), {65, 66, 67});
+        BagPickAndAdd("Medicines", address[0], ids);
     }
 
     vector<int> berries = {149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 686, 687, 688};
-    static u16 berryAmount;
+    void Berries(MenuEntry *entry) { UpdateBerries(entry); }
 
-    void Berries(MenuEntry *entry) {
-        if (KeyboardHandler<u16>::Set(entry->Name() + " (0-999):", true, false, 3, berryAmount, 0, 0, 999, Callback<u16>)) {
-            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES") + " to: " + entry->Name()), DialogType::DialogOk, ClearScreen::Both)();
-            entry->SetGameFunc(UpdateBerries);
-        }
-    }
-
+    // Builds the Berries pocket's id-list and runs the picker (#11).
     void UpdateBerries(MenuEntry *entry) {
+        (void)entry;
         static const vector<u32> address = {AutoGameSet({0x8C67FCC, 0x8C67FCE}, {0x8C6F6E0, 0x8C6F6E2})};
-        sort(berries.begin(), berries.end());
-
-        for (int counter = 0; counter < berries.size(); counter++) {
-            if (currGameSeries == GameSeries::XY || currGameSeries == GameSeries::ORAS)
-                Process::Write32(address[0] + (0x4 * counter), berries[counter] | (berryAmount << 16));
-
-            else Process::Write32(address[0] + (0x4 * counter), berries[counter] + (berryAmount << 10));
-        }
+        vector<int> ids(berries.begin(), berries.end());
+        BagPickAndAdd("Berries", address[0], ids);
     }
 
     static const vector<int> teachables = {328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 618, 619, 620, 690, 691, 692, 693, 694};
@@ -332,7 +337,27 @@ namespace CTRPluginFramework {
 
     static int unlockCase;
 
+    // Show a centred, colour-styled "irreversible after a save" warning on the TOP screen, with a
+    // [NO]/[YES] list on the bottom. Returns true only if the user explicitly picks YES.
+    // heading/body/question come pre-split into short \n lines so CenterAlign never breaks a word.
+    static bool DangerConfirm(const string &heading, const string &body, const string &question) {
+        const string red   = string(Color(0xF2, 0x4A, 0x3C)); // warning red for the heading
+        const string amber = string(Color(0xF5, 0xA6, 0x23)); // highlight for the closing question
+        const string reset(1, (char)0x18);                    // 0x18 resets colour to the theme's text colour
+        string warn = CenterAlign(red + heading + "\n\n" + reset + body + "\n\n" + amber + question, 55, 345);
+
+        static const vector<string> options = {"NO - keep it off", "YES - apply it"};
+        int choice = 0;
+        Keyboard kb;
+        return kb.Setup(warn, true, options, choice) != -1 && choice == 1;
+    }
+
     void KeyItems(MenuEntry *entry) {
+        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
+                           "It dumps every TM, HM and\nKey Item at once, flooding\nyour Bag and your progress.",
+                           "Apply it anyway?"))
+            return;
+
         static const vector<string> options = {getLanguage->Get("EDITOR_BAG_TMS_HMS"), getLanguage->Get("EDITOR_BAG_KEY_ITEMS")};
         Keyboard keyboard;
 
@@ -341,7 +366,6 @@ namespace CTRPluginFramework {
     }
 
     // Adopted from old project
-    static int dexStatus;
     static u8 dexByte;
 
     void UnlockFullDex(MenuEntry *entry) {
@@ -351,10 +375,9 @@ namespace CTRPluginFramework {
                 {0x8C8204C, 0x8C81FEC, 0x8C81F20, 0x8C81FE8})
         };
 
-        static const vector<string> options = {getLanguage->Get("EDITOR_UNLOCK_DEX")};
-        Keyboard keyboard;
-
-        if (keyboard.Setup(entry->Name() + ":", true, options, dexStatus) != -1) {
+        if (DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
+                          "It marks every Pokémon as\nseen and caught, so you lose\nfilling the Dex yourself.",
+                          "Apply it anyway?")) {
             if ((Nibble::Read8(address[2], dexByte, true) && dexByte != 5) || (Nibble::Read8(address[3], dexByte, true) && dexByte != 7)) {
                 if (Nibble::Write8(address[2], 5, true)) {
                     if (Nibble::Write8(address[3], 7, true))
@@ -2052,6 +2075,11 @@ namespace CTRPluginFramework {
     }
 
     void BoxesUnlocked(MenuEntry *entry) {
+        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
+                           "It force-opens all 31 PC\nboxes, a permanent change\nto your save file.",
+                           "Apply it anyway?"))
+            return;
+
         static const u32 address = AutoGameSet(0x8C6AC26, 0x8C7232A);
 
         // Lambda function to check if the boxes are unlocked

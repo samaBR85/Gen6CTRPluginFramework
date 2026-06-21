@@ -602,7 +602,7 @@ namespace CTRPluginFramework {
             const int kBoxBottom = 220;
             const int kItemH = 20;
             int n = std::min(max, 7);
-            int pad = (kBoxBottom - posY - n * kItemH) / 2 - 10;
+            int pad = (kBoxBottom - posY - n * kItemH) / 2 - 5;
             if (pad > 0) posY += pad;
         }
 

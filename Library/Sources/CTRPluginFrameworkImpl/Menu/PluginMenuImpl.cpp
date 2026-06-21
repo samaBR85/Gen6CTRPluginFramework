@@ -12,7 +12,7 @@ namespace CTRPluginFramework {
         _search(new PluginMenuSearch(_hexEditor)),
         _tools(new PluginMenuTools(about, _hexEditor)),
         _executeLoop(new PluginMenuExecuteLoop()),
-        _guide(new GuideReader()),
+        _guide(new GuideReader("GameGuide")),
         _appGuide(new GuideReader("AppGuide")),
         _hexEditor(0x00100000),
         _forceOpen(false),

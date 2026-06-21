@@ -2,6 +2,11 @@
 #include "Parser.hpp"
 #include "Codes.hpp"
 #include "PKHeX.hpp"
+#include "BaseStats.hpp"     // gBaseStats[721][6] {HP,Atk,Def,SpA,SpD,Spe} - Wild Spawner detail sheet
+#include "SpawnerData.hpp"   // per-species types/abilities/evo/category/mega for the faceted search
+#include "SpawnerMoves.hpp"  // Gen-6 level-up movesets for the detail sheet
+#include "BagItems.hpp"      // bagItemName[801] - unified Bag item-finder
+#include "BagItemMeta.hpp"   // pocket/group/type/desc/flavor for the Bag item-finder filters + strip
 
 namespace CTRPluginFramework {
     static int selectedIcon = 0;
@@ -1285,23 +1290,17 @@ namespace CTRPluginFramework {
         }
     }
 
-    // Adopted from old project
-    static int legendaryOption;
+    static void RespawnLegendaryHub(void); // defined after the Spawner helpers it reuses (detail-sheet render)
 
-    void RespawnLegendary(MenuEntry *entry) {
+    // Reset the per-legendary event flag so the static/scripted legendary becomes available again at its real
+    // location. The addresses / flags / rightSide table are INHERITED (work on hardware) — kept verbatim; only
+    // driven by `option` now (was the keyboard's `legendaryOption`). Returns true if a write succeeded.
+    static bool ApplyLegendaryRespawn(int option) {
         static const vector<u32> address = {
            AutoGameSet(
                 {0x8C7A74C, 0x8C7A56C, 0x8C7A73C, 0x8C7A736},
                 {0x8C81DF2, 0x8C81E0C, AutoGame(0x8C81E29, 0x8C81E28), 0x8C81E41, 0x8C81E4E, 0x8C81F38, 0x8C81DF8, 0x8C81CC4, 0x8C81DF7, 0x8C81F38, 0x8C81F39, 0x8C81F3A, 0x8C81DEF}
         )};
-
-        static const vector<string> options = {
-            AutoGameSet(
-                {"Mewtwo", AutoGame("Xerneas", "Yveltal"), "Zygarde"},
-                {AutoGame("Ho-Oh", "Lugia"), AutoGame("Latias", "Latios"), AutoGame("Groudon", "Kyogre"), "Rayquaza", "Deoxys", AutoGame("Palkia", "Dialga"), "Heatran", "Regigigas", "Giritina", AutoGame("Tornadus", "Thunderus"), "Landorus", "Kyruem"}
-        )};
-
-        Keyboard keyboard;
 
         static const vector<vector<bool>> rightSide = {
             {true, true, false},
@@ -1311,33 +1310,36 @@ namespace CTRPluginFramework {
         static const u8 additional = 0;
         static vector<u8> flag(AutoGameSet(3, 12), 0);
         static const bool extra = false;
+        bool ok = false;
 
-        if (keyboard.Setup(entry->Name() + ":", true, options, legendaryOption) != -1) {
-            (currGameSeries == GameSeries::XY ? flag[1] = 5 : flag[3] = 14, flag[7] = 1);
+        (currGameSeries == GameSeries::XY ? flag[1] = 5 : flag[3] = 14, flag[7] = 1);
 
-            for (int i = 0; i < address.size(); i++) {
-                if (i > address.size())
-                    break;
-
-                if (legendaryOption == i) {
-                    if (Nibble::Read8(address[i], data8, rightSide[AutoGameSet(0, 1)][i]) && data8 != 0) {
-                        if (Nibble::Read8(address[i], data8, rightSide[AutoGameSet(0, 1)][i])) {
-                            if (Nibble::Write8(address[i], flag[i], rightSide[AutoGameSet(0, 1)][i]))
-                                MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES")), DialogType::DialogOk, ClearScreen::Both)();
-                        }
+        for (int i = 0; i < (int)address.size(); i++) {
+            if (option == i) {
+                if (Nibble::Read8(address[i], data8, rightSide[AutoGameSet(0, 1)][i]) && data8 != 0) {
+                    if (Nibble::Read8(address[i], data8, rightSide[AutoGameSet(0, 1)][i])) {
+                        if (Nibble::Write8(address[i], flag[i], rightSide[AutoGameSet(0, 1)][i]))
+                            ok = true;
                     }
                 }
+            }
 
-                if (i == (currGameSeries == GameSeries::XY ? 1: 7)) {
-                    if (Nibble::Read8(address[i + 1], data8, extra) && data8 != 0) {
-                        if (Nibble::Read8(address[i + 1], data8, extra)) {
-                            if (Nibble::Write8(address[i + 1], additional, extra))
-                                MessageBox(CenterAlign(getLanguage->Get("PLUGIN_APPLIED_CHANGES")), DialogType::DialogOk, ClearScreen::Both)();
-                        }
+            if (i == (currGameSeries == GameSeries::XY ? 1 : 7)) {
+                if (Nibble::Read8(address[i + 1], data8, extra) && data8 != 0) {
+                    if (Nibble::Read8(address[i + 1], data8, extra)) {
+                        if (Nibble::Write8(address[i + 1], additional, extra))
+                            ok = true;
                     }
                 }
             }
         }
+        return ok;
+    }
+
+    // Entry point (Pokémon Spawner & Trainer (PKHeX) > "Respawn Legendary"): open the dual-screen hub.
+    void RespawnLegendary(MenuEntry *entry) {
+        (void)entry;
+        RespawnLegendaryHub();
     }
 
     void NoWildPokemon(MenuEntry *entry) {
@@ -1438,32 +1440,1414 @@ namespace CTRPluginFramework {
         }
     }
 
-    static int pokemon = 0, form = 0;
-    static u8 level = 1;
+    // ======================================================================================
+    //  Wild Pokemon Spawner (#7) -- faceted dual-screen search hub + character/detail sheet.
+    //  Top screen = live result list; bottom screen = touch filters that narrow it in real time.
+    //  Pure plugin-side custom UI (same OSD draw-loop pattern as ViewPartyInfo / the HUD pickers).
+    //  Data: Includes/SpawnerData.hpp (types/abilities/evo/category/mega) + SpawnerMoves.hpp
+    //  (Gen-6 level-up movesets). Sprites: 24-bit BMPs on the SD under Spawner/{normal,shiny}/NNN.bmp,
+    //  drawn through the framework's public Image wrapper.
+    // ======================================================================================
 
-    void WildSpawner(MenuEntry *entry) {
-        Keyboard keyboard;
+    static int  form = 0;          // selected form index (reset per species)
+    static u8   level = 1;         // selected level 1..100 (persists)
+    static bool spawnerShiny = false; // preview sprite normal/shiny (display only)
 
-        // Search for a Pokémon species
-        SearchForSpecies(entry);
-        pokemon = speciesID;
+    // Official Pokemon type colours, indexed to spawnerTypeNames (0 = None).
+    static Color SpawnerTypeColor(int t) {
+        static const u32 c[19] = {
+            0x808080, 0xA8A878, 0xF08030, 0x6890F0, 0xF8D030, 0x78C850, 0x98D8D8, 0xC03028,
+            0xA040A0, 0xE0C068, 0xA890F0, 0xF85888, 0xA8B820, 0xB8A038, 0x705898, 0x7038F8,
+            0x705848, 0xB8B8D0, 0xEE99AC
+        };
+        if (t < 0 || t > 18) t = 0;
+        u32 v = c[t];
+        return Color((u8)((v >> 16) & 0xFF), (u8)((v >> 8) & 0xFF), (u8)(v & 0xFF));
+    }
 
-        if (pokemon <= 0) {
-            MessageBox(CenterAlign(getLanguage->Get("SPAWNER_INVALID")), DialogType::DialogOk, ClearScreen::Both)();
-            return; // Exit if no valid Pokémon is found
+    // Category accent (0=Regular 1=Legendary 2=Mythical 3=Pseudo 4=Starter 5=Fossil).
+    static Color SpawnerCatColor(int cat) {
+        static const u32 c[6] = { 0x8C94A0, 0xE0A81E, 0xE066AA, 0x3F86C9, 0x4FB06E, 0xA9824E };
+        if (cat < 0 || cat > 5) cat = 0;
+        u32 v = c[cat];
+        return Color((u8)((v >> 16) & 0xFF), (u8)((v >> 8) & 0xFF), (u8)(v & 0xFF));
+    }
+
+    static int SpawnerGen(int n) {
+        if (n <= 151) return 1;
+        if (n <= 251) return 2;
+        if (n <= 386) return 3;
+        if (n <= 493) return 4;
+        if (n <= 649) return 5;
+        return 6;
+    }
+
+    static string SpawnerLower(const string &s) {
+        string r = s;
+        for (size_t i = 0; i < r.size(); i++)
+            if (r[i] >= 'A' && r[i] <= 'Z') r[i] = (char)(r[i] + 32);
+        return r;
+    }
+
+    static string SpawnerPad3(int n) {
+        char b[4];
+        b[0] = (char)('0' + (n / 100) % 10);
+        b[1] = (char)('0' + (n / 10) % 10);
+        b[2] = (char)('0' + n % 10);
+        b[3] = 0;
+        return string(b);
+    }
+
+    // A wild Pokemon's 4 moves at a given level = the last 4 level-up moves with level <= L.
+    static int SpawnerMovesAt(int n, int lvl, int outIdx[4]) {
+        int start = spawnerMoveOff[n], end = spawnerMoveOff[n + 1];
+        int qual[80], qn = 0;
+        for (int i = start; i < end; i++) {
+            if (spawnerMoveLv[i] <= lvl) { if (qn < 80) qual[qn++] = spawnerMoveIdx[i]; }
+            else break; // entries are sorted by level
+        }
+        int count = qn < 4 ? qn : 4;
+        for (int j = 0; j < count; j++) outIdx[j] = qual[qn - count + j];
+        return count;
+    }
+
+    // ---- live faceted filter state (persists between openings) ----
+    struct SpawnerFilters {
+        string text;       // lowercased name/# substring ("" = any)
+        bool invOnly;      // "In-Inventory": only species you own in the PC boxes
+        bool gen[7];       // [1..6]
+        bool prim[19];     // primary type [1..18]
+        bool sec[19];      // secondary type [0=None, 1..18]
+        bool stage[5];     // evo stage [0..4]
+        bool cat[6];       // category [0..5]
+        bool megaHas, megaNo;
+    };
+    static SpawnerFilters g_sf; // zero-initialised at load
+
+    // How many of each species (1..721) the player holds in the PC boxes.
+    // Filled by SpawnerReadBoxes() on hub entry (game is paused while the menu is open).
+    static int g_boxCount[722];
+    static void SpawnerReadBoxes(void) {
+        for (int i = 0; i < 722; i++) g_boxCount[i] = 0;
+        const u32 base = GetSpeciesPointer(); // box 1 / slot 1
+        PK6 mon;
+        for (int box = 0; box < 31; ++box)
+            for (int slot = 0; slot < 30; ++slot) {
+                u32 location = base + (box * 6960) + (slot * 0xE8);
+                if (GetPokemon(location, &mon) && mon.species >= 1 && mon.species <= 721)
+                    g_boxCount[mon.species]++;
+            }
+    }
+
+    static bool SpawnerAny(const bool *a, int from, int to) {
+        for (int i = from; i <= to; i++) if (a[i]) return true;
+        return false;
+    }
+
+    static void SpawnerResetFilters(void) {
+        g_sf.text.clear();
+        g_sf.invOnly = false;
+        for (int i = 0; i < 7; i++) g_sf.gen[i] = false;
+        for (int i = 0; i < 19; i++) { g_sf.prim[i] = false; g_sf.sec[i] = false; }
+        for (int i = 0; i < 5; i++) g_sf.stage[i] = false;
+        for (int i = 0; i < 6; i++) g_sf.cat[i] = false;
+        g_sf.megaHas = g_sf.megaNo = false;
+    }
+
+    // Recompute the result list: OR within each category, AND across categories.
+    static void SpawnerRecompute(vector<u16> &out) {
+        bool aGen   = SpawnerAny(g_sf.gen, 1, 6);
+        bool aPrim  = SpawnerAny(g_sf.prim, 1, 18);
+        bool aSec   = SpawnerAny(g_sf.sec, 0, 18);
+        bool aStage = SpawnerAny(g_sf.stage, 0, 4);
+        bool aCat   = SpawnerAny(g_sf.cat, 0, 5);
+        bool aMega  = g_sf.megaHas != g_sf.megaNo; // exactly one selected -> filter; both/none -> ignore
+        out.clear();
+        for (int n = 1; n <= 721; n++) {
+            if (g_sf.invOnly && g_boxCount[n] == 0) continue;
+            if (!g_sf.text.empty()) {
+                string nm = SpawnerLower(speciesList[n - 1]);
+                if (nm.find(g_sf.text) == string::npos
+                    && SpawnerPad3(n).find(g_sf.text) == string::npos
+                    && to_string(n).find(g_sf.text) == string::npos)
+                    continue;
+            }
+            if (aGen   && !g_sf.gen[SpawnerGen(n)])          continue;
+            if (aPrim  && !g_sf.prim[spawnerType1[n]])       continue;
+            if (aSec   && !g_sf.sec[spawnerType2[n]])        continue;
+            if (aStage && !g_sf.stage[spawnerEvoStage[n]])   continue;
+            if (aCat   && !g_sf.cat[spawnerCategory[n]])     continue;
+            if (aMega) {
+                bool hm = spawnerHasMega[n] != 0;
+                if (g_sf.megaHas && !hm) continue;
+                if (g_sf.megaNo  &&  hm) continue;
+            }
+            out.push_back((u16)n);
+        }
+    }
+
+    // Short labels (the full names overflow the small bottom-screen chips).
+    static const char *g_stageShort[5] = { "Baby", "Stage 1", "Stage 2", "Stage 3", "No evo" };
+    static const char *g_catShort[6]   = { "Regular", "Legend.", "Mythical", "Pseudo", "Starter", "Fossil" };
+
+    static bool SpawnerInBox(const UIntVector &p, int x, int y, int w, int h) {
+        return (int)p.x >= x && (int)p.x < x + w && (int)p.y >= y && (int)p.y < y + h;
+    }
+
+    // Shared result-list navigation for both hubs: wrapping Up/Down with held-key auto-repeat,
+    // L/R = +-10 rows, Left/Right = +-one page (rows). heldDir/repeatTimer persist across frames
+    // (declare them next to cursor/scroll). Mutates cursor + scroll to keep the cursor visible.
+    static void BagListNav(int &cursor, int &scroll, int count, int rows, int &heldDir, int &repeatTimer) {
+        if (count <= 0) { cursor = 0; scroll = 0; heldDir = 0; return; }
+        // keep the cursor inside the visible window
+        auto reveal = [&]() {
+            if (cursor < scroll) scroll = cursor;
+            if (cursor >= scroll + rows) scroll = cursor - rows + 1;
+            if (scroll > count - rows) scroll = count - rows;
+            if (scroll < 0) scroll = 0;
+        };
+        // wrapping Up/Down with auto-repeat while held
+        int dir = Controller::IsKeyDown(Key::Down) ? 1 : (Controller::IsKeyDown(Key::Up) ? -1 : 0);
+        if (dir != 0) {
+            bool fire = false;
+            if (dir != heldDir) { heldDir = dir; repeatTimer = 16; fire = true; }
+            else if (--repeatTimer <= 0) { repeatTimer = 4; fire = true; }
+            if (fire) { cursor = (cursor + dir + count) % count; reveal(); }
+        } else heldDir = 0;
+        // shoulder L/R = +-10, D-pad Left/Right = +-page (both clamped, no wrap)
+        int jump = 0;
+        if (Controller::IsKeyPressed(Key::R)) jump += 10;
+        if (Controller::IsKeyPressed(Key::L)) jump -= 10;
+        if (Controller::IsKeyPressed(Key::Right)) jump += rows;
+        if (Controller::IsKeyPressed(Key::Left))  jump -= rows;
+        if (jump != 0) {
+            cursor += jump;
+            if (cursor < 0) cursor = 0;
+            if (cursor >= count) cursor = count - 1;
+            reveal();
+        }
+    }
+
+    // -------------------- "a wild Pokemon appeared!" spawn splash --------------------
+    // Shown after SPAWN: reuses the sheet's already-loaded sprite, puts name/level/type beside it and a
+    // speech-bubble taunt, as if the Pokemon came to life to challenge you. Returns true if SELECT was
+    // pressed (the plugin is closing). A / B / tap dismiss back to the sheet.
+    static bool SpawnerSpawnedSplash(int n, int lvl, Image &sprite) {
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor;
+
+        static const char *taunts[10] = {
+            "You're going down!", "You'll regret this!", "Bring it on!", "Catch me if you can!",
+            "You're no match for me!", "Let's settle this!", "Is that all you've got?",
+            "Prepare to lose!", "Come and get me!", "I won't go easy on you!"
+        };
+        static unsigned tauntRot = 0; tauntRot++;
+        const char *taunt = taunts[(unsigned)(n + lvl + tauntRot) % 10];
+
+        const string name = speciesList[n - 1];
+        int t1 = spawnerType1[n], t2 = spawnerType2[n];
+
+        // swallow the spawn tap before listening for the dismiss
+        while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        bool closePlugin = false;
+
+        while (true) {
+            Controller::Update();
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close(); closePlugin = true; break;
+            }
+            if (Controller::IsKeyPressed(Key::A) || Controller::IsKeyPressed(Key::B)) break;
+
+            // ---------- TOP: the wild Pokemon, taunting you ----------
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+            top.DrawSysfont(title << "A wild Pokemon appeared!", 96, 26, title);
+
+            // speech bubble (theme-independent white, like the sprite frame) + a stepped tail to the sprite
+            const int bx = 150, by = 52, bw = 206, bh = 40;
+            top.DrawRect(bx, by, bw, bh, Color::White, true);
+            top.DrawRect(bx, by, bw, bh, Color::Black, false);
+            for (int i = 0; i < 5; i++)
+                top.DrawRect(bx + 10 - i * 2, by + bh + i * 3, 12 - i * 2, 3, Color::White, true);
+            {
+                string q = string("\"") + taunt + "\"";
+                int qw = (int)OSD::GetTextWidth(true, q);
+                top.DrawSysfont(Color::Black << q, bx + (bw - qw) / 2, by + (bh - 14) / 2, Color::Black);
+            }
+
+            // sprite (white frame), a touch right of the left edge
+            top.DrawRect(70, 106, 86, 86, Color::White, true);
+            top.DrawRect(70, 106, 86, 86, border, false);
+            if (sprite.IsLoaded()) {
+                int sw = sprite.Width(), sh = sprite.Height();
+                sprite.Draw(top, 70 + (86 - sw) / 2, 106 + (86 - sh) / 2);
+            } else {
+                top.DrawSysfont(Color::Black << "IMAGE", 90, 140, Color::Black);
+                top.DrawSysfont(Color::Black << "N/A", 104, 156, Color::Black);
+            }
+
+            // to the right of the sprite: NAME / Lv / type badges
+            int rx = 176;
+            top.DrawSysfont(title << name, rx, 112, title);
+            top.DrawSysfont(txt << (string("Lv ") + to_string(lvl)), rx, 136, txt);
+            {
+                string tn = spawnerTypeNames[t1];
+                int w = (int)OSD::GetTextWidth(true, tn) + 12;
+                top.DrawRect(rx, 160, w, 18, SpawnerTypeColor(t1), true);
+                top.DrawSysfont(Color::White << tn, rx + 6, 161, Color::White);
+                if (t2) {
+                    int bx2 = rx + w + 6;
+                    string tn2 = spawnerTypeNames[t2];
+                    int w2 = (int)OSD::GetTextWidth(true, tn2) + 12;
+                    top.DrawRect(bx2, 160, w2, 18, SpawnerTypeColor(t2), true);
+                    top.DrawSysfont(Color::White << tn2, bx2 + 6, 161, Color::White);
+                }
+            }
+
+            // ---------- BOTTOM: confirmation + how to dismiss ----------
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+            {
+                string s = "Spawned!";
+                int w = (int)OSD::GetTextWidth(true, s);
+                bot.DrawSysfont(title << s, 160 - w / 2, 56, title);
+            }
+            bot.DrawSysfont(txt << "Step into grass / water / a cave", 52, 98, txt);
+            bot.DrawSysfont(txt << "to run into it.", 110, 116, txt);
+            // dismiss hints: centre each line as a whole (key accent + description) on x=160
+            {
+                const string k = "A / B ", d = "keep browsing";
+                int kw = (int)OSD::GetTextWidth(true, k), dw = (int)OSD::GetTextWidth(true, d);
+                int x = 160 - (kw + dw) / 2;
+                bot.DrawSysfont(sel << k, x, 158, sel);
+                bot.DrawSysfont(txt << d, x + kw, 158, txt);
+            }
+            {
+                const string k = "SELECT ", d = "back to the game";
+                int kw = (int)OSD::GetTextWidth(true, k), dw = (int)OSD::GetTextWidth(true, d);
+                int x = 160 - (kw + dw) / 2;
+                bot.DrawSysfont(sel << k, x, 182, sel);
+                bot.DrawSysfont(txt << d, x + kw, 182, txt);
+            }
+
+            OSD::SwapBuffers();
         }
 
-        // Prompt user to select the Pokémon's form
-        if (keyboard.Setup(getLanguage->Get("KB_SPAWNER_FORM"), true, formList(pokemon), form) == -1)
-            return; // Exit if the user cancels the form selection
+        while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        return closePlugin;
+    }
 
-        // Prompt user to input the Pokémon's level
-        if (!KeyboardHandler<u8>::Set(getLanguage->Get("KB_SPAWNER_LEVEL"), true, false, 3, level, 0, 1, 100, Callback<u8>))
-            return; // Exit if the level input is invalid or canceled
+    // -------------------- character / detail sheet --------------------
+    // Top screen: sprite + name + dex# + category + types + abilities + evo/mega + base-stat values
+    // + the 4 moves at the chosen level. Bottom screen: form / level / shiny / "Spawn on the Wild".
+    // Returns true if SELECT was pressed inside (the plugin is closing -> the hub should exit too).
+    static bool SpawnerDetailSheet(int n) {
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor, bg2 = st.BackgroundSecondaryColor;
 
-        // Update the wild spawner configuration
-        UpdateWildSpawner(pokemon, form, level, currGameSeries == GameSeries::ORAS);
-        MessageBox(CenterAlign(getLanguage->Get("SPAWNER_SPAWNING") + " " + string(speciesList[pokemon - 1]) + " (" + getLanguage->Get("KB_SPAWNER_FORM") + " " + to_string(form + 1) + ", " + getLanguage->Get("KB_SPAWNER_LEVEL") + " " + to_string(level) + ")"), DialogType::DialogOk, ClearScreen::Both)();
+        vector<string> forms = formList(n);
+        if (form < 0 || form >= (int)forms.size()) form = 0;
+        if (level < 1) level = 1;
+        if (level > 100) level = 100;
+
+        Image sprite; int spriteKey = -1;          // reload sprite only when species/shiny changes
+        int mvIdx[4], mvCount = 0, mvLevel = -1;    // recompute moves only when level changes
+
+        // swallow the A / touch that opened the sheet
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        UIntVector lastPos = Touch::GetPosition();
+        bool wasDown = false, armed = false;
+
+        while (true) {
+            Controller::Update();
+            // SELECT closes the plugin straight to the game (like View Party Summary).
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close();
+                return true;
+            }
+            if (Controller::IsKeyPressed(Key::B)) break;
+
+            // D-pad / L-R adjust the level (same scheme as the Bag Add panel): Left/Right +-1, Up/Down +-10, L/R +-50.
+            {
+                int d = 0;
+                if (Controller::IsKeyPressed(Key::Right)) d += 1;
+                if (Controller::IsKeyPressed(Key::Left))  d -= 1;
+                if (Controller::IsKeyPressed(Key::Up))    d += 10;
+                if (Controller::IsKeyPressed(Key::Down))  d -= 10;
+                if (Controller::IsKeyPressed(Key::R))     d += 50;
+                if (Controller::IsKeyPressed(Key::L))     d -= 50;
+                if (d != 0) { int q = (int)level + d; if (q < 1) q = 1; if (q > 100) q = 100; level = (u8)q; }
+            }
+
+            // refresh caches
+            int key = n * 2 + (spawnerShiny ? 1 : 0);
+            if (key != spriteKey) {
+                sprite.LoadFromFile(string("Spawner/") + (spawnerShiny ? "shiny" : "normal") + "/" + SpawnerPad3(n) + ".bmp");
+                spriteKey = key;
+            }
+            if ((int)level != mvLevel) { mvCount = SpawnerMovesAt(n, (int)level, mvIdx); mvLevel = (int)level; }
+
+            // ---- touch (fire on release) ----
+            bool down = Touch::IsDown();
+            UIntVector tp = down ? Touch::GetPosition() : lastPos;
+            if (down) lastPos = tp;
+            bool tap = armed && !down && wasDown;
+            if (!down) armed = true;
+            wasDown = down;
+
+            bool multiForm = forms.size() > 1;
+            if (tap) {
+                if (multiForm && SpawnerInBox(lastPos, 150, 48, 26, 24)) form = (form + (int)forms.size() - 1) % (int)forms.size();
+                else if (multiForm && SpawnerInBox(lastPos, 252, 48, 26, 24)) form = (form + 1) % (int)forms.size();
+                else if (SpawnerInBox(lastPos, 150, 88, 26, 24)) { if (level > 1) level--; }
+                else if (SpawnerInBox(lastPos, 244, 88, 26, 24)) { if (level < 100) level++; }
+                else if (SpawnerInBox(lastPos, 180, 88, 60, 24)) {
+                    Keyboard kb("Level (1-100)"); u8 v = level;
+                    if (kb.Open(v, level) == 0) { if (v < 1) v = 1; if (v > 100) v = 100; level = v; }
+                    while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+                    armed = false; wasDown = false;
+                }
+                else if (SpawnerInBox(lastPos, 120, 124, 70, 24)) spawnerShiny = false;
+                else if (SpawnerInBox(lastPos, 196, 124, 70, 24)) spawnerShiny = true;
+                else if (SpawnerInBox(lastPos, 40, 160, 240, 30)) {
+                    UpdateWildSpawner(n, form, (int)level, currGameSeries == GameSeries::ORAS);
+                    if (SpawnerSpawnedSplash(n, (int)level, sprite)) return true; // SELECT in splash -> close plugin
+                    armed = false; wasDown = false;
+                }
+            }
+
+            // ===================== TOP: character sheet =====================
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+
+            // header: "Name - #NNN" on one line (frees a line so both move rows fit in the window)
+            top.DrawSysfont(title << (string(speciesList[n - 1]) + "  -  #" + SpawnerPad3(n)), 42, 26, title);
+            int cat = spawnerCategory[n];
+            string catNm = spawnerCatNames[cat];
+            int cw = (int)OSD::GetTextWidth(true, catNm) + 12;
+            top.DrawRect(366 - cw, 26, cw, 18, SpawnerCatColor(cat), true);
+            top.DrawSysfont(Color::White << catNm, 366 - cw + 6, 27, Color::White);
+
+            // sprite (fixed white frame, decoupled from the theme; 24-bit BMP has no alpha)
+            top.DrawRect(44, 48, 88, 88, Color::White, true);
+            top.DrawRect(44, 48, 88, 88, border, false);
+            if (sprite.IsLoaded()) {
+                int sw = sprite.Width(), sh = sprite.Height();
+                sprite.Draw(top, 44 + (88 - sw) / 2, 48 + (88 - sh) / 2);
+            } else {
+                top.DrawSysfont(Color::Black << "IMAGE", 62, 80, Color::Black);
+                top.DrawSysfont(Color::Black << "N/A", 76, 96, Color::Black);
+            }
+
+            // right column: type badges, abilities, evo/mega
+            int rx = 148;
+            int t1 = spawnerType1[n], t2 = spawnerType2[n];
+            {
+                string tn = spawnerTypeNames[t1];
+                int w = (int)OSD::GetTextWidth(true, tn) + 12;
+                top.DrawRect(rx, 50, w, 18, SpawnerTypeColor(t1), true);
+                top.DrawSysfont(Color::White << tn, rx + 6, 51, Color::White);
+                if (t2) {
+                    int bx = rx + w + 6;
+                    string tn2 = spawnerTypeNames[t2];
+                    int w2 = (int)OSD::GetTextWidth(true, tn2) + 12;
+                    top.DrawRect(bx, 50, w2, 18, SpawnerTypeColor(t2), true);
+                    top.DrawSysfont(Color::White << tn2, bx + 6, 51, Color::White);
+                }
+            }
+            int a0 = spawnerAbil0[n], a1 = spawnerAbil1[n], ah = spawnerAbilH[n];
+            string abil = string("Ability: ") + (a0 != 255 ? abilityList[a0] : "-");
+            if (a1 != 255 && a1 != a0) abil += string(" / ") + abilityList[a1];
+            top.DrawSysfont(txt << abil, rx, 72, txt);
+            if (ah != 255) top.DrawSysfont(txt << (string("Hidden: ") + abilityList[ah]), rx, 90, txt);
+            string em = spawnerEvoNames[spawnerEvoStage[n]];
+            if (spawnerHasMega[n]) em += " | Mega Evolution";
+            top.DrawSysfont(sel << em, rx, 110, sel);
+
+            // base-stat values (no bars) + BST
+            static const char *snm[6] = { "HP", "Atk", "Def", "SpA", "SpD", "Spe" };
+            int total = 0;
+            for (int i = 0; i < 6; i++) {
+                int v = gBaseStats[n - 1][i]; total += v;
+                int sx = 46 + i * 46;
+                top.DrawSysfont(txt << snm[i], sx, 138, txt);
+                top.DrawSysfont(title << to_string(v), sx, 154, title);
+            }
+            top.DrawSysfont(txt << "BST", 46 + 6 * 46, 138, txt);
+            top.DrawSysfont(title << to_string(total), 46 + 6 * 46, 154, title);
+
+            // moves at the chosen level (type-colour dot + name)
+            top.DrawSysfont(title << (string("Moves @ Lv ") + to_string((int)level)), 42, 172, title);
+            for (int i = 0; i < 4; i++) {
+                int col = i % 2, row = i / 2;
+                int mx = 46 + col * 164, my = 188 + row * 16;
+                if (i < mvCount) {
+                    int mi = mvIdx[i];
+                    top.DrawRect(mx, my + 3, 8, 8, SpawnerTypeColor(spawnerMoveType[mi]), true);
+                    top.DrawSysfont(txt << spawnerMoveNames[mi], mx + 14, my, txt);
+                } else {
+                    top.DrawSysfont(txt << "-", mx + 14, my, txt);
+                }
+            }
+
+            // ===================== BOTTOM: spawn settings =====================
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+            bot.DrawSysfont(title << "Spawn settings", 40, 26, title);
+            bot.DrawRect(40, 44, 150, 1, title, true);
+
+            bot.DrawSysfont(txt << "Form", 32, 52, txt);
+            if (multiForm) {
+                bot.DrawRect(150, 48, 26, 24, bg2, true); bot.DrawRect(150, 48, 26, 24, border, false);
+                bot.DrawSysfont(txt << "<", 159, 52, txt);
+                bot.DrawRect(252, 48, 26, 24, bg2, true); bot.DrawRect(252, 48, 26, 24, border, false);
+                bot.DrawSysfont(txt << ">", 261, 52, txt);
+            }
+            {
+                string fn = forms[form];
+                int w = (int)OSD::GetTextWidth(true, fn);
+                bot.DrawSysfont(sel << fn, 214 - w / 2, 52, sel);
+            }
+
+            bot.DrawSysfont(txt << "Level", 32, 92, txt);
+            bot.DrawRect(150, 88, 26, 24, bg2, true); bot.DrawRect(150, 88, 26, 24, border, false);
+            bot.DrawSysfont(txt << "-", 160, 92, txt);
+            bot.DrawRect(180, 88, 60, 24, bg2, true); bot.DrawRect(180, 88, 60, 24, border, false);
+            {
+                string lv = to_string((int)level);
+                int w = (int)OSD::GetTextWidth(true, lv);
+                bot.DrawSysfont(title << lv, 210 - w / 2, 92, title);
+            }
+            bot.DrawRect(244, 88, 26, 24, bg2, true); bot.DrawRect(244, 88, 26, 24, border, false);
+            bot.DrawSysfont(txt << "+", 253, 92, txt);
+
+            bot.DrawSysfont(txt << "Sprite", 32, 128, txt);
+            {
+                bool nSel = !spawnerShiny, sSel = spawnerShiny;
+                bot.DrawRect(120, 124, 70, 24, nSel ? sel : bg2, true); bot.DrawRect(120, 124, 70, 24, border, false);
+                bot.DrawSysfont((nSel ? bg : txt) << "Normal", 134, 128, txt);
+                bot.DrawRect(196, 124, 70, 24, sSel ? sel : bg2, true); bot.DrawRect(196, 124, 70, 24, border, false);
+                bot.DrawSysfont((sSel ? bg : txt) << "Shiny", 214, 128, txt);
+            }
+
+            bot.DrawRect(40, 160, 240, 30, sel, true);
+            bot.DrawRect(40, 160, 240, 30, border, false);
+            {
+                string s = "SPAWN ON THE WILD";
+                int w = (int)OSD::GetTextWidth(true, s);
+                bot.DrawSysfont(bg << s, 160 - w / 2, 167, bg);
+            }
+            bot.DrawSysfont(txt << "B  -  back to results", 84, 198, txt);
+
+            OSD::SwapBuffers();
+        }
+
+        // Swallow the closing B (and any touch) so the hub doesn't re-read it and exit to root.
+        while (Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        return false;
+    }
+
+    // -------------------- legendary respawn hub --------------------
+    // Curated per-game tables, index-aligned to ApplyLegendaryRespawn's option/address order.
+    static int LegendaryCount(void) { return AutoGameSet(3, 12); }
+
+    static int LegendaryDex(int i) {
+        static const int xy[3]    = { 150, (int)AutoGame(716, 717), 718 };
+        static const int oras[12] = { (int)AutoGame(250, 249), (int)AutoGame(380, 381), (int)AutoGame(383, 382), 384, 386,
+                                      (int)AutoGame(484, 483), 485, 486, 487, (int)AutoGame(641, 642), 645, 646 };
+        return currGameSeries == GameSeries::XY ? xy[i] : oras[i];
+    }
+
+    static const char *LegendaryLoc(int i) {
+        static const char *xy[3]    = { "Unknown Dungeon (Pokemon Village)", "Team Flare Secret HQ", "Terminus Cave" };
+        static const char *oras[12] = { "Mirage Spot", "Southern Island (Eon Ticket)", "Cave of Origin", "Sky Pillar",
+                                        "Sky Pillar top (after Delta)", "Mirage Spot", "Mirage Spot", "Mirage Spot (Regis first)",
+                                        "Mirage Spot", "Mirage Spot", "Mirage Spot (after Tor/Thun)", "Mirage Spot" };
+        return currGameSeries == GameSeries::XY ? xy[i] : oras[i];
+    }
+
+    // Top screen = the highlighted legendary's sheet (sprite + name/# + category + types + abilities + base
+    // stats + Location). Bottom = scrollable legendary list + "RESPAWN AT ITS LOCATION". Reuses the Spawner
+    // render primitives; keeps the inherited flag-reset (ApplyLegendaryRespawn). SELECT closes the plugin.
+    static void RespawnLegendaryHub(void) {
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor, bg2 = st.BackgroundSecondaryColor;
+
+        const int COUNT = LegendaryCount();
+        const int ROWS = 5, ROWH = 28, LISTY = 46;
+        int cursor = 0, scroll = 0, heldDir = 0, repeatTimer = 0;
+
+        Image sprite; int spriteKey = -1;
+        const int ICACHE = 8; Image iconCache[8]; int iconCacheId[8], iconRR = 0;
+        for (int i = 0; i < ICACHE; i++) iconCacheId[i] = -1;
+        auto getIcon = [&](int dex) -> Image* {
+            for (int i = 0; i < ICACHE; i++) if (iconCacheId[i] == dex) return &iconCache[i];
+            int slot = iconRR; iconRR = (iconRR + 1) % ICACHE;
+            iconCache[slot].LoadFromFile(string("LegendaryIcons/") + SpawnerPad3(dex) + ".bmp");
+            iconCacheId[slot] = dex;
+            return &iconCache[slot];
+        };
+
+        // swallow the A / touch that opened the hub
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        UIntVector lastPos = Touch::GetPosition();
+        bool wasDown = false, armed = false;
+        int flash = 0; string flashMsg;
+
+        while (true) {
+            Controller::Update();
+            // SELECT closes the plugin straight to the game (like View Party Summary).
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close(); break;
+            }
+            BagListNav(cursor, scroll, COUNT, ROWS, heldDir, repeatTimer);
+            if (Controller::IsKeyPressed(Key::B)) break;
+
+            int dex = LegendaryDex(cursor);
+            bool doRespawn = Controller::IsKeyPressed(Key::A);
+
+            // touch (fire on release)
+            bool down = Touch::IsDown();
+            UIntVector tp = down ? Touch::GetPosition() : lastPos;
+            if (down) lastPos = tp;
+            bool tap = armed && !down && wasDown;
+            if (!down) armed = true;
+            wasDown = down;
+
+            if (tap) {
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= COUNT) break;
+                    if (SpawnerInBox(lastPos, 24, LISTY + i * ROWH, 272, ROWH)) cursor = ri;
+                }
+                if (SpawnerInBox(lastPos, 20, 192, 280, 26)) doRespawn = true;
+            }
+
+            if (doRespawn) {
+                dex = LegendaryDex(cursor);
+                bool ok = ApplyLegendaryRespawn(cursor);
+                flashMsg = string(speciesList[dex - 1]) + (ok ? " will respawn!" : " was already available");
+                flash = 150;
+                while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+                armed = false; wasDown = false;
+            }
+
+            if (dex != spriteKey) {
+                sprite.LoadFromFile(string("Spawner/normal/") + SpawnerPad3(dex) + ".bmp");
+                spriteKey = dex;
+            }
+
+            // ===================== TOP: legendary sheet =====================
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+            top.DrawSysfont(title << (string(speciesList[dex - 1]) + "  -  #" + SpawnerPad3(dex)), 42, 26, title);
+            int cat = spawnerCategory[dex];
+            string catNm = spawnerCatNames[cat];
+            int cw = (int)OSD::GetTextWidth(true, catNm) + 12;
+            top.DrawRect(366 - cw, 26, cw, 18, SpawnerCatColor(cat), true);
+            top.DrawSysfont(Color::White << catNm, 366 - cw + 6, 27, Color::White);
+
+            top.DrawRect(44, 48, 88, 88, Color::White, true);
+            top.DrawRect(44, 48, 88, 88, border, false);
+            if (sprite.IsLoaded()) {
+                int sw = sprite.Width(), sh = sprite.Height();
+                sprite.Draw(top, 44 + (88 - sw) / 2, 48 + (88 - sh) / 2);
+            } else {
+                top.DrawSysfont(Color::Black << "IMAGE", 62, 80, Color::Black);
+                top.DrawSysfont(Color::Black << "N/A", 76, 96, Color::Black);
+            }
+
+            int rx = 148;
+            int t1 = spawnerType1[dex], t2 = spawnerType2[dex];
+            {
+                string tn = spawnerTypeNames[t1];
+                int w = (int)OSD::GetTextWidth(true, tn) + 12;
+                top.DrawRect(rx, 50, w, 18, SpawnerTypeColor(t1), true);
+                top.DrawSysfont(Color::White << tn, rx + 6, 51, Color::White);
+                if (t2) {
+                    int bx = rx + w + 6;
+                    string tn2 = spawnerTypeNames[t2];
+                    int w2 = (int)OSD::GetTextWidth(true, tn2) + 12;
+                    top.DrawRect(bx, 50, w2, 18, SpawnerTypeColor(t2), true);
+                    top.DrawSysfont(Color::White << tn2, bx + 6, 51, Color::White);
+                }
+            }
+            int a0 = spawnerAbil0[dex], a1 = spawnerAbil1[dex], ah = spawnerAbilH[dex];
+            string abil = string("Ability: ") + (a0 != 255 ? abilityList[a0] : "-");
+            if (a1 != 255 && a1 != a0) abil += string(" / ") + abilityList[a1];
+            top.DrawSysfont(txt << abil, rx, 72, txt);
+            if (ah != 255) top.DrawSysfont(txt << (string("Hidden: ") + abilityList[ah]), rx, 90, txt);
+            string em = spawnerEvoNames[spawnerEvoStage[dex]];
+            if (spawnerHasMega[dex]) em += " | Mega Evolution";
+            top.DrawSysfont(sel << em, rx, 110, sel);
+
+            static const char *snm[6] = { "HP", "Atk", "Def", "SpA", "SpD", "Spe" };
+            int total = 0;
+            for (int i = 0; i < 6; i++) {
+                int v = gBaseStats[dex - 1][i]; total += v;
+                int sx = 46 + i * 46;
+                top.DrawSysfont(txt << snm[i], sx, 138, txt);
+                top.DrawSysfont(title << to_string(v), sx, 154, title);
+            }
+            top.DrawSysfont(txt << "BST", 46 + 6 * 46, 138, txt);
+            top.DrawSysfont(title << to_string(total), 46 + 6 * 46, 154, title);
+
+            // Location (replaces the Spawner sheet's "Moves @ Lv" block)
+            top.DrawSysfont(title << "Location", 42, 172, title);
+            top.DrawSysfont(txt << LegendaryLoc(cursor), 46, 190, txt);
+
+            // ===================== BOTTOM: legendary list + respawn =====================
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+            if (flash > 0) {
+                bot.DrawSysfont(title << flashMsg, 40, 26, title);
+            } else {
+                bot.DrawSysfont(title << "Legendaries", 40, 26, title);
+                string c = to_string(COUNT) + " in your game";
+                int cwid = (int)OSD::GetTextWidth(true, c);
+                bot.DrawSysfont(txt << c, 296 - cwid, 28, txt);
+            }
+
+            for (int i = 0; i < ROWS; i++) {
+                int ri = scroll + i; if (ri >= COUNT) break;
+                int d = LegendaryDex(ri), y = LISTY + i * ROWH; bool cur = (ri == cursor);
+                if (cur) bot.DrawRect(24, y, 272, ROWH - 2, bg2, true);
+                bot.DrawRect(28, y + 1, 24, 24, Color::White, true);
+                Image *ic = getIcon(d);
+                if (ic && ic->IsLoaded()) ic->Draw(bot, 28 + (24 - ic->Width()) / 2, y + 1 + (24 - ic->Height()) / 2);
+                Color rc = cur ? sel : txt;
+                bot.DrawSysfont(rc << (string("#") + SpawnerPad3(d) + "  " + speciesList[d - 1]), 58, y + 6, rc);
+            }
+
+            bot.DrawRect(20, 192, 280, 26, sel, true);
+            bot.DrawRect(20, 192, 280, 26, title, false);
+            {
+                string s = "RESPAWN AT ITS LOCATION";
+                int w = (int)OSD::GetTextWidth(true, s);
+                bot.DrawSysfont(bg << s, 160 - w / 2, 197, bg);
+            }
+
+            if (flash > 0) flash--;
+            OSD::SwapBuffers();
+        }
+
+        while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+    }
+
+    // -------------------- faceted search hub --------------------
+    static void WildSpawnerHub(void) {
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor, bg2 = st.BackgroundSecondaryColor;
+
+        SpawnerReadBoxes(); // one-time PC-box scan for the "In-Inventory" toggle (game is paused)
+        vector<u16> results;
+        SpawnerRecompute(results);
+
+        int cursor = 0, scroll = 0;
+        const int ROWS = 8, ROWH = 17, LISTY = 56;
+        enum { P_HUB = 0, P_GEN, P_TYPE, P_TRAITS };
+        int panel = P_HUB, typeTab = 0;
+        bool dirty = false;
+
+        auto clampCursor = [&]() {
+            if (results.empty()) { cursor = 0; scroll = 0; return; }
+            if (cursor < 0) cursor = 0;
+            if (cursor >= (int)results.size()) cursor = (int)results.size() - 1;
+            if (cursor < scroll) scroll = cursor;
+            if (cursor >= scroll + ROWS) scroll = cursor - ROWS + 1;
+            if (scroll < 0) scroll = 0;
+        };
+        // bottom-screen chip
+        auto chip = [&](int x, int y, int w, int h, const string &label, bool on) {
+            bot.DrawRect(x, y, w, h, on ? sel : bg2, true);
+            bot.DrawRect(x, y, w, h, on ? title : border, false);
+            int tw = (int)OSD::GetTextWidth(true, label);
+            bot.DrawSysfont((on ? bg : txt) << label, x + (w - tw) / 2, y + (h - 14) / 2, txt);
+        };
+        // one-type summary for the hub buttons
+        auto oneType = [&](const bool *a, int lo) -> string {
+            int c = 0, f = -1;
+            for (int i = lo; i <= 18; i++) if (a[i]) { c++; if (f < 0) f = i; }
+            if (c == 0) return "any";
+            string r = (f == 0) ? "None" : spawnerTypeNames[f];
+            if (c > 1) r += "+" + to_string(c - 1);
+            return r;
+        };
+        auto genSummary = [&]() -> string {
+            string r;
+            for (int g = 1; g <= 6; g++) if (g_sf.gen[g]) { if (!r.empty()) r += ","; r += to_string(g); }
+            return r.empty() ? "any" : ("Gen " + r);
+        };
+        auto traitSummary = [&]() -> string {
+            int sc = 0; for (int i = 0; i < 5; i++) if (g_sf.stage[i]) sc++;
+            int cc = 0, cf = -1; for (int i = 0; i < 6; i++) if (g_sf.cat[i]) { cc++; if (cf < 0) cf = i; }
+            bool mega = g_sf.megaHas != g_sf.megaNo;
+            if (sc == 0 && cc == 0 && !mega) return "any";
+            string r;
+            if (cc > 0) { r = g_catShort[cf]; if (cc > 1) r += "+" + to_string(cc - 1); }
+            if (sc > 0) { if (!r.empty()) r += ", "; r += to_string(sc) + (sc > 1 ? " stages" : " stage"); }
+            if (mega)   { if (!r.empty()) r += ", "; r += g_sf.megaHas ? "Mega" : "NoMega"; }
+            return r;
+        };
+        auto hubBtn = [&](int y, const string &label, const string &val, bool on = false) {
+            bot.DrawRect(30, y, 260, 24, on ? sel : bg2, true);
+            bot.DrawRect(30, y, 260, 24, on ? title : border, false);
+            bot.DrawSysfont((on ? bg : txt) << label, 38, y + 5, txt);
+            int vw = (int)OSD::GetTextWidth(true, val);
+            int vx = 284 - vw; if (vx < 120) vx = 120;
+            bot.DrawSysfont((on ? bg : sel) << val, vx, y + 5, sel);
+        };
+
+        // swallow the A / touch that opened the hub
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        UIntVector lastPos = Touch::GetPosition();
+        bool wasDown = false, armed = false;
+        int heldDir = 0, repeatTimer = 0;
+
+        while (true) {
+            Controller::Update();
+            if (dirty) { SpawnerRecompute(results); clampCursor(); dirty = false; }
+
+            // SELECT closes the plugin straight to the game (like View Party Summary).
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close();
+                break;
+            }
+
+            // top list navigation: wrapping Up/Down (held auto-repeat), L/R +-10, Left/Right +-page
+            BagListNav(cursor, scroll, (int)results.size(), ROWS, heldDir, repeatTimer);
+
+            if (Controller::IsKeyPressed(Key::A) && !results.empty()) {
+                form = 0; // base form for the newly chosen species
+                if (SpawnerDetailSheet(results[cursor])) break; // SELECT inside -> plugin closing
+                while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+                armed = false; wasDown = false;
+            }
+            if (Controller::IsKeyPressed(Key::Start)) { SpawnerResetFilters(); dirty = true; }
+            if (Controller::IsKeyPressed(Key::B)) {
+                if (panel != P_HUB) panel = P_HUB;
+                else break;
+            }
+
+            // touch (fire on release)
+            bool down = Touch::IsDown();
+            UIntVector tp = down ? Touch::GetPosition() : lastPos;
+            if (down) lastPos = tp;
+            bool tap = armed && !down && wasDown;
+            if (!down) armed = true;
+            wasDown = down;
+
+            // ===================== TOP: live results =====================
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+            top.DrawSysfont(title << "Wild Pokemon Spawner", 42, 26, title);
+            string cnt = to_string((int)results.size()) + (results.size() == 1 ? " match" : " matches");
+            int cntw = (int)OSD::GetTextWidth(true, cnt);
+            top.DrawSysfont(txt << cnt, 362 - cntw, 28, txt);
+            top.DrawRect(42, 46, 316, 1, title, true);
+
+            if (results.empty()) {
+                top.DrawSysfont(txt << "No Pokemon match these filters.", 96, 110, txt);
+                top.DrawSysfont(txt << "Tap a filter below to widen the search.", 80, 130, txt);
+            } else {
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i;
+                    if (ri >= (int)results.size()) break;
+                    int n = results[ri];
+                    int y = LISTY + i * ROWH;
+                    bool cur = (ri == cursor);
+                    if (cur) top.DrawRect(36, y - 1, 328, ROWH, bg2, true);
+                    Color rc = cur ? sel : txt;
+                    string row = string("#") + SpawnerPad3(n) + "  " + speciesList[n - 1];
+                    if (g_boxCount[n] > 0) row += "  x" + to_string(g_boxCount[n]);
+                    top.DrawSysfont(rc << row, 46, y, rc);
+                    int t1 = spawnerType1[n], t2 = spawnerType2[n];
+                    string ty = spawnerTypeNames[t1];
+                    if (t2) ty += string("/") + spawnerTypeNames[t2];
+                    int tw = (int)OSD::GetTextWidth(true, ty);
+                    top.DrawSysfont(rc << ty, 360 - tw, y, rc);
+                }
+                string pg = to_string(cursor + 1) + " / " + to_string((int)results.size());
+                int pw = (int)OSD::GetTextWidth(true, pg);
+                top.DrawSysfont(txt << pg, 360 - pw, LISTY + ROWS * ROWH + 1, txt);
+            }
+
+            // ===================== BOTTOM: filter hub / sub-panels =====================
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+
+            if (panel == P_HUB) {
+                bot.DrawSysfont(title << "Filters", 38, 24, title);
+                // In-Inventory toggle (above all filters): only species held in the PC boxes
+                if (tap && SpawnerInBox(lastPos, 30, 46, 260, 24)) { g_sf.invOnly = !g_sf.invOnly; dirty = true; }
+                hubBtn(46, "In-Inventory", g_sf.invOnly ? "ON" : "any", g_sf.invOnly);
+                if (tap && SpawnerInBox(lastPos, 30, 76, 260, 24)) {
+                    Keyboard kb("Search by name or National Dex #");
+                    string s = g_sf.text;
+                    if (kb.Open(s, g_sf.text) == 0) { g_sf.text = SpawnerLower(s); dirty = true; }
+                    while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+                    armed = false; wasDown = false;
+                }
+                hubBtn(76, "Name / #", g_sf.text.empty() ? "any" : g_sf.text);
+                if (tap && SpawnerInBox(lastPos, 30, 106, 260, 24)) panel = P_GEN;
+                hubBtn(106, "Generation", genSummary());
+                if (tap && SpawnerInBox(lastPos, 30, 136, 260, 24)) { panel = P_TYPE; typeTab = 0; }
+                hubBtn(136, "Type", oneType(g_sf.prim, 1) + " / " + oneType(g_sf.sec, 0));
+                if (tap && SpawnerInBox(lastPos, 30, 166, 260, 24)) panel = P_TRAITS;
+                hubBtn(166, "Traits", traitSummary());
+                bot.DrawSysfont(txt << "A pick    B exit    START reset", 46, 200, txt);
+            }
+            else if (panel == P_GEN) {
+                bot.DrawSysfont(title << "Generation", 38, 24, title);
+                for (int g = 1; g <= 6; g++) {
+                    int col = (g - 1) % 3, row = (g - 1) / 3;
+                    int x = 36 + col * 86, y = 60 + row * 46, w = 80, h = 34;
+                    if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.gen[g] = !g_sf.gen[g]; dirty = true; }
+                    chip(x, y, w, h, "Gen " + to_string(g), g_sf.gen[g]);
+                }
+                if (tap && SpawnerInBox(lastPos, 198, 194, 98, 22)) panel = P_HUB;
+                chip(198, 194, 98, 22, "< Back", false);
+            }
+            else if (panel == P_TYPE) {
+                bool pTab = (typeTab == 0);
+                if (tap && SpawnerInBox(lastPos, 28, 42, 124, 22)) typeTab = 0;
+                if (tap && SpawnerInBox(lastPos, 158, 42, 124, 22)) typeTab = 1;
+                pTab = (typeTab == 0);
+                bot.DrawRect(28, 42, 124, 22, pTab ? sel : bg2, true); bot.DrawRect(28, 42, 124, 22, border, false);
+                { string s = "1st type"; int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((pTab ? bg : txt) << s, 28 + (124 - tw) / 2, 45, txt); }
+                bot.DrawRect(158, 42, 124, 22, !pTab ? sel : bg2, true); bot.DrawRect(158, 42, 124, 22, border, false);
+                { string s = "2nd type"; int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((!pTab ? bg : txt) << s, 158 + (124 - tw) / 2, 45, txt); }
+
+                int lo = pTab ? 1 : 0;
+                for (int t = lo; t <= 18; t++) {
+                    int k = t - lo, col = k % 3, row = k / 3;
+                    int x = 26 + col * 90, y = 70 + row * 20, w = 86, h = 18;
+                    bool on = pTab ? g_sf.prim[t] : g_sf.sec[t];
+                    if (tap && SpawnerInBox(lastPos, x, y, w, h)) {
+                        if (pTab) g_sf.prim[t] = !g_sf.prim[t]; else g_sf.sec[t] = !g_sf.sec[t];
+                        dirty = true;
+                    }
+                    chip(x, y, w, h, (t == 0) ? "None" : spawnerTypeNames[t], on);
+                }
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 19; i++) { g_sf.prim[i] = false; g_sf.sec[i] = false; } dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_HUB;
+                chip(198, 196, 98, 20, "< Back", false);
+            }
+            else { // P_TRAITS
+                bot.DrawSysfont(title << "Evolution stage", 30, 24, title);
+                for (int s = 0; s < 5; s++) {
+                    int col = s % 3, row = s / 3;
+                    int x = 28 + col * 88, y = 42 + row * 22, w = 84, h = 20;
+                    if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.stage[s] = !g_sf.stage[s]; dirty = true; }
+                    chip(x, y, w, h, g_stageShort[s], g_sf.stage[s]);
+                }
+                bot.DrawSysfont(title << "Category", 30, 90, title);
+                for (int c = 0; c < 6; c++) {
+                    int col = c % 3, row = c / 3;
+                    int x = 28 + col * 88, y = 106 + row * 22, w = 84, h = 20;
+                    if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.cat[c] = !g_sf.cat[c]; dirty = true; }
+                    chip(x, y, w, h, g_catShort[c], g_sf.cat[c]);
+                }
+                bot.DrawSysfont(title << "Mega", 30, 154, title);
+                if (tap && SpawnerInBox(lastPos, 28, 170, 128, 20)) { g_sf.megaHas = !g_sf.megaHas; dirty = true; }
+                chip(28, 170, 128, 20, "Has Mega", g_sf.megaHas);
+                if (tap && SpawnerInBox(lastPos, 162, 170, 128, 20)) { g_sf.megaNo = !g_sf.megaNo; dirty = true; }
+                chip(162, 170, 128, 20, "No Mega", g_sf.megaNo);
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 5; i++) g_sf.stage[i] = false; for (int i = 0; i < 6; i++) g_sf.cat[i] = false; g_sf.megaHas = g_sf.megaNo = false; dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_HUB;
+                chip(198, 196, 98, 20, "< Back", false);
+            }
+
+            OSD::SwapBuffers();
+        }
+
+        while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+    }
+
+    // Entry point (Pokémon Spawner & Trainer (PKHeX) > "Wild Pokemon Spawner"): open the faceted dual-screen hub.
+    // (Replaces the old type-the-name keyboard flow; see WildSpawnerHub above.)
+    void WildSpawner(MenuEntry *entry) {
+        (void)entry;
+        WildSpawnerHub();
+    }
+
+    // ======================================================================================
+    //  Unified Bag item-finder (#11 redesign): ONE Spawner-style picker over the whole bag
+    //  (Items / Medicines / Berries / TMs & HMs / Key Items). Top = live list (16px icon + name +
+    //  pocket tag) + a description strip for the highlighted item. Bottom = touch filter hub
+    //  (Name/# · Pocket · Type · Category · Flavor); pressing A turns it into a quantity + "Add"
+    //  panel with inline success. Writes to the item's own pocket's first free slot, never wipes.
+    //  Data: Includes/BagItems.hpp + BagItemMeta.hpp; sprites: SD BagSprites/{list,big}/NNN.bmp.
+    // ======================================================================================
+
+    static const char *bagPocketNames[5] = { "Items", "Medicines", "Berries", "TMs & HMs", "Key Items" };
+    static const char *bagGrpItems[9] = { "Poke Balls", "Evolution", "Mega Stones", "Hold items", "Type item", "Battle item", "Treasures", "Fossils", "Other" };
+    static const char *bagGrpMeds[5]  = { "HP heal", "PP restore", "Status cure", "Revive", "Vitamin/EXP" };
+    static const char *bagGrpBerry[7] = { "Status cure", "HP/PP heal", "Pinch heal", "Type resist", "Pinch boost", "EV/friend", "Other" };
+    static const char *bagGrpTm[3]    = { "Physical", "Special", "Status" };
+    static const char *bagGrpKey[4]   = { "Travel/Tool", "Story/Event", "Mega/Form", "Misc" };
+    static const int   bagGrpCount[5] = { 9, 5, 7, 3, 4 };
+    static const char *bagFlavorNames[6] = { "-", "Spicy", "Dry", "Sweet", "Bitter", "Sour" };
+    static const char *bagStatusNames[7] = { "-", "Poison", "Paralysis", "Sleep", "Burn", "Freeze", "Confusion" };
+    static const char *bagCatTab[5] = { "Items", "Meds", "Berry", "TM/HM", "Key" };
+
+    static const char *BagGroupName(int pocket, int g) {
+        switch (pocket) {
+            case 0: return bagGrpItems[g];
+            case 1: return bagGrpMeds[g];
+            case 2: return bagGrpBerry[g];
+            case 3: return bagGrpTm[g];
+            default: return bagGrpKey[g];
+        }
+    }
+
+    // Each pocket's slot-array base in RAM (per game/version). Mirrors the old Unlock* functions.
+    static u32 BagPocketBase(int pocket) {
+        switch (pocket) {
+            case 0: { static const vector<u32> a = {AutoGameSet({0x8C67564,0x8C67566},{0x8C6EC70,0x8C6EC72})}; return a[0]; }
+            case 1: { static const vector<u32> a = {AutoGameSet({0x8C67ECC,0x8C67ECE},{0x8C6F5E0,0x8C6F5E2})}; return a[0]; }
+            case 2: { static const vector<u32> a = {AutoGameSet({0x8C67FCC,0x8C67FCE},{0x8C6F6E0,0x8C6F6E2})}; return a[0]; }
+            case 3: { static const vector<u32> a = {AutoGameSet({0x8C67D24,0x8C67D26},{0x8C6F430,0x8C6F432})}; return a[0]; }
+            default:{ static const vector<u32> a = {AutoGameSet({0x8C67BA4,0x8C67BA6},{0x8C6F2B0,0x8C6F2B2})}; return a[0]; }
+        }
+    }
+
+    // A pocket can't hold more distinct items than exist in it -> a safe scan bound (no cross-pocket reads).
+    static int BagPocketCap(int pocket) {
+        int c = 0;
+        for (int k = 0; k < bagItemCount; k++) if (bagItemPocket[bagItemList[k]] == pocket) c++;
+        return c;
+    }
+
+    // Add qty of item id to its pocket's first free (or existing) slot; bags are front-packed, never wipes.
+    static bool BagAddToPocket(int pocket, int id, int qty) {
+        u32 base = BagPocketBase(pocket);
+        if (base == 0) return false;
+        int cap = BagPocketCap(pocket) + 4, slot = -1;
+        for (int i = 0; i < cap; i++) {
+            u16 sid = (u16)(Process::Read32(base + 0x4 * i) & 0xFFFF);
+            if (sid == (u16)id || sid == 0) { slot = i; break; }
+        }
+        if (slot < 0) return false;
+        Process::Write32(base + 0x4 * slot, (u32)id | ((u32)qty << 16));
+        return true;
+    }
+
+    // Greedy word-wrap: draws up to maxLines lines of text, returns the count drawn.
+    static int BagWrap(const Screen &scr, const string &text, int x, int y, int maxW, int maxLines, int lineH, const Color &c) {
+        vector<string> words; string w;
+        for (size_t i = 0; i < text.size(); i++) {
+            char ch = text[i];
+            if (ch == ' ') { if (!w.empty()) { words.push_back(w); w.clear(); } }
+            else w += ch;
+        }
+        if (!w.empty()) words.push_back(w);
+        string line; int drawn = 0;
+        for (size_t k = 0; k < words.size() && drawn < maxLines; k++) {
+            string cand = line.empty() ? words[k] : line + " " + words[k];
+            if ((int)OSD::GetTextWidth(true, cand) > maxW && !line.empty()) {
+                scr.DrawSysfont(c << line, x, y + drawn * lineH, c); drawn++; line = words[k];
+            } else line = cand;
+        }
+        if (drawn < maxLines && !line.empty()) { scr.DrawSysfont(c << line, x, y + drawn * lineH, c); drawn++; }
+        return drawn;
+    }
+
+    // Pocket + Category are unified into one "Category" filter: each pocket tab has an "All <pocket>"
+    // chip (grpAll) plus its specific groups (grp); berries also carry a flavor sub-filter.
+    struct BagFilters {
+        string text;
+        bool invOnly;       // "In-Inventory" toggle: only items you currently hold
+        bool type[19];      // 1..18
+        bool status[7];     // 1..6 (Poison,Paralysis,Sleep,Burn,Freeze,Confusion)
+        bool grpAll[5];     // "All <pocket>" (whole-pocket select)
+        bool grp[5][12];    // [pocket][group]
+        bool flavor[6];     // 1..5
+    };
+    static BagFilters g_bf;
+
+    // Current quantity of each item id in the bag (filled by BagReadInventory; 0 = not held).
+    static int g_invCount[801];
+    static void BagReadInventory(void) {
+        for (int i = 0; i < 801; i++) g_invCount[i] = 0;
+        for (int p = 0; p < 5; p++) {
+            u32 base = BagPocketBase(p);
+            if (!base) continue;
+            int cap = BagPocketCap(p) + 4;
+            for (int i = 0; i < cap; i++) {
+                u32 v = Process::Read32(base + 0x4 * i);
+                u16 sid = (u16)(v & 0xFFFF);
+                if (sid == 0) break;                 // front-packed: first empty slot ends the pocket
+                if (sid < 801) g_invCount[sid] = (int)((v >> 16) & 0xFFFF);
+            }
+        }
+    }
+
+    static bool BagAny(const bool *a, int n) { for (int i = 0; i < n; i++) if (a[i]) return true; return false; }
+    static void BagResetCategory(void) {
+        for (int i = 0; i < 5; i++) { g_bf.grpAll[i] = false; for (int j = 0; j < 12; j++) g_bf.grp[i][j] = false; }
+        for (int i = 0; i < 6; i++) g_bf.flavor[i] = false;
+    }
+    static void BagResetFilters(void) {
+        g_bf.text.clear();
+        g_bf.invOnly = false;
+        for (int i = 0; i < 19; i++) g_bf.type[i] = false;
+        for (int i = 0; i < 7; i++) g_bf.status[i] = false;
+        BagResetCategory();
+    }
+    static void BagRecompute(vector<u16> &out) {
+        bool aType = BagAny(g_bf.type, 19), aFlavor = BagAny(g_bf.flavor, 6);
+        int statusMask = 0;
+        for (int s = 1; s <= 6; s++) if (g_bf.status[s]) statusMask |= (1 << (s - 1));
+        bool catActive = BagAny(g_bf.grpAll, 5);
+        for (int p = 0; p < 5 && !catActive; p++) catActive = BagAny(g_bf.grp[p], 12);
+        bool isXY = (currGameSeries == GameSeries::XY);
+        out.clear();
+        for (int k = 0; k < bagItemCount; k++) {
+            int id = bagItemList[k], pk = bagItemPocket[id], ver = bagItemVer[id];
+            if (ver == 1 && !isXY) continue;       // XY-only item, not on this version
+            if (ver == 2 && isXY) continue;        // ORAS-only item
+            if (g_bf.invOnly && g_invCount[id] == 0) continue;
+            if (!g_bf.text.empty()) {
+                string nm = SpawnerLower(bagItemName[id]);
+                if (nm.find(g_bf.text) == string::npos && to_string(id).find(g_bf.text) == string::npos) continue;
+            }
+            if (aType && !g_bf.type[bagItemType[id]]) continue;
+            if (statusMask && !(bagItemStatus[id] & statusMask)) continue;
+            // Category implies pocket: match the whole pocket (grpAll) or the specific group.
+            if (catActive && !(g_bf.grpAll[pk] || g_bf.grp[pk][bagItemGroup[id]])) continue;
+            if (aFlavor) { if (pk != 2 || !g_bf.flavor[bagBerryFlavor[id]]) continue; }
+            out.push_back((u16)id);
+        }
+    }
+
+    static void BagItemHub(void) {
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor, bg2 = st.BackgroundSecondaryColor;
+
+        BagReadInventory();                 // snapshot bag counts (game is paused while we're in here)
+        vector<u16> results; BagRecompute(results);
+        int cursor = 0, scroll = 0;
+        const int ROWS = 7, ROWH = 18, LISTY = 48;
+        enum { P_NONE = 0, P_CAT, P_STATUS, P_TYPE };
+        int panel = P_NONE, catTab = 0;
+        bool addMode = false, dirty = false;
+        int marqId = -1, marqStart = 0, marqTick = 0, marqDelay = 0; // description marquee state
+
+        int addId = -1, addPocket = 0; u16 addQty = 1; bool added = false, addOk = true;
+        Image bigIcon; int bigIconId = -1;
+
+        // list-icon cache (id-keyed round-robin so scrolling reloads at most one per step)
+        const int ICACHE = 16;
+        Image iconCache[16]; int iconCacheId[16], iconRR = 0;
+        for (int i = 0; i < ICACHE; i++) iconCacheId[i] = -1;
+
+        auto getIcon = [&](int id) -> Image* {
+            for (int i = 0; i < ICACHE; i++) if (iconCacheId[i] == id) return &iconCache[i];
+            int slot = iconRR; iconRR = (iconRR + 1) % ICACHE;
+            iconCache[slot].LoadFromFile(string("BagSprites/list/") + SpawnerPad3(id) + ".bmp");
+            iconCacheId[slot] = id;
+            return &iconCache[slot];
+        };
+        auto clampCursor = [&]() {
+            if (results.empty()) { cursor = 0; scroll = 0; return; }
+            if (cursor < 0) cursor = 0;
+            if (cursor >= (int)results.size()) cursor = (int)results.size() - 1;
+            if (cursor < scroll) scroll = cursor;
+            if (cursor >= scroll + ROWS) scroll = cursor - ROWS + 1;
+            if (scroll < 0) scroll = 0;
+        };
+        auto chip = [&](int x, int y, int w, int h, const string &label, bool on, const Color &accent) {
+            bot.DrawRect(x, y, w, h, on ? accent : bg2, true);
+            bot.DrawRect(x, y, w, h, on ? title : border, false);
+            int tw = (int)OSD::GetTextWidth(true, label);
+            bot.DrawSysfont((on ? bg : txt) << label, x + (w - tw) / 2, y + (h - 14) / 2, txt);
+        };
+        auto hubBtn = [&](int y, const string &label, const string &val, bool on = false) {
+            bot.DrawRect(30, y, 260, 22, on ? sel : bg2, true);
+            bot.DrawRect(30, y, 260, 22, on ? title : border, false);
+            bot.DrawSysfont((on ? bg : txt) << label, 38, y + 4, txt);
+            int vw = (int)OSD::GetTextWidth(true, val); int vx = 284 - vw; if (vx < 120) vx = 120;
+            bot.DrawSysfont((on ? bg : sel) << val, vx, y + 4, sel);
+        };
+        auto countSel = [&](const bool *a, int from, int to, int &first) -> int {
+            int c = 0; first = -1;
+            for (int i = from; i <= to; i++) if (a[i]) { c++; if (first < 0) first = i; }
+            return c;
+        };
+
+        // swallow the A / touch that opened the hub
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+        UIntVector lastPos = Touch::GetPosition();
+        bool wasDown = false, armed = false;
+        int heldDir = 0, repeatTimer = 0;
+
+        while (true) {
+            Controller::Update();
+            if (dirty) { BagRecompute(results); clampCursor(); dirty = false; }
+
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close(); break;
+            }
+            if (!addMode) {
+                BagListNav(cursor, scroll, (int)results.size(), ROWS, heldDir, repeatTimer);
+                if (Controller::IsKeyPressed(Key::A) && !results.empty()) {
+                    addId = results[cursor]; addPocket = bagItemPocket[addId]; addQty = 1; added = false; addOk = true; addMode = true;
+                }
+                if (Controller::IsKeyPressed(Key::Start)) { BagResetFilters(); dirty = true; }
+            } else if (addPocket <= 2) {
+                // ADD mode: D-pad adjusts the quantity (Left/Right +-1, Up/Down +-10, L/R +-50)
+                int d = 0;
+                if (Controller::IsKeyPressed(Key::Right)) d += 1;
+                if (Controller::IsKeyPressed(Key::Left))  d -= 1;
+                if (Controller::IsKeyPressed(Key::Up))    d += 10;
+                if (Controller::IsKeyPressed(Key::Down))  d -= 10;
+                if (Controller::IsKeyPressed(Key::R))     d += 50;
+                if (Controller::IsKeyPressed(Key::L))     d -= 50;
+                if (d != 0) { int q = (int)addQty + d; if (q < 1) q = 1; if (q > 999) q = 999; addQty = (u16)q; added = false; }
+            }
+            if (Controller::IsKeyPressed(Key::B)) {
+                if (addMode) addMode = false;
+                else if (panel != P_NONE) panel = P_NONE;
+                else break;
+            }
+
+            bool down = Touch::IsDown();
+            UIntVector tp = down ? Touch::GetPosition() : lastPos;
+            if (down) lastPos = tp;
+            bool tap = armed && !down && wasDown;
+            if (!down) armed = true;
+            wasDown = down;
+
+            // ===================== TOP: list + description strip =====================
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+            top.DrawSysfont(title << "Bag - add an item", 42, 26, title);
+            string cnt = to_string((int)results.size()) + " items";
+            int cw = (int)OSD::GetTextWidth(true, cnt);
+            top.DrawSysfont(txt << cnt, 362 - cw, 28, txt);
+            top.DrawRect(42, 44, 316, 1, title, true);
+
+            if (results.empty()) {
+                top.DrawSysfont(txt << "No items match these filters.", 96, 96, txt);
+                top.DrawSysfont(txt << "Tap a filter below to widen it.", 96, 116, txt);
+            } else {
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= (int)results.size()) break;
+                    int id = results[ri], y = LISTY + i * ROWH; bool cur = (ri == cursor);
+                    if (cur) top.DrawRect(36, y, 328, ROWH, bg2, true);
+                    top.DrawRect(40, y + 1, 16, 16, Color::White, true);
+                    Image *ic = getIcon(id);
+                    if (ic && ic->IsLoaded()) ic->Draw(top, 40, y + 1);
+                    Color rc = cur ? sel : txt;
+                    top.DrawSysfont(rc << bagItemName[id], 62, y + 2, rc);
+                    // right side: how many you own (xN) + the pocket name
+                    string rtag = (g_invCount[id] > 0 ? (string("x") + to_string(g_invCount[id]) + "  ") : "")
+                                  + bagPocketNames[bagItemPocket[id]];
+                    int pw = (int)OSD::GetTextWidth(true, rtag);
+                    top.DrawSysfont(rc << rtag, 360 - pw, y + 2, rc);
+                }
+                // description strip (highlighted item): group line + a marquee for long effects
+                int id = results[cursor], pk = bagItemPocket[id];
+                if (id != marqId) { marqId = id; marqStart = 0; marqTick = 0; marqDelay = 60; } // ~1s before it scrolls
+                top.DrawRect(42, 175, 316, 1, border, true);
+                string tag = string(bagPocketNames[pk]) + "  -  " + BagGroupName(pk, bagItemGroup[id]);
+                if (bagItemType[id]) tag += string("  -  ") + spawnerTypeNames[bagItemType[id]];
+                top.DrawSysfont(title << tag, 42, 178, title);
+                const char *d = bagItemDesc[id];
+                const int STRIPW = 316;
+                if (!d[0]) {
+                    top.DrawSysfont(txt << "(no description available)", 42, 196, txt);
+                } else {
+                    string ds(d);
+                    if ((int)OSD::GetTextWidth(true, ds) <= STRIPW) {
+                        top.DrawSysfont(txt << ds, 42, 196, txt);
+                    } else {
+                        // char-stepping marquee over "text + gap + text" (seamless loop, never bleeds the window)
+                        string dbl = ds + "      " + ds;
+                        int loop = (int)ds.size() + 6;
+                        if (marqDelay > 0) marqDelay--;                          // hold ~2s before scrolling
+                        else if (++marqTick >= 6) { marqTick = 0; marqStart = (marqStart + 1) % loop; }
+                        string win;
+                        for (int k = marqStart; k < (int)dbl.size(); k++) {
+                            win += dbl[k];
+                            if ((int)OSD::GetTextWidth(true, win) > STRIPW) { win.erase(win.size() - 1); break; }
+                        }
+                        top.DrawSysfont(txt << win, 42, 196, txt);
+                    }
+                }
+            }
+
+            // ===================== BOTTOM =====================
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+
+            if (addMode) {
+                bot.DrawSysfont(title << "Add to bag", 40, 26, title);
+                bot.DrawRect(40, 44, 130, 1, title, true);
+                if (addId != bigIconId) { bigIcon.LoadFromFile(string("BagSprites/big/") + SpawnerPad3(addId) + ".bmp"); bigIconId = addId; }
+                bot.DrawRect(40, 52, 40, 40, Color::White, true); bot.DrawRect(40, 52, 40, 40, border, false);
+                if (bigIcon.IsLoaded()) bigIcon.Draw(bot, 40 + (40 - bigIcon.Width()) / 2, 52 + (40 - bigIcon.Height()) / 2);
+                bot.DrawSysfont(title << bagItemName[addId], 92, 56, title);
+                string ptag = bagPocketNames[addPocket];
+                if (bagItemType[addId]) ptag += string("  -  ") + spawnerTypeNames[bagItemType[addId]];
+                bot.DrawSysfont(txt << ptag, 92, 76, txt);
+
+                bool consumable = (addPocket <= 2);
+                if (consumable) {
+                    bot.DrawSysfont(txt << "Quantity", 40, 108, txt);
+                    if (tap && SpawnerInBox(lastPos, 120, 104, 26, 24)) { if (addQty > 1) addQty--; added = false; }
+                    bot.DrawRect(120, 104, 26, 24, bg2, true); bot.DrawRect(120, 104, 26, 24, border, false); bot.DrawSysfont(txt << "-", 130, 108, txt);
+                    if (tap && SpawnerInBox(lastPos, 150, 104, 60, 24)) {
+                        Keyboard kb("Quantity (1-999)"); u16 v = addQty;
+                        if (kb.Open(v, addQty) == 0) { if (v < 1) v = 1; if (v > 999) v = 999; addQty = v; }
+                        added = false; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
+                    }
+                    bot.DrawRect(150, 104, 60, 24, bg2, true); bot.DrawRect(150, 104, 60, 24, border, false);
+                    { string q = to_string((int)addQty); int qw = (int)OSD::GetTextWidth(true, q); bot.DrawSysfont(title << q, 180 - qw / 2, 108, title); }
+                    if (tap && SpawnerInBox(lastPos, 214, 104, 26, 24)) { if (addQty < 999) addQty++; added = false; }
+                    bot.DrawRect(214, 104, 26, 24, bg2, true); bot.DrawRect(214, 104, 26, 24, border, false); bot.DrawSysfont(txt << "+", 223, 108, txt);
+                } else {
+                    bot.DrawSysfont(txt << (addPocket == 3 ? "TM/HM - added as one (reusable)" : "Key Item - added as one"), 40, 110, txt);
+                }
+
+                if (tap && SpawnerInBox(lastPos, 40, 140, 240, 30)) {
+                    addOk = BagAddToPocket(addPocket, addId, consumable ? (int)addQty : 1);
+                    if (addOk) BagReadInventory();   // refresh the list's owned counts
+                    added = true;
+                    while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
+                }
+                bot.DrawRect(40, 140, 240, 30, sel, true); bot.DrawRect(40, 140, 240, 30, border, false);
+                { string s = "ADD TO BAG"; int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 160 - sw / 2, 147, bg); }
+                if (added) {
+                    string m = addOk ? (string("Added ") + (consumable ? to_string((int)addQty) + "x " : "") + bagItemName[addId] + "!")
+                                     : string("That pocket looks full.");
+                    int mw = (int)OSD::GetTextWidth(true, m); if (mw > 270) mw = 270;
+                    bot.DrawSysfont(title << m, 160 - mw / 2, 176, title);
+                }
+                bot.DrawSysfont(txt << "B - back to the list", 92, 196, txt);
+            }
+            else if (panel == P_NONE) {
+                bot.DrawSysfont(title << "Filters", 38, 24, title);
+                bot.DrawRect(40, 40, 90, 1, title, true);
+                int f;
+                // In-Inventory toggle
+                if (tap && SpawnerInBox(lastPos, 30, 44, 260, 26)) { g_bf.invOnly = !g_bf.invOnly; dirty = true; }
+                hubBtn(44, "In-Inventory", g_bf.invOnly ? "ON" : "any", g_bf.invOnly);
+                // Name / #
+                if (tap && SpawnerInBox(lastPos, 30, 74, 260, 26)) {
+                    Keyboard kb("Search by name or item #"); string s = g_bf.text;
+                    if (kb.Open(s, g_bf.text) == 0) { g_bf.text = SpawnerLower(s); dirty = true; }
+                    while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
+                }
+                hubBtn(74, "Name / #", g_bf.text.empty() ? "any" : g_bf.text);
+                // Pocket / category
+                if (tap && SpawnerInBox(lastPos, 30, 104, 260, 26)) panel = P_CAT;
+                {
+                    int tot = 0, fp = -1, fg = -1; bool allp = false;
+                    for (int p = 0; p < 5; p++) {
+                        if (g_bf.grpAll[p]) { tot++; if (fp < 0) { fp = p; allp = true; } }
+                        for (int g = 0; g < bagGrpCount[p]; g++) if (g_bf.grp[p][g]) { tot++; if (fp < 0) { fp = p; fg = g; } }
+                    }
+                    for (int v = 1; v <= 5; v++) if (g_bf.flavor[v]) tot++;
+                    string val = tot == 0 ? "any" : (allp ? (string("All ") + bagPocketNames[fp]) : string(BagGroupName(fp, fg)));
+                    if (tot > 1) val += "+" + to_string(tot - 1);
+                    hubBtn(104, "Pocket / category", val);
+                }
+                // Status
+                if (tap && SpawnerInBox(lastPos, 30, 134, 260, 26)) panel = P_STATUS;
+                { int c = countSel(g_bf.status, 1, 6, f); hubBtn(134, "Status", c == 0 ? "any" : (string(bagStatusNames[f]) + (c > 1 ? "+" + to_string(c - 1) : ""))); }
+                // Type
+                if (tap && SpawnerInBox(lastPos, 30, 164, 260, 26)) panel = P_TYPE;
+                { int c = countSel(g_bf.type, 1, 18, f); hubBtn(164, "Type", c == 0 ? "any" : (string(spawnerTypeNames[f]) + (c > 1 ? "+" + to_string(c - 1) : ""))); }
+                bot.DrawSysfont(txt << "A add    B exit    START reset", 52, 198, txt);
+            }
+            else if (panel == P_STATUS) {
+                bot.DrawSysfont(title << "Status  (cure / inflict / teach)", 30, 24, title);
+                for (int s = 1; s <= 6; s++) {
+                    int k = s - 1, col = k % 2, row = k / 2, x = 36 + col * 128, y = 50 + row * 42;
+                    if (tap && SpawnerInBox(lastPos, x, y, 120, 34)) { g_bf.status[s] = !g_bf.status[s]; dirty = true; }
+                    chip(x, y, 120, 34, bagStatusNames[s], g_bf.status[s], sel);
+                }
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 7; i++) g_bf.status[i] = false; dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false, sel);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
+                chip(198, 196, 98, 20, "< Back", false, sel);
+            }
+            else if (panel == P_TYPE) {
+                bot.DrawSysfont(title << "Type", 38, 24, title);
+                for (int t = 1; t <= 18; t++) {
+                    int k = t - 1, col = k % 3, row = k / 3, x = 26 + col * 90, y = 46 + row * 24;
+                    if (tap && SpawnerInBox(lastPos, x, y, 86, 21)) { g_bf.type[t] = !g_bf.type[t]; dirty = true; }
+                    chip(x, y, 86, 21, spawnerTypeNames[t], g_bf.type[t], SpawnerTypeColor(t));
+                }
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 19; i++) g_bf.type[i] = false; dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false, sel);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
+                chip(198, 196, 98, 20, "< Back", false, sel);
+            }
+            else { // P_CAT (unified pocket + category + berry flavor)
+                for (int t = 0; t < 5; t++) {
+                    int x = 24 + t * 54;
+                    if (tap && SpawnerInBox(lastPos, x, 24, 52, 20)) catTab = t;
+                    bot.DrawRect(x, 24, 52, 20, catTab == t ? sel : bg2, true); bot.DrawRect(x, 24, 52, 20, border, false);
+                    int tw = (int)OSD::GetTextWidth(true, bagCatTab[t]); bot.DrawSysfont((catTab == t ? bg : txt) << bagCatTab[t], x + (52 - tw) / 2, 27, txt);
+                }
+                // "All <pocket>" chip = whole-pocket select
+                if (tap && SpawnerInBox(lastPos, 26, 48, 264, 18)) { g_bf.grpAll[catTab] = !g_bf.grpAll[catTab]; dirty = true; }
+                chip(26, 48, 264, 18, string("All ") + bagPocketNames[catTab], g_bf.grpAll[catTab], sel);
+                // group chips (3 columns)
+                for (int g = 0; g < bagGrpCount[catTab]; g++) {
+                    int col = g % 3, row = g / 3, x = 26 + col * 90, y = 70 + row * 21;
+                    if (tap && SpawnerInBox(lastPos, x, y, 86, 19)) { g_bf.grp[catTab][g] = !g_bf.grp[catTab][g]; dirty = true; }
+                    chip(x, y, 86, 19, BagGroupName(catTab, g), g_bf.grp[catTab][g], sel);
+                }
+                // berry flavor sub-filter (only on the Berries tab)
+                if (catTab == 2) {
+                    bot.DrawSysfont(title << "Flavor", 30, 138, title);
+                    for (int v = 1; v <= 5; v++) {
+                        int k = v - 1, col = k % 3, row = k / 3, x = 26 + col * 90, y = 152 + row * 21;
+                        if (tap && SpawnerInBox(lastPos, x, y, 86, 19)) { g_bf.flavor[v] = !g_bf.flavor[v]; dirty = true; }
+                        chip(x, y, 86, 19, bagFlavorNames[v], g_bf.flavor[v], sel);
+                    }
+                }
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { BagResetCategory(); dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false, sel);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
+                chip(198, 196, 98, 20, "< Back", false, sel);
+            }
+
+            OSD::SwapBuffers();
+        }
+
+        while (Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+    }
+
+    // Bag folder entry: open the unified item-finder (replaces the old Items/Medicines/Berries pickers).
+    void BagItemFinder(MenuEntry *entry) {
+        (void)entry;
+        BagItemHub();
     }
 
     // --- Toggle notifications (#3) ---
@@ -1703,6 +3087,27 @@ namespace CTRPluginFramework {
 
     void FastWalkRun(MenuEntry *entry) {
         static bool s_was = false; NotifyToggle(entry, s_was);
+
+        // ORAS: the working cheat is a 60fps patch — write byte 0 to 0x8C690A1 (whole game runs at 60fps, so you
+        // move/run/cycle faster too). Holding the hotkey (R) writes 1 → back to the normal 30fps for precision.
+        // The original byte is captured on the first frame and restored when the cheat is turned off.
+        if (currGameSeries == GameSeries::ORAS) {
+            static const u32 address = 0x8C690A1;
+            static u8 original = 0;
+            static bool saved = false;
+
+            if (entry->IsActivated()) {
+                if (!saved) { if (!Process::Read8(address, original)) return; saved = true; }
+                Process::Write8(address, entry->Hotkeys[0].IsDown() ? 1 : 0); // hold R -> 30fps, else 60fps
+            }
+            else if (saved) {
+                Process::Write8(address, original);
+                saved = false;
+            }
+            return;
+        }
+
+        // XY: keep the existing movement-speed opcode swap.
         static const vector<u32> address = AutoGameSet({0x8092DE4, 0x8092F34}, {0x80845E8, 0x808475C});
 
         // Function to update memory with validation.
@@ -1962,7 +3367,27 @@ namespace CTRPluginFramework {
             Process::Write32(address, AutoGameSet(0x6B6A30, 0x700C38));
     }
 
+    // Show a centred, colour-styled "irreversible after a save" warning on the TOP screen, with a
+    // [NO]/[YES] list on the bottom. Returns true only if the user explicitly picks YES.
+    // heading/body/question come pre-split into short \n lines so CenterAlign never breaks a word.
+    static bool DangerConfirm(const string &heading, const string &body, const string &question) {
+        const string red   = string(Color(0xF2, 0x4A, 0x3C)); // warning red for the heading
+        const string amber = string(Color(0xF5, 0xA6, 0x23)); // highlight for the closing question
+        const string reset(1, (char)0x18);                    // 0x18 resets colour to the theme's text colour
+        string warn = CenterAlign(red + heading + "\n\n" + reset + body + "\n\n" + amber + question, 55, 345);
+
+        static const vector<string> options = {"NO - keep it off", "YES - apply it"};
+        int choice = 0;
+        Keyboard kb;
+        return kb.Setup(warn, true, options, choice) != -1 && choice == 1;
+    }
+
     void UnlockFullFlyMap(MenuEntry *entry) {
+        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
+                           "It opens every Fly spot at\nonce, so you lose track of\nwhere the story has taken you.",
+                           "Apply it anyway?"))
+            return;
+
         static const u32 address = AutoGameSet(0x8C7A81C, 0x8C81F24);
         static vector<u8> locationFlags;
         int unchangedCount = 0; // Tracks how many flags are already correct
@@ -2144,18 +3569,35 @@ namespace CTRPluginFramework {
 
     void NoOutlines(MenuEntry *entry) {
         static bool s_was = false; NotifyToggle(entry, s_was);
-        static MemoryManager manager(AutoGameSet<u32>(0x362ED8, 0x37A140));
+        // The working AR writes 0 to BOTH 0x37A140 and 0x37A144 on ORAS; the old code wrote only the first,
+        // so outlines stayed partly visible. XY uses its single address.
+        static const vector<u32> address = (currGameSeries == GameSeries::ORAS)
+            ? vector<u32>{0x37A140, 0x37A144}
+            : vector<u32>{0x362ED8};
+        static vector<MemoryManager> managers;
+        static bool initialized = false;
 
-        if (entry->IsActivated()) {
-            // Write new instruction when activated
-            if (!manager.Write(0))
-                return; // Exit if writing fails
+        if (!initialized) {
+            for (u32 a : address)
+                managers.emplace_back(a);
+            initialized = true;
         }
 
-        // Restore the original value when deactivated
+        if (entry->IsActivated()) {
+            // Write 0 to every address when activated
+            for (auto &manager : managers)
+                if (!manager.Write(0))
+                    return; // Exit if writing fails
+        }
+
+        // Restore the original values when deactivated
         else if (!entry->IsActivated()) {
-            if (manager.HasOriginalValue())
-                manager.~MemoryManager(); // Explicitly call the destructor to restore the original value
+            for (auto &manager : managers)
+                if (manager.HasOriginalValue())
+                    manager.~MemoryManager(); // Explicitly call the destructor to restore the original value
+
+            managers.clear();
+            initialized = false;
         }
     }
 
@@ -2773,7 +4215,7 @@ namespace CTRPluginFramework {
         es->SetTwoColumns(true); // toggle-heavy folder: render in 2 columns to cut scrolling
 
         // Master: keeps the one-time ENABLE-in-battle unlock flow (ViewPokemonInfo menu func -> SetGameFunc(TogglePokemonInfo)).
-        *es += new MenuEntry("Enable Stats", nullptr, ViewPokemonInfo, "See the foe's stats in battle.\n\nAt first this toggle is LOCKED (shown with a gear icon) because it can only be armed during a battle.\n\nTo unlock it: enter any battle, select this item, then tap ENABLE on the bottom touch screen - you only need to do this once.\n\nAfter that the toggle is unlocked; tick it to turn the feature on.\n\nIn battle, press ZR to show/hide the overlay, L/R to switch between the enemy's Pokémon, and ZR to flip between the Basic/Moves and IV/EV pages.");
+        *es += new MenuEntry("Enable Stats", nullptr, ViewPokemonInfo, "See the foe's stats in battle.\n\nAt first this toggle is LOCKED (shown with a gear icon) because it can only be armed during a battle.\n\nTo unlock it: enter any battle, select this item, then tap ENABLE on the bottom touch screen - you only need to do this once.\n\nAfter that the toggle is unlocked; tick it to turn the feature on.\n\nIn battle: ZR flips between the two pages (Basic/Moves and IV/EV), and L/R switch between the enemy's Pokémon.\n\nTo hide the overlay entirely, just turn this Enable Stats toggle back OFF.");
 
         // Per-element toggles (checkboxes). Names are short (no "Show:") to fit the 2-column layout; the
         // Favorites alias keeps "Show: X" so the star list stays self-explanatory.

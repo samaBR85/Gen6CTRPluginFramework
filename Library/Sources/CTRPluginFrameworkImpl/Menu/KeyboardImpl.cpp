@@ -567,18 +567,31 @@ namespace CTRPluginFramework {
         if (!_customKeyboard) {
             // Pointer to settings
             static auto &theme = Preferences::Settings.Keyboard;
-            int posY = 20;
-            int posX = 25;
 
             // Clean background
             Renderer::DrawRect(background, theme.Background);
 
-            // Draw input
-            Renderer::DrawSysString(_userInput.c_str(), posX, posY, 300, theme.Input, _offset);
+            // Input area. On QWERTY (whose keys are lowered) we frame the typed text in a proper input
+            // field with margin so it doesn't float in the corner; the tighter digit pads keep a simple
+            // line. The typed text is drawn BOLD either way for legibility.
+            int posX, posY;
+            if (_layout == Layout::QWERTY) {
+                static const IntRect inputField(28, 22, 264, 24);
+                static const IntRect inputInner(29, 23, 262, 22);
+                Renderer::DrawRect(inputField, theme.Input);         // 1px frame in the text colour
+                Renderer::DrawRect(inputInner, theme.KeyBackground); // field fill
+                posX = 36; posY = 27;
+            }
+            else {
+                posX = 30; posY = 22;
+            }
+
+            // Draw input (bold)
+            Renderer::DrawSysString(_userInput.c_str(), posX, posY, 290, theme.Input, _offset, nullptr, Render::FontDrawMode::BOLD);
 
             // Draw cursor
             if (_showCursor && _blinkingClock.GetElapsedTime() < Seconds(0.5f))
-                Renderer::DrawLine(_cursorPositionOnScreen + posX, 21, 1, theme.Cursor, 16);
+                Renderer::DrawLine(_cursorPositionOnScreen + posX, posY - 1, 1, theme.Cursor, 16);
 
             // Digit layout
             if (_layout != Layout::QWERTY) {
@@ -987,7 +1000,7 @@ namespace CTRPluginFramework {
 
     void KeyboardImpl::_QwertyLowCase(void) {
         // Key rectangle
-        IntRect pos(20, 36, 25, 40);
+        IntRect pos(20, 52, 25, 30);
 
         _QwertyKeys.emplace_back('q', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('w', pos); pos.leftTop.x += 25;
@@ -1002,7 +1015,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back('a', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('s', pos); pos.leftTop.x += 25;
@@ -1017,7 +1030,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back(KEY_CAPS, Icon::DrawCapsLockOn, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('z', pos); pos.leftTop.x += 25;
@@ -1032,7 +1045,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back('?', pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
@@ -1043,7 +1056,7 @@ namespace CTRPluginFramework {
 
     void KeyboardImpl::_QwertyUpCase(void) {
         // Key rectangle
-        IntRect pos(20, 36, 25, 40);
+        IntRect pos(20, 52, 25, 30);
 
         _QwertyKeys.emplace_back('Q', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('W', pos); pos.leftTop.x += 25;
@@ -1058,7 +1071,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back('A', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('S', pos); pos.leftTop.x += 25;
@@ -1073,7 +1086,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back(KEY_CAPS, Icon::DrawCapsLockOn, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('Z', pos); pos.leftTop.x += 25;
@@ -1088,7 +1101,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back('!', pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
@@ -1099,7 +1112,7 @@ namespace CTRPluginFramework {
 
     void KeyboardImpl::_QwertySymbols(void) {
         // Key rectangle
-        IntRect pos(20, 36, 25, 40);
+        IntRect pos(20, 52, 25, 30);
 
         _QwertyKeys.emplace_back('?', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('!', pos); pos.leftTop.x += 25;
@@ -1114,7 +1127,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back('(', pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back(')', pos); pos.leftTop.x += 25;
@@ -1129,7 +1142,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back("\u2192", pos, KEY_SYMBOLS_PAGE); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('\\', pos); pos.leftTop.x += 25;
@@ -1143,7 +1156,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back('9', pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
@@ -1155,7 +1168,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back('.', pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 36;
+        pos.leftTop.y = 52;
 
         _QwertyKeys.emplace_back("\u2022", pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\u00A9", pos); pos.leftTop.x += 25;
@@ -1170,7 +1183,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back("\u2122", pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('<', pos); pos.leftTop.x += 25;
@@ -1185,7 +1198,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back("\u2190", pos, KEY_SYMBOLS_PAGE); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back('|', pos); pos.leftTop.x += 25;
@@ -1200,7 +1213,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back("\u00B1", pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
@@ -1214,7 +1227,7 @@ namespace CTRPluginFramework {
 
     void KeyboardImpl::_QwertyNintendo() {
         // Key rectangle
-        IntRect pos(20, 36, 25, 40);
+        IntRect pos(20, 52, 25, 30);
 
         _QwertyKeys.emplace_back("\uE000" /* A */, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE001" /* B */, pos); pos.leftTop.x += 25;
@@ -1229,7 +1242,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back("\uE04C" /* a */, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE04D" /* b */, pos); pos.leftTop.x += 25;
@@ -1244,7 +1257,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back("\u2192", pos, KEY_NINTENDO_PAGE); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE040" /* Power */, pos); pos.leftTop.x += 25;
@@ -1258,7 +1271,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back("\uE04B" /* Z */, pos); pos.leftTop.x += 25;
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
@@ -1269,7 +1282,7 @@ namespace CTRPluginFramework {
         pos.size.x = 25;
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 36;
+        pos.leftTop.y = 52;
 
         _QwertyKeys.emplace_back("\uE079" /* DPAD UP */, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE07B" /* DPAD DOWN */, pos); pos.leftTop.x += 25;
@@ -1284,7 +1297,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_BACKSPACE, Icon::DrawClearSymbol, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 76;
+        pos.leftTop.y = 92;
 
         _QwertyKeys.emplace_back("\uE007" /* Clock */, pos); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE008" /* Happy */, pos); pos.leftTop.x += 25;
@@ -1299,7 +1312,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back(KEY_ENTER, Icon::DrawEnterKey, pos);
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 116;
+        pos.leftTop.y = 132;
 
         _QwertyKeys.emplace_back("\u2190", pos, KEY_NINTENDO_PAGE); pos.leftTop.x += 25;
         _QwertyKeys.emplace_back("\uE015", pos); pos.leftTop.x += 25;
@@ -1313,7 +1326,7 @@ namespace CTRPluginFramework {
         _QwertyKeys.emplace_back("\uE01E" /* Camera */, pos); pos.leftTop.x += 25;
 
         pos.leftTop.x = 20;
-        pos.leftTop.y = 156;
+        pos.leftTop.y = 172;
 
         pos.size.x = 40;
         _QwertyKeys.emplace_back("+=@", pos, KEY_SYMBOLS); pos.leftTop.x += 40;
