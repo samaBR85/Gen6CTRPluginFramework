@@ -17,6 +17,8 @@ namespace CTRPluginFramework {
             void Append(MenuItem *item, bool isStar = false);
             u32 ItemsCount(void) const;
             MenuItem *GetItem(u32 uid);
+            // Like GetItem but matches on MenuItem::StableKey() (build-stable persistence key) instead of Uid.
+            MenuItem *GetItemByKey(u32 key);
             void DisableAll(void);
 
             vector<MenuEntry*> GetEntryList(void) const;

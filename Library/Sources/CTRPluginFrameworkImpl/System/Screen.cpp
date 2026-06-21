@@ -302,6 +302,12 @@ namespace CTRPluginFramework {
     }
 
     void ScreenImpl::SwapBuffer(void) {
+        // Plugin-UI screenshot trigger. GetLeftFrameBuffer() (current = false) is the just-drawn buffer about to be
+        // presented; capture it here so a screenshot taken with a plugin UI open shows that UI. Runs BEFORE the
+        // cache flush below so its confirmation overlay reaches the presented framebuffer. No-op unless the
+        // CapturePluginUI toggle is on and the hotkey is down.
+        Screenshot::UICallback(!_isTopScreen, GetLeftFrameBuffer(), _stride, _format);
+
         if (!SystemImpl::IsCitra)
             svcFlushDataCacheRange(GetLeftFrameBuffer(), GetFrameBufferSize());
 

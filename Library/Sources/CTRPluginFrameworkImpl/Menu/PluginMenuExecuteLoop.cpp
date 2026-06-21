@@ -28,7 +28,7 @@ namespace CTRPluginFramework {
                 MenuEntryImpl *e = items[index];
 
                 if (e != nullptr && e->IsEntry() && e->IsActivated())
-                    uids.push_back(e->Uid);
+                    uids.push_back(e->StableKey());
             }
 
             if (file.Write(uids.data(), sizeof(u32) * uids.size()) != 0)

@@ -74,6 +74,22 @@ namespace CTRPluginFramework {
         return (nullptr);
     }
 
+    MenuItem *MenuFolderImpl::GetItemByKey(u32 key) {
+        for (MenuItem *item : _items) {
+            if (item->StableKey() == key)
+                return (item);
+
+            if (item->_type == MenuType::Folder) {
+                MenuItem * i = reinterpret_cast<MenuFolderImpl*>(item)->GetItemByKey(key);
+
+                if (i != nullptr)
+                    return (i);
+            }
+        }
+
+        return (nullptr);
+    }
+
     void MenuFolderImpl::DisableAll(void) {
         for (MenuItem *item : _items) {
             if (item->IsEntry() || item->IsFreeCheat())

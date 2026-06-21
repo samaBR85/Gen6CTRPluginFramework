@@ -1,4 +1,4 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.3.1
+# Gen6CTRPluginFrameworkOverhauled — v0.3.2
 
 A heavily overhauled 3gx plugin for Pokémon X, Y, Omega Ruby, and Alpha Sapphire on the Nintendo 3DS.
 
@@ -221,7 +221,7 @@ exist.
 - **Dynamite** — for the O-Power order info; **Likemeon** — for the Granite Cave chaining tip.
 
 **This fork**
-- Fork, overhaul and v0.3.0 / v0.3.1 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
+- Fork, overhaul and v0.3.0 / v0.3.1 / v0.3.2 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
   with **Claude** (Anthropic).
 
 ## License

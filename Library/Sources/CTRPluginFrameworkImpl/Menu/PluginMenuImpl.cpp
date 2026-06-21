@@ -350,7 +350,7 @@ namespace CTRPluginFramework {
 
         if (settings.Read(uids.data(), sizeof(u32) * header.enabledCheatsCount) == 0) {
             for (u32 &uid : uids) {
-                MenuItem *item = folder->GetItem(uid);
+                MenuItem *item = folder->GetItemByKey(uid);
 
                 if (item != nullptr && item->IsEntry())
                     reinterpret_cast<MenuEntryImpl*>(item)->Enable();
@@ -371,7 +371,7 @@ namespace CTRPluginFramework {
 
         if (settings.Read(uids.data(), sizeof(u32) * header.favoritesCount) == 0){
             for (u32 &uid : uids) {
-                MenuItem *item = folder->GetItem(uid);
+                MenuItem *item = folder->GetItemByKey(uid);
 
                 if (item != nullptr && !item->_IsStarred()) {
                     item->_TriggerStar();
@@ -392,7 +392,7 @@ namespace CTRPluginFramework {
         for (size_t count = 0; count < header.hotkeysCount; count++) {
             if (settings.Read(buffer, sizeof(u32) * 2) == 0) {
                 if (settings.Read(&buffer[2], sizeof(u32) * buffer[1]) == 0) {
-                    MenuItem  *item = folder->GetItem(buffer[0]);
+                    MenuItem  *item = folder->GetItemByKey(buffer[0]);
 
                     if (item == nullptr || !item->IsEntry())
                         return;
@@ -426,7 +426,7 @@ namespace CTRPluginFramework {
 
         for (MenuItem *item : folder->_items) {
             if (item->IsEntry() && reinterpret_cast<MenuEntryImpl*>(item)->IsActivated())
-                uids.push_back(item->Uid);
+                uids.push_back(item->StableKey());
         }
 
         if (uids.size()) {
@@ -447,7 +447,7 @@ namespace CTRPluginFramework {
         MenuFolderImpl *folder = _runningInstance->_home->_starred;
 
         for (MenuItem *item : folder->_items)
-            uids.push_back(item->Uid);
+            uids.push_back(item->StableKey());
 
         if (uids.size()) {
             u64 offset = settings.Tell();
@@ -476,7 +476,7 @@ namespace CTRPluginFramework {
 
             if (entry && entry->Hotkeys.Count()) {
                 Preferences::HotkeysInfos hInfos = {0};
-                hInfos.uid = item->Uid;
+                hInfos.uid = item->StableKey();
                 hInfos.count = entry->Hotkeys.Count();
 
                 for (u32 j = 0; j < hInfos.count; j++) {

@@ -5,6 +5,7 @@ namespace CTRPluginFramework {
 
     bool Screenshot::IsEnabled = false;
     bool Screenshot::IncludeOverlays = false;
+    bool Screenshot::CapturePluginUI = false;
     u32 Screenshot::Hotkeys = Key::ZR; // ZR (not ZL — ZL is Fast Walk's hold-to-30fps)
     u32 Screenshot::Screens = SCREENSHOT_BOTH;
     Time Screenshot::Timer;
@@ -97,6 +98,44 @@ namespace CTRPluginFramework {
         DoCapture(isBottom, addr, stride, format);
     }
 
+    // Plugin-UI confirmation overlay state (drawn directly into the plugin's own frame, not via OSD notifications,
+    // which aren't rendered while the game is paused).
+    static u32 s_uiDisplay = 0;    // frames left to show the on-screen confirmation
+    static u32 s_uiShotIndex = 0;  // file index of the just-captured plugin-UI screenshot
+
+    // Plugin-UI capture. ScreenImpl::SwapBuffer (used only by plugin renders: the framework menu via
+    // Renderer::EndFrame and the custom full-screen UIs via OSD::SwapBuffers) calls this just before the buffer is
+    // flushed + presented, passing the freshly-drawn framebuffer. The gameplay OSDCallback/CallbackCommon path does
+    // NOT run while a plugin UI is up (the game is paused), so this is the only screenshot trigger reachable there.
+    // The capture is fully synchronous (DoCapture copies the framebuffer into ImgBuffer here, and the save task
+    // reads only that copy), so we must NOT touch OSDImpl::WaitingForScreenshot — doing so would unfreeze the paused
+    // game frame and make the background flicker.
+    void Screenshot::UICallback(u32 isBottom, void *addr, int stride, int format) {
+        if (!IsEnabled || !CapturePluginUI)
+            return;
+
+        if (!_mode && (Controller::GetKeysDown() & Hotkeys) == Hotkeys && (!ScreenshotCallback || ScreenshotCallback())) {
+            _mode = Screens;
+            s_uiShotIndex = _filecount;  // the index this capture will be saved under
+            s_uiDisplay = 5;             // must cover BOTH double-buffers or the text renders only on alternate
+                                         // presents and looks semi-transparent; 1 frame is too few. Kept short so
+                                         // the per-frame redraw doesn't prolong the paused-frame flicker.
+        }
+
+        // Capture the CLEAN frame first so the confirmation text below never ends up in the saved image.
+        DoCapture(isBottom, addr, stride, format);
+
+        // On-screen confirmation, drawn straight into the bottom-screen frame about to be presented. The menu and
+        // custom UIs fully redraw each frame, so re-draw it every frame it's shown. Count down once per frame (on
+        // the bottom-screen call).
+        if (s_uiDisplay && isBottom) {
+            int posY = 2;
+            Renderer::SetTarget(BOTTOM);
+            Renderer::DrawString((Prefix + Utils::Format(" - %03d.bmp saved", s_uiShotIndex)).c_str(), 4, posY, Color::White, Color::ForestGreen);
+            --s_uiDisplay;
+        }
+    }
+
     bool Screenshot::OSDCallback(u32 isBottom, void *addr, void *addrB, int stride, int format) {
         if (!IsEnabled)
             return IsEnabled;
@@ -116,7 +155,7 @@ namespace CTRPluginFramework {
             int posY = 0;
             Renderer::SetTarget(BOTTOM);
 
-            if (_display < 120)
+            if (_display < 60)  // ~1s on-screen confirmation (halved from 120)
                 Renderer::DrawString((Prefix + Utils::Format(" - %03d.bmp", _filecount - 1)).c_str(), 0, posY, Color::White, Color::ForestGreen);
 
             else if (_display > 130 && _display < 250)

@@ -97,6 +97,13 @@ namespace CTRPluginFramework {
             bool HasNoteChanged(void) const;
             void HandledNoteChanges(void);
 
+            // Stable identity for persistence (favorites / enabled cheats / hotkeys). Unlike Uid (a creation-order
+            // counter that shifts whenever the menu changes between builds), this is an FNV-1a hash of the item's
+            // path of names (this item up through its _container chain to the root), so it survives added/removed/
+            // reordered entries across plugin updates. Stable as long as the entry's name and its ancestors' names
+            // don't change (same language). Collides only if two items share an identical full name-path.
+            u32 StableKey(void) const;
+
             const u32 Uid;
             ItemFlags Flags;
 
