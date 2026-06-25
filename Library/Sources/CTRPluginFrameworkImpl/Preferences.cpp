@@ -113,9 +113,19 @@ namespace CTRPluginFramework {
             InfoHotkeys     = header.reserved[1];
             KeyboardHotkeys = header.reserved[2];
             CardStatHotkeys = header.reserved[3];
+            g_bagPayMode    = header.reserved[4]; // PokeMart PAY/FREE choice (0 default = FREE on a fresh file)
+            g_funPayMode    = header.reserved[5]; // Fun Stuff mini-games FREE/PAID choice (0 default = FREE)
+            g_hiLoBest      = header.reserved[6]; // Fun Stuff "Higher or Lower" best streak
             Flags = header.flags;
             memcpy(reinterpret_cast<void*>(Backlights), &header.lcdbacklights, sizeof(Backlights));
         }
+
+        // Favorites AND enabled cheats must ALWAYS persist for this plugin. Upstream leaves the four
+        // AutoSave/AutoLoad bits OFF on a fresh/reset Data.bin (Flags=0), so stars + enabled cheats are
+        // never written nor re-read and vanish on every .3gx swap. Force them on (idempotent; also repairs
+        // an existing Data.bin that had them off). The Tools>Settings toggles still show ON; turning one
+        // off only lasts the session (re-forced next boot) - acceptable, the goal is reliable persistence.
+        Flags |= (AutoSaveFavorites | AutoLoadFavorites | AutoSaveCheats | AutoLoadCheats);
 
         // Check for hotkeys to be valid (0 = unset -> restore defaults)
         if (MenuHotkeys == 0)
@@ -274,6 +284,9 @@ namespace CTRPluginFramework {
             header.reserved[1] = InfoHotkeys;
             header.reserved[2] = KeyboardHotkeys;
             header.reserved[3] = CardStatHotkeys;
+            header.reserved[4] = g_bagPayMode; // PokeMart PAY/FREE choice (see SetBagPayMode)
+            header.reserved[5] = g_funPayMode; // Fun Stuff mini-games FREE/PAID choice (see SetFunPayMode)
+            header.reserved[6] = g_hiLoBest;   // Fun Stuff "Higher or Lower" best streak (see SetHiLoBest)
             header.flags = Flags;
             memcpy(&header.lcdbacklights, Backlights, sizeof(header.lcdbacklights));
 

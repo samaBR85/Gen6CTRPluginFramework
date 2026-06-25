@@ -6,9 +6,20 @@ namespace CTRPluginFramework {
     using MenuIter = vector<MenuItem*>::iterator;
 
     u32 MenuItem::StableKey(void) const {
-        // FNV-1a over the path of names: this item, then each ancestor via _container, up to the root. A separator
-        // byte between levels keeps "AB"+"C" distinct from "A"+"BC". Deterministic across builds for the same names.
+        // Persistence identity for favorites / enabled cheats. PREFER the author-set favorite alias (favAlias):
+        // an explicit stable id that is IMMUNE to display-name renames of this item AND its ancestors. Only when
+        // no alias is set do we fall back to an FNV-1a hash of the NAME-PATH (this item up through _container to
+        // the root, separator between levels) - stable only as long as no name on the path changes.
         u32 h = 2166136261u;
+
+        if (!favAlias.empty()) {
+            h ^= 0xA1u; h *= 16777619u; // 'alias' domain tag so an alias can't collide with a name-path hash
+            for (size_t i = 0; i < favAlias.size(); ++i) {
+                h ^= static_cast<u8>(favAlias[i]);
+                h *= 16777619u;
+            }
+            return h;
+        }
 
         for (const MenuItem *it = this; it != nullptr; it = it->_container) {
             const string &n = it->name;

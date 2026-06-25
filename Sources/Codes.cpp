@@ -8,6 +8,8 @@
 #include "SpawnerMoves.hpp"  // Gen-6 level-up movesets for the detail sheet
 #include "BagItems.hpp"      // bagItemName[801] - unified Bag item-finder
 #include "BagItemMeta.hpp"   // pocket/group/type/desc/flavor for the Bag item-finder filters + strip
+#include "HeldItemList.hpp"  // gHeldItemIds[] - curated holdable items (for the PokeMart "Holdable" marker)
+#include "BagItemTags.hpp"   // gBagItemTags[]/gBagItemTagName[] - effect tags for the PokeMart Effect filter
 
 namespace CTRPluginFramework {
     static int selectedIcon = 0;
@@ -2167,6 +2169,18 @@ namespace CTRPluginFramework {
         int panel = P_HUB, typeTab = 0;
         bool dirty = false;
 
+        // tiny per-row sprite cache (16px; id-keyed round-robin so scrolling reloads at most one per step)
+        const int ICACHE = 16;
+        Image iconCache[16]; int iconCacheId[16], iconRR = 0;
+        for (int i = 0; i < ICACHE; i++) iconCacheId[i] = -1;
+        auto getIcon = [&](int dex) -> Image* {
+            for (int i = 0; i < ICACHE; i++) if (iconCacheId[i] == dex) return &iconCache[i];
+            int slot = iconRR; iconRR = (iconRR + 1) % ICACHE;
+            iconCache[slot].LoadFromFile(string("SpawnerList/normal/") + SpawnerPad3(dex) + ".bmp");
+            iconCacheId[slot] = dex;
+            return &iconCache[slot];
+        };
+
         auto clampCursor = [&]() {
             if (results.empty()) { cursor = 0; scroll = 0; return; }
             if (cursor < 0) cursor = 0;
@@ -2278,9 +2292,12 @@ namespace CTRPluginFramework {
                     bool cur = (ri == cursor);
                     if (cur) top.DrawRect(36, y - 1, 328, ROWH, bg2, true);
                     Color rc = cur ? sel : txt;
+                    top.DrawRect(40, y, 16, 16, Color::White, true);          // sprite backdrop (icon has white bg)
+                    Image *ic = getIcon(n);
+                    if (ic && ic->IsLoaded()) ic->Draw(top, 40, y);
                     string row = string("#") + SpawnerPad3(n) + "  " + speciesList[n - 1];
                     if (g_boxCount[n] > 0) row += "  x" + to_string(g_boxCount[n]);
-                    top.DrawSysfont(rc << row, 46, y, rc);
+                    top.DrawSysfont(rc << row, 60, y, rc);
                     int t1 = spawnerType1[n], t2 = spawnerType2[n];
                     string ty = spawnerTypeNames[t1];
                     if (t2) ty += string("/") + spawnerTypeNames[t2];
@@ -2423,6 +2440,13 @@ namespace CTRPluginFramework {
         }
     }
 
+    // True if item id can be HELD by a Pokemon in ORAS (curated list in HeldItemList.hpp, PKHeX-validated).
+    static bool BagIsHoldable(u16 id) {
+        static bool tbl[801] = {false}; static bool init = false;
+        if (!init) { init = true; for (int k = 0; k < gHeldItemCount; k++) if (gHeldItemIds[k] < 801) tbl[gHeldItemIds[k]] = true; }
+        return id < 801 && tbl[id];
+    }
+
     // Each pocket's slot-array base in RAM (per game/version). Mirrors the old Unlock* functions.
     static u32 BagPocketBase(int pocket) {
         switch (pocket) {
@@ -2485,6 +2509,7 @@ namespace CTRPluginFramework {
         bool grpAll[5];     // "All <pocket>" (whole-pocket select)
         bool grp[5][12];    // [pocket][group]
         bool flavor[6];     // 1..5
+        u32  effect;        // bitmask over gBagItemTagName[] (description-derived EFFECT filter)
     };
     static BagFilters g_bf;
 
@@ -2506,7 +2531,9 @@ namespace CTRPluginFramework {
     }
 
     // ===== "PokéMart Anywhere": PAY/FREE mode + shopping cart (session-global; remembered across re-opens) =====
-    static int g_bagPayMode = 0;                 // 0 = FREE (add at no cost), 1 = PAY (Poké Mart: items cost Money)
+    // PAY/FREE now lives in the framework global g_bagPayMode (OSD.hpp), persisted in Data.bin so it
+    // survives game sessions. Read it directly; CHANGE it only via SetBagPayMode() (marks Data.bin dirty).
+    // (0 = FREE, add at no cost; 1 = PAY, Poké Mart: items cost Money.)
     // List sort (view pref; kept separate from g_bf so "Reset all" doesn't clear it; remembered across re-opens)
     static int  g_bagSortKey  = 0;               // 0 Default, 1 Name, 2 Price, 3 Type, 4 Owned
     static bool g_bagSortDesc = false;
@@ -2522,6 +2549,49 @@ namespace CTRPluginFramework {
     }
     static u32  BagReadMoney(void)   { u32 m = 0; Process::Read32(AutoGameSet(0x8C6A6AC, 0x8C71DC0), m); return m; }
     static void BagWriteMoney(u32 m) { if (m > 9999999) m = 9999999; Process::Write32(AutoGameSet(0x8C6A6AC, 0x8C71DC0), m); }
+
+    // ---- Public bridges for the Enemy Helper "get item" action (declared in PKHeX.hpp). They reuse the same
+    // PokeMart Anywhere machinery (pay mode, prices, pockets, money) so a one-tap add from the coach card behaves
+    // exactly like buying that item in the simulated mart. The bag write functions above are static to this TU,
+    // so the cross-file caller (PKHeX.cpp) goes through these thin forwarders. ----
+    int BagPayMode(void) { return (int)g_bagPayMode; } // 1 = PAY, 0 = FREE
+    int BagMoney(void)   { return (int)BagReadMoney(); } // current on-hand money (for the Enemy Helper Items tab)
+
+    int BagBuyOne(int id) {
+        if (id <= 0 || id >= 801) return 4;            // bad id
+        int pocket = bagItemPocket[id];
+        if (g_bagPayMode == 1) {                       // PAY: respect buyable flag + price like the mart checkout
+            if (!bagItemBuyable[id]) return 2;         // not canonically sold for money
+            u32 cost = bagItemCost[id], money = BagReadMoney();
+            if (money < cost) return 3;                // not enough money
+            if (!BagAddToPocket(pocket, id, 1)) return 4; // bag full -> don't charge
+            BagWriteMoney(money - cost);
+            return 1;                                  // bought
+        }
+        return BagAddToPocket(pocket, id, 1) ? 0 : 4;  // FREE: just add
+    }
+
+    // Add (delta > 0) or subtract (delta < 0) Pokedollars from the player's on-hand money, clamped to
+    // [0, 9,999,999]. Used by the Fun Stuff mini-games (PAID mode) to charge entry fees and pay out winnings.
+    // BagReadMoney/BagWriteMoney are static to this TU, so the PKHeX.cpp caller goes through this forwarder.
+    // Returns the new balance.
+    int BagAddMoney(int delta) {
+        long long m = (long long)BagReadMoney() + delta;
+        if (m < 0) m = 0;
+        if (m > 9999999) m = 9999999;
+        BagWriteMoney((u32)m);
+        return (int)m;
+    }
+
+    // Add ONE of item `id` to its bag pocket, always FREE (no money, no PAY/FREE check). The Fun Stuff Loot Box
+    // charges the BOX price itself (BagAddMoney) and then grants the prize gratis, so it must NOT go through
+    // BagBuyOne (which would also deduct the item's own cost under the PokeMart PAY mode). Returns 0 ok, 4 fail.
+    int BagGiveItem(int id) {
+        if (id <= 0 || id >= 801) return 4;
+        int pocket = bagItemPocket[id];
+        if (pocket == 255) return 4;
+        return BagAddToPocket(pocket, id, 1) ? 0 : 4;
+    }
 
     // START modal: a custom dual-screen chooser (top = explainer, bottom = red PAY box / blue FREE box).
     // Sets g_bagPayMode; the caller compares before/after to know whether to recompute the list.
@@ -2575,7 +2645,7 @@ namespace CTRPluginFramework {
             cen(bot, "FREE", 225, 140, white); cen(bot, "no charge", 225, 160, white);
 
             OSD::SwapBuffers();
-            if (pick >= 0) { g_bagPayMode = pick; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } break; }
+            if (pick >= 0) { SetBagPayMode((u32)pick); while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } break; }
         }
         while (Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
     }
@@ -2653,6 +2723,7 @@ namespace CTRPluginFramework {
         g_bf.invOnly = false;
         for (int i = 0; i < 19; i++) g_bf.type[i] = false;
         for (int i = 0; i < 7; i++) g_bf.status[i] = false;
+        g_bf.effect = 0;
         BagResetCategory();
     }
     static void BagRecompute(vector<u16> &out) {
@@ -2678,6 +2749,7 @@ namespace CTRPluginFramework {
             // Category implies pocket: match the whole pocket (grpAll) or the specific group.
             if (catActive && !(g_bf.grpAll[pk] || g_bf.grp[pk][bagItemGroup[id]])) continue;
             if (aFlavor) { if (pk != 2 || !g_bf.flavor[bagBerryFlavor[id]]) continue; }
+            if (g_bf.effect && !(gBagItemTags[id] & g_bf.effect)) continue;   // EFFECT filter (OR multi-tag)
             out.push_back((u16)id);
         }
         // optional sort (stable_sort keeps the natural order for ties; Default = no sort)
@@ -2705,7 +2777,7 @@ namespace CTRPluginFramework {
         vector<u16> results; BagRecompute(results);
         int cursor = 0, scroll = 0;
         const int ROWS = 7, ROWH = 18, LISTY = 48;
-        enum { P_NONE = 0, P_CAT, P_STATUS, P_TYPE, P_SORT };
+        enum { P_NONE = 0, P_CAT, P_STATUS, P_TYPE, P_SORT, P_EFFECT };
         int panel = P_NONE, catTab = 0;
         bool addMode = false, dirty = false;
         int marqId = -1, marqStart = 0, marqTick = 0, marqDelay = 0; // description marquee state
@@ -2830,10 +2902,12 @@ namespace CTRPluginFramework {
                     if (ic && ic->IsLoaded()) ic->Draw(top, 40, y + 1);
                     Color rc = cur ? sel : txt;
                     top.DrawSysfont(rc << bagItemName[id], 62, y + 2, rc);
-                    // right side: how many you own (xN) + the price ($) when the item has one, else the pocket
+                    // right side: how many you own (xN) + the price ($) when in PAY and the item has one,
+                    // else the pocket. FREE mode never shows a price (it costs nothing).
+                    bool showPrice = (g_bagPayMode == 1 && bagItemCost[id] > 0);
                     string rtag = (g_invCount[id] > 0 ? (string("x") + to_string(g_invCount[id]) + "  ") : "")
-                                  + (bagItemCost[id] > 0 ? (string("$") + to_string(bagItemCost[id]))
-                                                         : string(bagPocketNames[bagItemPocket[id]]));
+                                  + (showPrice ? (string("$") + to_string(bagItemCost[id]))
+                                               : string(bagPocketNames[bagItemPocket[id]]));
                     int pw = (int)OSD::GetTextWidth(true, rtag);
                     top.DrawSysfont(rc << rtag, 360 - pw, y + 2, rc);
                 }
@@ -2843,8 +2917,12 @@ namespace CTRPluginFramework {
                 top.DrawRect(42, 175, 316, 1, border, true);
                 string tag = string(bagPocketNames[pk]) + "  -  " + BagGroupName(pk, bagItemGroup[id]);
                 if (bagItemType[id]) tag += string("  -  ") + spawnerTypeNames[bagItemType[id]];
-                if (bagItemCost[id] > 0) tag += string("  -  $") + to_string(bagItemCost[id]);
+                if (g_bagPayMode == 1 && bagItemCost[id] > 0) tag += string("  -  $") + to_string(bagItemCost[id]); // PAY only
                 top.DrawSysfont(title << tag, 42, 178, title);
+                if (BagIsHoldable(id)) { // green badge: this item can be held by a Pokemon
+                    Color hc(0x35, 0xC3, 0x6A);
+                    top.DrawSysfont(hc << "Holdable", 358 - (int)OSD::GetTextWidth(true, "Holdable"), 178, hc);
+                }
                 const char *d = bagItemDesc[id];
                 const int STRIPW = 316;
                 if (!d[0]) {
@@ -2970,8 +3048,8 @@ namespace CTRPluginFramework {
                     while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
                 }
                 hubBtnAt(164, 44, 126, "Name / #", g_bf.text.empty() ? "any" : g_bf.text, !g_bf.text.empty());
-                // Row 2: Pocket / category (full)
-                if (tap && SpawnerInBox(lastPos, 30, 74, 260, 26)) panel = P_CAT;
+                // Row 2: Pocket (half) + Effect (half)
+                if (tap && SpawnerInBox(lastPos, 30, 74, 126, 26)) panel = P_CAT;
                 {
                     int tot = 0, fp = -1, fg = -1; bool allp = false;
                     for (int p = 0; p < 5; p++) {
@@ -2981,8 +3059,12 @@ namespace CTRPluginFramework {
                     for (int v = 1; v <= 5; v++) if (g_bf.flavor[v]) tot++;
                     string val = tot == 0 ? "any" : (allp ? (string("All ") + bagPocketNames[fp]) : string(BagGroupName(fp, fg)));
                     if (tot > 1) val += "+" + to_string(tot - 1);
-                    hubBtn(74, "Pocket / category", val, tot > 0);
+                    hubBtnAt(30, 74, 126, "Pocket", val, tot > 0);
                 }
+                if (tap && SpawnerInBox(lastPos, 164, 74, 126, 26)) panel = P_EFFECT;
+                { int ec = 0, ef = -1; for (int i = 0; i < gBagItemTagCount; i++) if (g_bf.effect & (1u << i)) { ec++; if (ef < 0) ef = i; }
+                  string ev = ec == 0 ? "any" : (string(gBagItemTagName[ef]) + (ec > 1 ? "+" + to_string(ec - 1) : ""));
+                  hubBtnAt(164, 74, 126, "Effect", ev, ec > 0); }
                 // Row 3: Status + Type (half-width each)
                 if (tap && SpawnerInBox(lastPos, 30, 104, 126, 26)) panel = P_STATUS;
                 { int c = countSel(g_bf.status, 1, 6, f); hubBtnAt(30, 104, 126, "Status", c == 0 ? "any" : (string(bagStatusNames[f]) + (c > 1 ? "+" + to_string(c - 1) : "")), c > 0); }
@@ -3026,6 +3108,18 @@ namespace CTRPluginFramework {
                     chip(x, y, 86, 21, spawnerTypeNames[t], g_bf.type[t], SpawnerTypeColor(t));
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 19; i++) g_bf.type[i] = false; dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false, sel);
+                if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
+                chip(198, 196, 98, 20, "< Back", false, sel);
+            }
+            else if (panel == P_EFFECT) {
+                bot.DrawSysfont(title << "Effect", 38, 24, title);
+                for (int i = 0; i < gBagItemTagCount; i++) {
+                    int col = i % 3, row = i / 3, x = 26 + col * 90, y = 46 + row * 24;
+                    if (tap && SpawnerInBox(lastPos, x, y, 86, 21)) { g_bf.effect ^= (1u << i); dirty = true; }
+                    chip(x, y, 86, 21, gBagItemTagName[i], (g_bf.effect & (1u << i)) != 0, sel);
+                }
+                if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { g_bf.effect = 0; dirty = true; }
                 chip(28, 196, 98, 20, "Reset", false, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
                 chip(198, 196, 98, 20, "< Back", false, sel);
@@ -4454,7 +4548,9 @@ namespace CTRPluginFramework {
         es->SetTwoColumns(true); // toggle-heavy folder: render in 2 columns to cut scrolling
 
         // Master: keeps the one-time ENABLE-in-battle unlock flow (ViewPokemonInfo menu func -> SetGameFunc(TogglePokemonInfo)).
-        *es += new MenuEntry("Enable Stats", nullptr, ViewPokemonInfo, "See the foe's stats in battle.\n\nAt first this toggle is LOCKED (shown with a gear icon) because it can only be armed during a battle.\n\nTo unlock it: enter any battle, select this item, then tap ENABLE on the bottom touch screen - you only need to do this once.\n\nAfter that the toggle is unlocked; tick it to turn the feature on.\n\nIn battle: ZR flips between the two pages (Basic/Moves and IV/EV), and L/R switch between the enemy's Pokémon.\n\nTo hide the overlay entirely, just turn this Enable Stats toggle back OFF.");
+        MenuEntry *esMaster = new MenuEntry("Enable Stats", nullptr, ViewPokemonInfo, "See the foe's stats in battle.\n\nAt first this toggle is LOCKED (shown with a gear icon) because it can only be armed during a battle.\n\nTo unlock it: enter any battle, select this item, then tap ENABLE on the bottom touch screen - you only need to do this once.\n\nAfter that the toggle is unlocked; tick it to turn the feature on.\n\nIn battle: ZR flips between the two pages (Basic/Moves and IV/EV), and L/R switch between the enemy's Pokémon.\n\nTo hide the overlay entirely, just turn this Enable Stats toggle back OFF.");
+        esMaster->SetFavoriteAlias("Enable Stats");
+        *es += esMaster;
 
         // Per-element toggles (checkboxes). Names are short (no "Show:") to fit the 2-column layout; the
         // Favorites alias keeps "Show: X" so the star list stays self-explanatory.
@@ -4512,6 +4608,7 @@ namespace CTRPluginFramework {
         // Names are short (no "Show:") for the 2-column layout; the Favorites alias keeps "Show: X".
         g_hudMaster = new MenuEntry("Display HUD", HudNoop, "Master switch for the on-screen overlay.");
         g_hudMaster->SetGridFullWidth(true); // master spans the whole row
+        g_hudMaster->SetFavoriteAlias("Display HUD"); // the folder note tells the user to favorite this one
         g_hudMoney  = new MenuEntry("Money", HudNoop, "Show how much money you have.");
         g_hudMoney->SetFavoriteAlias("Show: Money");
         g_hudClock  = new MenuEntry("Clock", HudNoop, "Show your play time.");
@@ -4544,9 +4641,11 @@ namespace CTRPluginFramework {
         *hud += g_hudPanel;
         MenuEntry *hudOpac = new MenuEntry("Panel opacity", nullptr, HudSetOpacity, "Set how see-through the panel is (0-100%). Drag the bar; the top screen previews it live.");
         hudOpac->SetGridPaired(true); // pair side-by-side in the 2-column layout
+        hudOpac->SetFavoriteAlias("Panel opacity");
         *hud += hudOpac;
         MenuEntry *hudPos = new MenuEntry("Set position", nullptr, HudSetPosition, "Choose which corner/area the overlay appears in.");
         hudPos->SetGridPaired(true);
+        hudPos->SetFavoriteAlias("HUD position");
         *hud += hudPos;
         hud->SetTwoColumns(true);
 

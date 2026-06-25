@@ -5,8 +5,20 @@
 #include "BaseStats.hpp"
 #include "BagItems.hpp"    // bagItemName[id] for the Bag pick-a-specific-item picker (#11)
 #include "MoveInfo.hpp"
+#include "MoveExtra.hpp"
+#include "MoveDesc.hpp"
+#include "AbilityDesc.hpp"
+#include "SpawnerData.hpp" // spawnerType1/2[]/spawnerAbil0[]/spawnerCategory[] (species data) for pickers + Team Gen
+#include "SpawnerMoves.hpp" // spawnerMove* level-up learnset -> moveset for the Random Team Generator
+#include "BagItemMeta.hpp" // bagItemList/bagItemCount/bagItemPocket for the Held Item picker
+#include "ItemDesc.hpp"    // gItemDesc[id] item effect text (held items + balls)
+#include "TypeChart.hpp"   // gTypeEff[18][18]/TypeFactorQ() - Enemy Helper type-matchup counter advice
+#include "HeldItemList.hpp" // gHeldItemIds[] - curated holdable items (own list, NOT the PokeMart bag list)
+#include "AbilityTags.hpp"  // gAbilityTags[]/gAbilityTagName[] - effect tags for the ability filter panel
+#include "HeldItemTags.hpp" // gHeldItemTags[]/gHeldItemTagName[] - effect tags for the held-item filter panel
 #include <functional>
 #include <array>
+#include <cstdint>
 
 namespace CTRPluginFramework {
     static int selectedID;
@@ -614,8 +626,13 @@ namespace CTRPluginFramework {
         if (!Process::CopyMemory(&encryptedData, data, 232))
             return false;
 
-        // Encrypts the data and stores it in the encryptedData array
-        EncryptPokemon(data, encryptedData);
+        // Encrypts the data into encryptedData. EncryptPokemon uses its first arg as a SCRATCH buffer
+        // (Unshuffle block-shuffles into it 11x), so passing `data` would scramble the caller's decrypted
+        // struct. The output depends only on encryptedData, so a throwaway buffer yields identical bytes
+        // while leaving `data` intact - required by save-and-stay editors (MovesRich/RelearnRich) that keep
+        // drawing from `pk` after the save.
+        u8 scratch[232];
+        EncryptPokemon((Pokemon)scratch, encryptedData);
 
         // Writes encrypted data back to the game at the specified pointer
         if (Process::Patch(pointer, encryptedData, 232))
@@ -1067,6 +1084,38 @@ namespace CTRPluginFramework {
             }
         }
 
+        // ---- Pokemon type chips (colored badges). Index 0=None..18=Fairy (matches gMoveExtra / spawnerType1-2). ----
+        static const char *g_typeName[19] = {"None", "Normal", "Fire", "Water", "Electric", "Grass", "Ice",
+            "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"};
+        static const u32 g_typeRGB[19] = {0x888888, 0xA8A878, 0xF08030, 0x6890F0, 0xF8D030, 0x78C850, 0x98D8D8,
+            0xC03028, 0xA040A0, 0xE0C068, 0xA890F0, 0xF85888, 0xA8B820, 0xB8A038, 0x705898, 0x7038F8, 0x705848, 0xB8B8D0, 0xEE99AC};
+        static Color TypeColor(int t) { u32 c = (t >= 0 && t < 19) ? g_typeRGB[t] : 0x888888u; return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); }
+        // Draw one filled type chip (auto black/white label by brightness); returns its width (0 if None).
+        static int DrawTypeChip(const Screen &s, int x, int y, int t) {
+            if (t <= 0 || t > 18) return 0;
+            const char *nm = g_typeName[t]; int w = (int)OSD::GetTextWidth(true, nm) + 12;
+            u32 c = g_typeRGB[t]; u8 R = (u8)(c >> 16), G = (u8)(c >> 8), B = (u8)c;
+            s.DrawRect(x, y, w, 16, Color(R, G, B), true);
+            Color tc = ((R * 30 + G * 59 + B * 11) / 100 > 150) ? Color::Black : Color::White;
+            s.DrawSysfont(tc << nm, x + 6, y + 1, tc);
+            return w;
+        }
+        // Draw a species' 1-2 type chips starting at (x,y). Safe to call for any card.
+        static void DrawTypeChips(const Screen &s, u16 sp, int x, int y) {
+            if (sp < 1 || sp > 721) return;
+            int t1 = spawnerType1[sp], t2 = spawnerType2[sp];
+            int w = DrawTypeChip(s, x, y, t1);
+            if (t2 && t2 != t1) DrawTypeChip(s, x + w + 6, y, t2);
+        }
+        // Total pixel width of a species' chips (for right-aligned placement).
+        static int TypeChipsWidth(u16 sp) {
+            if (sp < 1 || sp > 721) return 0;
+            int t1 = spawnerType1[sp], t2 = spawnerType2[sp];
+            int w = (t1 > 0 && t1 <= 18) ? (int)OSD::GetTextWidth(true, g_typeName[t1]) + 12 : 0;
+            if (t2 && t2 != t1 && t2 <= 18) w += 6 + (int)OSD::GetTextWidth(true, g_typeName[t2]) + 12;
+            return w;
+        }
+
         // Draw the selected slot's card on the top screen (no scroll): textual fields on the left, a vertical
         // STAT / IV / EV / Tot table on the right (like the in-game summary). Reads the decrypted PK6 directly.
         static void DrawPartyCard(const Screen &top, u32 ptr, int slot, Color title, Color txt, Color label) {
@@ -1086,6 +1135,7 @@ namespace CTRPluginFramework {
             string item    = pk.heldItem == 0 ? "None" : (pk.heldItem <= 775 ? string(heldItemList[pk.heldItem - 1]) : "?");
 
             top.DrawSysfont(title << "Party slot " + to_string(slot) + " - " + speciesList[pk.species - 1], 42, 30, title);
+            DrawTypeChips(top, pk.species, 42 + (int)OSD::GetTextWidth(true, "Party slot " + to_string(slot) + " - " + string(speciesList[pk.species - 1])) + 12, 28);
 
             // Left column: textual fields.
             auto L = [&](const string &lab, const string &val, int yy) {
@@ -1140,6 +1190,20 @@ namespace CTRPluginFramework {
 
         // Read-only viewer for the active party (editing the save-buffer copy doesn't persist). A button-navigated
         // list on the TOP screen; pressing A on a slot shows its full card (also on top). B goes back / exits.
+        // D-Pad auto-repeat: true on the initial press, then repeats while held (after a short delay). Tracks
+        // per-key state internally; every nav loop calls it once per frame per key. Non-D-Pad keys fall back to a
+        // plain edge press. (Static state is fine: the D-Pad is never held across screen transitions.)
+        static bool KeyRep(Key k) {
+            static const Key KEYS[4] = {Key::Up, Key::Down, Key::Left, Key::Right};
+            static int held[4] = {0, 0, 0, 0};
+            int idx = -1; for (int i = 0; i < 4; i++) if (KEYS[i] == k) idx = i;
+            if (idx < 0) return Controller::IsKeyPressed(k);
+            if (!Controller::IsKeyDown(k)) { held[idx] = 0; return false; }
+            int h = ++held[idx];
+            const int DELAY = 15, RATE = 3; // ~0.25s before it starts repeating, then ~20/sec
+            return h == 1 || (h > DELAY && (h - DELAY) % RATE == 0);
+        }
+
         void ViewPartyInfo(MenuEntry *entry) {
             (void)entry;
             u32 base = FindPartyBase();
@@ -1149,11 +1213,13 @@ namespace CTRPluginFramework {
             }
 
             // Read the 6 slots' species once (the last-saved party is static while viewing).
-            string slots[6];
+            string slots[6]; u16 slotSpecies[6];
             for (int i = 0; i < 6; i++) {
                 PK6 pk;
                 bool ok = gPartyEncrypted ? GetPokemon(base + i * 0x104, &pk) : GetPokemonRaw(base + i * 0x104, &pk);
-                string name = (ok && pk.species >= 1 && pk.species <= 721) ? string(speciesList[pk.species - 1]) : "(empty)";
+                bool valid = ok && pk.species >= 1 && pk.species <= 721;
+                slotSpecies[i] = valid ? pk.species : 0;
+                string name = valid ? string(speciesList[pk.species - 1]) : "(empty)";
                 slots[i] = to_string(i + 1) + " - " + name;
             }
 
@@ -1191,6 +1257,7 @@ namespace CTRPluginFramework {
             int cursor = 0, mode = 0; // mode 0 = list, 1 = card
             int selStat = 0;     // card-mode stat selector: 0..5 = HP,Atk,Def,SpA,SpD,Spe
             bool higher = true;  // A jumps to the party HIGHEST (true) or LOWEST (false) of selStat
+            Image partySprite; int partySpriteKey = -1; // list-view sprite of the selected member; reload on species change
 
             // Swallow the A/B that opened this view so it doesn't bleed into the first frame.
             while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
@@ -1209,8 +1276,8 @@ namespace CTRPluginFramework {
 
                 if (mode == 0) {
                     if (Controller::IsKeyPressed(Key::B)) break; // exit the viewer
-                    if (Controller::IsKeyPressed(Key::Up))   cursor = (cursor + 5) % 6;
-                    if (Controller::IsKeyPressed(Key::Down)) cursor = (cursor + 1) % 6;
+                    if (KeyRep(Key::Up))   cursor = (cursor + 5) % 6;
+                    if (KeyRep(Key::Down)) cursor = (cursor + 1) % 6;
                     if (Controller::IsKeyPressed(Key::A))    mode = 1;
                 }
                 else {
@@ -1220,10 +1287,10 @@ namespace CTRPluginFramework {
                         higher = !higher;
 
                     if (Controller::IsKeyPressed(Key::B))          mode = 0;                  // back to list
-                    else if (Controller::IsKeyPressed(Key::Left))  cursor = (cursor + 5) % 6;  // previous card
-                    else if (Controller::IsKeyPressed(Key::Right)) cursor = (cursor + 1) % 6;  // next card
-                    else if (Controller::IsKeyPressed(Key::Up))    selStat = (selStat + 5) % 6; // move stat selector
-                    else if (Controller::IsKeyPressed(Key::Down))  selStat = (selStat + 1) % 6;
+                    else if (KeyRep(Key::Left))  cursor = (cursor + 5) % 6;  // previous card
+                    else if (KeyRep(Key::Right)) cursor = (cursor + 1) % 6;  // next card
+                    else if (KeyRep(Key::Up))    selStat = (selStat + 5) % 6; // move stat selector
+                    else if (KeyRep(Key::Down))  selStat = (selStat + 1) % 6;
                     else if (Controller::IsKeyPressed(Key::A)) {
                         // Jump to the member holding the extreme of selStat. If several tie, each A
                         // press advances to the next holder after the current card (cycles the tie).
@@ -1253,11 +1320,35 @@ namespace CTRPluginFramework {
                     int y = 78;
                     for (int i = 0; i < 6; i++) {
                         if (i == cursor) {
-                            top.DrawRect(36, y - 2, 328, 18, bg2, true);
+                            top.DrawRect(36, y - 2, 206, 18, bg2, true); // bar stops short of the sprite frame
                             top.DrawSysfont(slots[i], 46, y, sel);
                         }
                         else top.DrawSysfont(slots[i], 46, y, txt);
                         y += 21;
+                    }
+
+                    // Selected member's sprite, framed, to the right of the list (reuses the Spawner BMPs on the SD).
+                    // Load only when the selected species changes; the framed look matches the detail/Spawner sheets.
+                    u16 sp = slotSpecies[cursor];
+                    if (sp != partySpriteKey) {
+                        partySpriteKey = sp;
+                        if (sp >= 1 && sp <= 721) {
+                            string p = "Spawner/normal/";
+                            if (sp < 100) p += "0";
+                            if (sp < 10)  p += "0";
+                            p += to_string((int)sp) + ".bmp";
+                            partySprite.LoadFromFile(p);
+                        }
+                    }
+                    const int FX = 250, FY = 94;
+                    top.DrawRect(FX, FY, 88, 88, Color::White, true);
+                    top.DrawRect(FX, FY, 88, 88, border, false);
+                    if (sp >= 1 && sp <= 721 && partySprite.IsLoaded()) {
+                        int sw = partySprite.Width(), sh = partySprite.Height();
+                        partySprite.Draw(top, FX + (88 - sw) / 2, FY + (88 - sh) / 2);
+                    } else {
+                        top.DrawSysfont(Color::Black << "No",     FX + 34, FY + 28, Color::Black);
+                        top.DrawSysfont(Color::Black << "sprite", FX + 22, FY + 46, Color::Black);
                     }
                 }
                 else {
@@ -1329,6 +1420,3633 @@ namespace CTRPluginFramework {
                     centerHint("B : back to list", 194);
                 }
 
+                OSD::SwapBuffers();
+            }
+        }
+
+        // ============================ PC Box ++ (visual box browser) ============================
+        // Full-screen OSD UI (same loop/theme as ViewPartyInfo) that replaces the type-a-number Position
+        // picker, the Cloning entry and Find-in-Boxes with a visual PC. TOP = a 6x5 grid of the current box
+        // drawn with the 32px BoxIcons; BOTTOM = the focused slot's card + controls.
+        //   D-Pad move | L/R box | A set edit target | X move/swap | Y clone | Start find | B back | Select close
+        static void BoxIconPath(string &p, u16 sp, bool shiny, const char *root) {
+            p = root; p += shiny ? "shiny/" : "normal/";
+            if (sp < 100) p += "0";
+            if (sp < 10)  p += "0";
+            p += to_string((int)sp) + ".bmp";
+        }
+
+        // ============================ Rich custom editors (PC Box ++) ============================
+        // These replace the lazy keyboard/textbox editors with visual, explanatory OSD sub-screens. They edit
+        // the working copy at CurrentPtr() (the PC Box ++ scratch), so the Save/Discard staging still applies.
+        static const int g_inMap[6]  = {0, 1, 2, 4, 5, 3};                         // display HP,Atk,Def,SpA,SpD,Spe -> iv32/EV index
+        static const char *g_statLong[6]  = {"HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"};
+        static const char *g_statShort[6] = {"HP", "Atk", "Def", "SpA", "SpD", "Spe"};
+
+        // -------- Nature: pick from a list (bottom) while the top shows the effect + a live stat preview --------
+        void NatureRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color up(0x35, 0xC3, 0x6A), dn(0xE5, 0x43, 0x3C); // raised = green, lowered = red
+            static const char *NAT[5] = {"Attack", "Defense", "Speed", "Sp. Atk", "Sp. Def"}; // nature stat order
+            static const char *NSH[5] = {"Atk", "Def", "Spe", "SpA", "SpD"};
+            int level = LevelFromExp(pk.species, pk.exp);
+            int cur = pk.nature < 25 ? pk.nature : 0, top0 = 0; const int VIS = 7;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) return;                                   // cancel
+                if (Controller::IsKeyPressed(Key::A)) { pk.nature = (u8)cur; SetPokemon(CurrentPtr(), &pk); return; }
+                if (KeyRep(Key::Up))   cur = (cur + 24) % 25;
+                if (KeyRep(Key::Down)) cur = (cur + 1) % 25;
+                if (cur < top0) top0 = cur; if (cur >= top0 + VIS) top0 = cur - VIS + 1;
+
+                int u = cur / 5, d = cur % 5;
+                // TOP: name + effect + live stat preview with the highlighted nature.
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << ("Nature - " + string(speciesList[pk.species - 1])), 42, 26, title);
+                top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(sel << natureList[cur], 42, 50, sel);
+                if (u == d) top.DrawSysfont(txt << "Neutral - affects no stats (balanced).", 42, 74, txt);
+                else {
+                    top.DrawSysfont(up << ("+10% " + string(NAT[u])), 42, 74, up);
+                    top.DrawSysfont(dn << ("-10% " + string(NAT[d])), 200, 74, dn);
+                }
+                u16 stt[6]; CalcStats(pk.species, level, (u8)cur, pk.iv32, pk.EV, stt);
+                const int sx0 = 46, sdx = 52;
+                for (int s = 0; s < 6; s++) {
+                    int internal = g_inMap[s]; // iv32 stat index: HP0,Atk1,Def2,Spe3,SpA4,SpD5; nature stat k -> internal k+1
+                    Color c = txt; if (u != d && internal == u + 1) c = up; else if (u != d && internal == d + 1) c = dn;
+                    top.DrawSysfont(sel << g_statShort[s], sx0 + s * sdx, 110, sel);
+                    top.DrawSysfont(c   << to_string(stt[s]), sx0 + s * sdx, 130, c);
+                }
+                top.DrawSysfont(txt << "Green = raised stat, red = lowered (10% each).", 42, 170, txt);
+
+                // BOTTOM: scrollable nature list with a compact effect tag per row.
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Pick a nature", 34, 26, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                for (int r = top0; r < top0 + VIS && r < 25; r++) {
+                    int y = 50 + (r - top0) * 19; int ru = r / 5, rd = r % 5;
+                    string tag = (ru == rd) ? "-" : ("+" + string(NSH[ru]) + "/-" + string(NSH[rd]));
+                    if (r == cur) { bot.DrawRect(26, y - 2, 268, 18, bg2, true);
+                        bot.DrawSysfont(sel << natureList[r], 34, y, sel);
+                        bot.DrawSysfont(title << tag, 290 - (int)OSD::GetTextWidth(true, tag), y, title);
+                    } else { bot.DrawSysfont(txt << natureList[r], 34, y, txt);
+                        bot.DrawSysfont(txt << tag, 290 - (int)OSD::GetTextWidth(true, tag), y, txt); }
+                }
+                bot.DrawSysfont(txt << "Up/Down pick   A save   B cancel", 20 + (280 - (int)OSD::GetTextWidth(true, "Up/Down pick   A save   B cancel")) / 2, 200, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- IVs: vertical "- value +" editor on the top, with a live final-stat column --------
+        void IVRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color gold(0xF2, 0xCE, 0x70);
+            int level = LevelFromExp(pk.species, pk.exp);
+            int iv[6]; for (int d = 0; d < 6; d++) iv[d] = (pk.iv32 >> (5 * g_inMap[d])) & 0x1F;
+            auto build = [&]() -> u32 { u32 v = pk.iv32; for (int d = 0; d < 6; d++) { v &= ~(0x1Fu << (5 * g_inMap[d])); v |= ((u32)(iv[d] & 0x1F)) << (5 * g_inMap[d]); } return v; };
+            int row = 0;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) return;                                   // cancel
+                if (Controller::IsKeyPressed(Key::A)) { pk.iv32 = build(); SetPokemon(CurrentPtr(), &pk); return; }
+                if (KeyRep(Key::Up))    row = (row + 5) % 6;
+                if (KeyRep(Key::Down))  row = (row + 1) % 6;
+                if (KeyRep(Key::Left))  iv[row] = iv[row] > 0  ? iv[row] - 1 : 0;
+                if (KeyRep(Key::Right)) iv[row] = iv[row] < 31 ? iv[row] + 1 : 31;
+                if (Controller::IsKeyPressed(Key::L))     iv[row] = iv[row] > 10 ? iv[row] - 10 : 0;
+                if (Controller::IsKeyPressed(Key::R))     iv[row] = iv[row] < 21 ? iv[row] + 10 : 31;
+                if (Controller::IsKeyPressed(Key::Y))     iv[row] = 31;                          // perfect this stat
+                if (Controller::IsKeyPressed(Key::X))     for (int d = 0; d < 6; d++) iv[d] = 31; // all perfect
+
+                u16 stt[6]; CalcStats(pk.species, level, pk.nature, build(), pk.EV, stt);
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << ("Edit IVs - " + string(speciesList[pk.species - 1])), 42, 26, title);
+                top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(txt << "Stat", 48, 46, txt); top.DrawSysfont(txt << "IV", 196, 46, txt); top.DrawSysfont(txt << "Final", 300, 46, txt);
+                for (int d = 0; d < 6; d++) {
+                    int y = 66 + d * 22; bool hl = d == row;
+                    if (hl) top.DrawRect(40, y - 2, 322, 20, bg2, true);
+                    Color nc = hl ? sel : txt, vc = (iv[d] == 31) ? gold : (hl ? sel : title);
+                    top.DrawSysfont(nc << g_statLong[d], 48, y, nc);
+                    top.DrawSysfont((hl ? sel : txt) << "-", 168, y, hl ? sel : txt);
+                    top.DrawSysfont(vc << (iv[d] < 10 ? " " : "") << to_string(iv[d]), 192, y, vc);
+                    top.DrawSysfont((hl ? sel : txt) << "+", 224, y, hl ? sel : txt);
+                    top.DrawSysfont((hl ? sel : title) << to_string(stt[d]), 306, y, hl ? sel : title);
+                }
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "IVs (0-31)", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << "A Pokemon's innate potential per", 30, 56, txt);
+                bot.DrawSysfont(txt << "stat. 31 = perfect. They never", 30, 74, txt);
+                bot.DrawSysfont(txt << "change after the Pokemon is met.", 30, 92, txt);
+                bot.DrawSysfont(sel << "Left/Right" << txt << " -1 / +1", 30, 120, txt);
+                bot.DrawSysfont(sel << "L / R" << txt << " -10 / +10", 30, 138, txt);
+                bot.DrawSysfont(sel << "Y" << txt << " this 31    " << sel << "X" << txt << " all 31", 30, 156, txt);
+                bot.DrawSysfont(sel << "A" << txt << " save        " << sel << "B" << txt << " cancel", 30, 174, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- EVs: vertical "- value +" editor with the 510 total budget + live final stats --------
+        void EVRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color gold(0xF2, 0xCE, 0x70), red(0xE5, 0x43, 0x3C);
+            int level = LevelFromExp(pk.species, pk.exp);
+            int ev[6]; for (int d = 0; d < 6; d++) ev[d] = pk.EV[g_inMap[d]];
+            auto total = [&]() { int t = 0; for (int d = 0; d < 6; d++) t += ev[d]; return t; };
+            auto add = [&](int d, int amt) { // respect 0..252 per stat and the 510 grand total
+                if (amt > 0) { int room = 510 - total(); if (room < 0) room = 0; if (amt > room) amt = room; int nv = ev[d] + amt; if (nv > 252) nv = 252; ev[d] = nv; }
+                else { int nv = ev[d] + amt; if (nv < 0) nv = 0; ev[d] = nv; }
+            };
+            auto buildEV = [&](u8 out[6]) { for (int d = 0; d < 6; d++) out[g_inMap[d]] = (u8)ev[d]; };
+            int row = 0;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) return;                                   // cancel
+                if (Controller::IsKeyPressed(Key::A)) { u8 e[6]; buildEV(e); for (int d = 0; d < 6; d++) pk.EV[d] = e[d]; SetPokemon(CurrentPtr(), &pk); return; }
+                if (KeyRep(Key::Up))    row = (row + 5) % 6;
+                if (KeyRep(Key::Down))  row = (row + 1) % 6;
+                if (KeyRep(Key::Left))  add(row, -4);
+                if (KeyRep(Key::Right)) add(row, 4);
+                if (Controller::IsKeyPressed(Key::L))     add(row, -32);
+                if (Controller::IsKeyPressed(Key::R))     add(row, 32);
+                if (Controller::IsKeyPressed(Key::Y))     add(row, 252);                          // max this stat (within budget)
+                if (Controller::IsKeyPressed(Key::X))     for (int d = 0; d < 6; d++) ev[d] = 0;  // clear all
+
+                u8 e[6]; buildEV(e); u16 stt[6]; CalcStats(pk.species, level, pk.nature, pk.iv32, e, stt);
+                int tot = total();
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << ("Edit EVs - " + string(speciesList[pk.species - 1])), 42, 26, title);
+                { string tt = "Total " + to_string(tot) + " / 510"; top.DrawSysfont((tot >= 510 ? gold : txt) << tt, 358 - (int)OSD::GetTextWidth(true, tt), 28, txt); }
+                top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(txt << "Stat", 48, 46, txt); top.DrawSysfont(txt << "EV", 192, 46, txt); top.DrawSysfont(txt << "Final", 300, 46, txt);
+                for (int d = 0; d < 6; d++) {
+                    int y = 66 + d * 22; bool hl = d == row;
+                    if (hl) top.DrawRect(40, y - 2, 322, 20, bg2, true);
+                    Color nc = hl ? sel : txt, vc = (ev[d] == 252) ? gold : (hl ? sel : title);
+                    top.DrawSysfont(nc << g_statLong[d], 48, y, nc);
+                    top.DrawSysfont((hl ? sel : txt) << "-", 160, y, hl ? sel : txt);
+                    top.DrawSysfont(vc << to_string(ev[d]), 188, y, vc);
+                    top.DrawSysfont((hl ? sel : txt) << "+", 232, y, hl ? sel : txt);
+                    top.DrawSysfont((hl ? sel : title) << to_string(stt[d]), 306, y, hl ? sel : title);
+                }
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "EVs (max 252 / stat)", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << "Training points earned in battle.", 30, 56, txt);
+                bot.DrawSysfont(txt << "Up to 510 total; 4 EVs = +1 to a", 30, 74, txt);
+                bot.DrawSysfont(txt << "stat at Lv100. Spend them wisely.", 30, 92, txt);
+                bot.DrawSysfont(sel << "Left/Right" << txt << " -4 / +4", 30, 120, txt);
+                bot.DrawSysfont(sel << "L / R" << txt << " -32 / +32", 30, 138, txt);
+                bot.DrawSysfont(sel << "Y" << txt << " max stat   " << sel << "X" << txt << " clear all", 30, 156, txt);
+                bot.DrawSysfont(sel << "A" << txt << " save        " << sel << "B" << txt << " cancel", 30, 174, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        // Draw one move row (name + type + category + Pow/Acc) at y on the top screen. ppUps<0 hides the PP line.
+        static void DrawMoveRow(const Screen &top, int slot, u16 id, int ppUps, bool hl, int y,
+                                Color sel, Color txt, Color title, Color bg2) {
+            const Color phys(0xC0, 0x30, 0x28), spec(0x68, 0x90, 0xF0), stat(0x99, 0x99, 0x99);
+            if (hl) top.DrawRect(40, y - 2, 322, 38, bg2, true);
+            if (id < 1 || id > 621) { top.DrawSysfont((hl ? sel : txt) << (to_string(slot + 1) + ". -- empty --"), 48, y + 8, hl ? sel : txt); return; }
+            int t = gMoveExtra[id - 1][0], cat = gMoveExtra[id - 1][1];
+            int pw = gMoveInfo[id - 1][0], ac = gMoveInfo[id - 1][1], bpp = gMoveExtra[id - 1][2];
+            top.DrawSysfont((hl ? sel : title) << (to_string(slot + 1) + ". " + string(movesList[id - 1])), 48, y, hl ? sel : title);
+            top.DrawSysfont(TypeColor(t) << g_typeName[t], 250, y, TypeColor(t));
+            Color cc = cat == 1 ? phys : (cat == 2 ? spec : stat); const char *cn = cat == 1 ? "Phys" : (cat == 2 ? "Spec" : "Stat");
+            top.DrawSysfont(cc << cn, 322, y, cc);
+            string l2 = "Pow " + string(pw ? to_string(pw) : "-") + "   Acc " + string(ac ? to_string(ac) : "-");
+            if (ppUps >= 0) { l2 += "   PP " + to_string(bpp + (bpp / 5) * ppUps); if (ppUps > 0) l2 += " (Up " + to_string(ppUps) + ")"; }
+            top.DrawSysfont(txt << l2, 56, y + 18, txt);
+        }
+
+        // Word-wrap a string into up to maxLines lines that each fit within maxW pixels.
+        static void DrawWrapped(const Screen &s, const string &t, int x, int y, int maxW, int lineH, Color col, int maxLines) {
+            string line; int ly = y, used = 0; size_t pos = 0;
+            while (used < maxLines) {
+                size_t sp = t.find(' ', pos);
+                string word = (sp == string::npos) ? t.substr(pos) : t.substr(pos, sp - pos);
+                string cand = line.empty() ? word : (line + " " + word);
+                if ((int)OSD::GetTextWidth(true, cand) > maxW && !line.empty()) {
+                    s.DrawSysfont(col << line, x, ly, col); ly += lineH; used++; line = word;
+                } else line = cand;
+                if (sp == string::npos) break;
+                pos = sp + 1;
+            }
+            if (used < maxLines && !line.empty()) s.DrawSysfont(col << line, x, ly, col);
+        }
+
+        // ---- Shared filter panel for the visual pickers (START opens it) ----------------------------------
+        // A facet group = a set of named options + a selection bitmask (bit i = option i active). An empty
+        // mask (0) means "Any" for that group. Matching: within a group OR (any selected option), across
+        // groups AND (every group must pass). The same model serves type/category/generation/effect facets.
+        struct PFacet { const char *name; const char *const *opts; u8 n; u32 sel; };
+        static inline bool facetPass(u32 sel, u32 bits) { return sel == 0 || (sel & bits) != 0; }
+        static inline int  SpeciesGen(u16 sp) { return sp <= 151 ? 1 : sp <= 251 ? 2 : sp <= 386 ? 3 : sp <= 493 ? 4 : sp <= 649 ? 5 : 6; }
+
+        // ---- PokeMart-style dual-screen filtering: D-Pad list (TOP) + touch filter hub (BOTTOM) -------------
+        static bool inBox(const UIntVector &p, int x, int y, int w, int h) {
+            return (int)p.x >= x && (int)p.x < x + w && (int)p.y >= y && (int)p.y < y + h;
+        }
+        // D-Pad list navigation (mirrors Codes.cpp BagListNav): Up/Down wrap + auto-repeat, L/R +-10, Left/Right +-page.
+        static void PickerListNav(int &cursor, int &scroll, int count, int rows, int &heldDir, int &repeatTimer) {
+            if (count <= 0) { cursor = 0; scroll = 0; heldDir = 0; return; }
+            auto reveal = [&]() {
+                if (cursor < scroll) scroll = cursor;
+                if (cursor >= scroll + rows) scroll = cursor - rows + 1;
+                if (scroll > count - rows) scroll = count - rows;
+                if (scroll < 0) scroll = 0;
+            };
+            int dir = Controller::IsKeyDown(Key::Down) ? 1 : (Controller::IsKeyDown(Key::Up) ? -1 : 0);
+            if (dir != 0) {
+                bool fire = false;
+                if (dir != heldDir) { heldDir = dir; repeatTimer = 16; fire = true; }
+                else if (--repeatTimer <= 0) { repeatTimer = 4; fire = true; }
+                if (fire) { cursor = (cursor + dir + count) % count; reveal(); }
+            } else heldDir = 0;
+            int jump = 0;
+            if (Controller::IsKeyPressed(Key::R)) jump += 10;
+            if (Controller::IsKeyPressed(Key::L)) jump -= 10;
+            if (Controller::IsKeyPressed(Key::Right)) jump += rows;
+            if (Controller::IsKeyPressed(Key::Left))  jump -= rows;
+            if (jump != 0) { cursor += jump; if (cursor < 0) cursor = 0; if (cursor >= count) cursor = count - 1; reveal(); }
+        }
+        // One-line description strip with a seamless marquee when it overflows (mirrors the PokeMart strip).
+        static void DrawMarquee(const Screen &s, const char *d, int x, int y, int w, Color col,
+                                int &mid, int curId, int &mStart, int &mTick, int &mDelay) {
+            if (curId != mid) { mid = curId; mStart = 0; mTick = 0; mDelay = 60; }
+            if (!d || !d[0]) { s.DrawSysfont(col << "(no description)", x, y, col); return; }
+            string ds(d);
+            if ((int)OSD::GetTextWidth(true, ds) <= w) { s.DrawSysfont(col << ds, x, y, col); return; }
+            string dbl = ds + "      " + ds; int loop = (int)ds.size() + 6;
+            if (mDelay > 0) mDelay--; else if (++mTick >= 6) { mTick = 0; mStart = (mStart + 1) % loop; }
+            string win;
+            for (int k = mStart; k < (int)dbl.size(); k++) { win += dbl[k]; if ((int)OSD::GetTextWidth(true, win) > w) { win.erase(win.size() - 1); break; } }
+            s.DrawSysfont(col << win, x, y, col);
+        }
+        // Bottom-screen touch filter hub. panel = -1 hub, else the open facet's chip sub-panel. Returns true if changed.
+        static bool PickerFilterHub(const Screen &bot, PFacet *facets, int nF, int &panel, bool tap, const UIntVector &pos) {
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            bool dirty = false;
+            auto chip = [&](int x, int y, int w, int h, const string &label, bool on, const Color &accent) {
+                bot.DrawRect(x, y, w, h, on ? accent : bg2, true); bot.DrawRect(x, y, w, h, on ? title : border, false);
+                int tw = (int)OSD::GetTextWidth(true, label);
+                bot.DrawSysfont((on ? bg : txt) << label, x + (w - tw) / 2, y + (h - 14) / 2, txt);
+            };
+            auto hubBtnAt = [&](int x, int y, int w, const string &label, const string &val, bool on) {
+                bot.DrawRect(x, y, w, 22, on ? sel : bg2, true); bot.DrawRect(x, y, w, 22, on ? title : border, false);
+                bot.DrawSysfont((on ? bg : txt) << label, x + 8, y + 4, txt);
+                int vw = (int)OSD::GetTextWidth(true, val); int vx = x + w - 6 - vw; if (vx < x + 8 + (int)OSD::GetTextWidth(true, label) + 4) vx = x + w - 6 - vw;
+                bot.DrawSysfont((on ? bg : sel) << val, vx, y + 4, sel);
+            };
+            auto summary = [&](const PFacet &f) -> string {
+                if (!f.sel) return "any";
+                int c = 0, first = -1; for (int o = 0; o < f.n; o++) if (f.sel & (1u << o)) { c++; if (first < 0) first = o; }
+                string s = f.opts[first]; if (c > 1) s += "+" + to_string(c - 1); return s;
+            };
+            bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+            if (panel < 0) {
+                bot.DrawSysfont(title << "Filters", 34, 26, title); bot.DrawRect(28, 44, 120, 1, title, true);
+                for (int g = 0; g < nF; g++) {
+                    int y = 50 + g * 28; // full-width so the facet name + value never overflow
+                    if (tap && inBox(pos, 30, y, 260, 22)) panel = g;
+                    hubBtnAt(30, y, 260, facets[g].name, summary(facets[g]), facets[g].sel != 0);
+                }
+                int ry = 50 + nF * 28 + 4; bool anyOn = false;
+                for (int g = 0; g < nF; g++) if (facets[g].sel) anyOn = true;
+                if (tap && inBox(pos, 30, ry, 260, 22)) { for (int g = 0; g < nF; g++) facets[g].sel = 0; dirty = true; }
+                bot.DrawRect(30, ry, 260, 22, bg2, true); bot.DrawRect(30, ry, 260, 22, border, false);
+                { const char *rl = "Reset all filters"; int tw = (int)OSD::GetTextWidth(true, rl);
+                  bot.DrawSysfont((anyOn ? title : txt) << rl, 30 + (260 - tw) / 2, ry + 4, txt); }
+                const char *hint = "Tap a filter    D-Pad list  A choose  B back";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+            } else {
+                PFacet &f = facets[panel]; bool typeF = (f.opts == &g_typeName[1]);
+                bot.DrawSysfont(title << f.name, 34, 26, title);
+                // 18 types stay 3-wide (short names); other facets get roomy 2-wide chips for longer labels.
+                int cols = (f.n > 12) ? 3 : 2, cw = (f.n > 12) ? 86 : 124, dx = (f.n > 12) ? 90 : 130;
+                for (int o = 0; o < f.n; o++) {
+                    int col = o % cols, row = o / cols, x = 26 + col * dx, y = 48 + row * 24;
+                    if (tap && inBox(pos, x, y, cw, 21)) { f.sel ^= (1u << o); dirty = true; }
+                    chip(x, y, cw, 21, f.opts[o], (f.sel & (1u << o)) != 0, typeF ? TypeColor(o + 1) : sel);
+                }
+                if (tap && inBox(pos, 28, 196, 98, 20)) { f.sel = 0; dirty = true; }
+                chip(28, 196, 98, 20, "Reset", false, sel);
+                if (tap && inBox(pos, 198, 196, 98, 20)) panel = -1;
+                chip(198, 196, 98, 20, "< Back", false, sel);
+            }
+            return dirty;
+        }
+
+        // Visual move picker (no keyboard): scrollable list filterable by type; top shows the move's
+        // type/category/power/accuracy/PP and a short effect description. Returns the chosen move ID, or 0.
+        static u16 MovePicker(u16 current) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color phys(0xC0, 0x30, 0x28), spec(0x68, 0x90, 0xF0), stat(0x99, 0x99, 0x99);
+            static u16 list[621]; int count = 0;
+            static const char *MOVE_CAT[3] = {"Physical", "Special", "Status"};
+            PFacet facets[2] = { {"Type", &g_typeName[1], 18, 0}, {"Category", MOVE_CAT, 3, 0} };
+            auto rebuild = [&]() {
+                count = 0;
+                for (int id = 1; id <= 621; id++) {
+                    int t = gMoveExtra[id - 1][0]; u32 tb = (t >= 1 && t <= 18) ? (1u << (t - 1)) : 0u;
+                    int cat = gMoveExtra[id - 1][1]; int ci = cat == 1 ? 0 : (cat == 2 ? 1 : 2);
+                    if (facetPass(facets[0].sel, tb) && facetPass(facets[1].sel, 1u << ci)) list[count++] = (u16)id;
+                }
+                std::sort(list, list + count, [](u16 a, u16 b) { return string(movesList[a - 1]) < string(movesList[b - 1]); });
+            };
+            rebuild();
+            const int ROWS = 7, ROWH = 18, LISTY = 48;
+            int cursor = 0, scroll = 0; for (int i = 0; i < count; i++) if (list[i] == current) { cursor = i; break; }
+            if (cursor >= ROWS) scroll = (cursor > count - ROWS) ? (count - ROWS) : cursor;
+            int panel = -1, heldDir = 0, repeatTimer = 0, mId = -1, mStart = 0, mTick = 0, mDelay = 0;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return 0;
+                PickerListNav(cursor, scroll, count, ROWS, heldDir, repeatTimer);
+                if (count > 0 && Controller::IsKeyPressed(Key::A)) return list[cursor];
+                if (Controller::IsKeyPressed(Key::B)) { if (panel >= 0) panel = -1; else return 0; }
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                if (PickerFilterHub(bot, facets, 2, panel, tap, lastPos)) { rebuild(); cursor = 0; scroll = 0; }
+
+                // TOP: scrollable list + detail strip.
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Choose a move", 42, 26, title);
+                { string c = to_string(count) + " moves"; top.DrawSysfont(txt << c, 362 - (int)OSD::GetTextWidth(true, c), 28, txt); }
+                top.DrawRect(42, 44, 316, 1, title, true);
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= count) break;
+                    int id = list[ri], y = LISTY + i * ROWH; bool cur = (ri == cursor); int mt = gMoveExtra[id - 1][0];
+                    if (cur) top.DrawRect(36, y, 328, ROWH, bg2, true);
+                    top.DrawRect(40, y + 3, 12, 12, TypeColor(mt), true);
+                    Color rc = cur ? sel : txt;
+                    top.DrawSysfont(rc << movesList[id - 1], 58, y + 2, rc);
+                    const char *tn = (mt >= 1 && mt <= 18) ? g_typeName[mt] : "-";
+                    top.DrawSysfont(rc << tn, 360 - (int)OSD::GetTextWidth(true, tn), y + 2, rc);
+                }
+                if (count == 0) top.DrawSysfont(txt << "No moves match these filters.", 96, 100, txt);
+                else {
+                    int id = list[cursor], cat = gMoveExtra[id - 1][1], bpp = gMoveExtra[id - 1][2];
+                    int pw = gMoveInfo[id - 1][0], ac = gMoveInfo[id - 1][1];
+                    top.DrawRect(42, 175, 316, 1, border, true);
+                    Color cc = cat == 1 ? phys : (cat == 2 ? spec : stat); const char *cn = cat == 1 ? "Physical" : (cat == 2 ? "Special" : "Status");
+                    // Type is omitted here on purpose - it already shows in the right column of every list row.
+                    string tag = string(cn) + "  -  Pwr " + (pw ? to_string(pw) : "-") + "  Acc " + (ac ? to_string(ac) : "-") + "  PP " + to_string(bpp);
+                    top.DrawSysfont(title << tag, 42, 178, title);
+                    DrawMarquee(top, gMoveShortDesc[id - 1], 42, 196, 316, txt, mId, id, mStart, mTick, mDelay);
+                }
+                OSD::SwapBuffers();
+            }
+        }
+
+        // Visual ability picker (no keyboard): alphabetical scrollable list; top shows the ability name +
+        // a plain-English description of what it does. Returns the chosen ability ID (1..191), or 0.
+        static u8 AbilityPicker(u8 current) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static u8 order[191]; int count = 0;
+            PFacet facets[1] = { {"Effect", gAbilityTagName, (u8)gAbilityTagCount, 0} };
+            auto rebuild = [&]() {
+                count = 0;
+                for (int id = 1; id <= 191; id++) if (facetPass(facets[0].sel, gAbilityTags[id - 1])) order[count++] = (u8)id;
+                std::sort(order, order + count, [](u8 a, u8 b) { return string(abilityList[a - 1]) < string(abilityList[b - 1]); });
+            };
+            rebuild();
+            const int ROWS = 7, ROWH = 18, LISTY = 48;
+            int cursor = 0, scroll = 0; for (int i = 0; i < count; i++) if (order[i] == current) { cursor = i; break; }
+            if (cursor >= ROWS) scroll = (cursor > count - ROWS) ? (count - ROWS) : cursor;
+            int panel = -1, heldDir = 0, repeatTimer = 0, mId = -1, mStart = 0, mTick = 0, mDelay = 0;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return 0;
+                PickerListNav(cursor, scroll, count, ROWS, heldDir, repeatTimer);
+                if (count > 0 && Controller::IsKeyPressed(Key::A)) return order[cursor];
+                if (Controller::IsKeyPressed(Key::B)) { if (panel >= 0) panel = -1; else return 0; }
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                if (PickerFilterHub(bot, facets, 1, panel, tap, lastPos)) { rebuild(); cursor = 0; scroll = 0; }
+
+                // TOP: list + detail strip (effect tags + description marquee).
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Choose an ability", 42, 26, title);
+                { string c = to_string(count) + " abilities"; top.DrawSysfont(txt << c, 362 - (int)OSD::GetTextWidth(true, c), 28, txt); }
+                top.DrawRect(42, 44, 316, 1, title, true);
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= count) break;
+                    int y = LISTY + i * ROWH; bool cur = (ri == cursor);
+                    if (cur) top.DrawRect(36, y, 328, ROWH, bg2, true);
+                    top.DrawSysfont((cur ? sel : txt) << abilityList[order[ri] - 1], 44, y + 2, cur ? sel : txt);
+                }
+                if (count == 0) top.DrawSysfont(txt << "No abilities match these filters.", 96, 100, txt);
+                else {
+                    int id = order[cursor];
+                    top.DrawRect(42, 175, 316, 1, border, true);
+                    { string tg; for (int b = 0; b < gAbilityTagCount; b++) if (gAbilityTags[id - 1] & (1 << b)) { if (!tg.empty()) tg += ", "; tg += gAbilityTagName[b]; }
+                      top.DrawSysfont(sel << "Tags: " << txt << (tg.empty() ? "-" : tg.c_str()), 42, 178, txt); }
+                    DrawMarquee(top, gAbilityDesc[id - 1], 42, 196, 316, txt, mId, id, mStart, mTick, mDelay);
+                }
+                OSD::SwapBuffers();
+            }
+        }
+
+        void AbilityRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            u8 pick = AbilityPicker(pk.ability >= 1 && pk.ability <= 191 ? pk.ability : 1);
+            if (pick) { pk.ability = pick; SetPokemon(CurrentPtr(), &pk); }
+        }
+
+        // Visual species picker (no keyboard): alphabetical list (bottom) + the highlighted species' sprite,
+        // dex number, type(s) and base-stat total (top). Returns the chosen species ID (1..721), or 0.
+        static u16 SpeciesPicker(u16 current) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static u16 order[721]; int count = 0;
+            static const char *SP_GEN[6] = {"Gen 1", "Gen 2", "Gen 3", "Gen 4", "Gen 5", "Gen 6"};
+            static const char *SP_CAT[5] = {"Legendary", "Mythical", "Pseudo", "Starter", "Fossil"};
+            static const char *SP_MEGA[1] = {"Mega"};
+            PFacet facets[4] = { {"Type", &g_typeName[1], 18, 0}, {"Gen", SP_GEN, 6, 0},
+                                 {"Category", SP_CAT, 5, 0}, {"Mega", SP_MEGA, 1, 0} };
+            auto rebuild = [&]() {
+                count = 0;
+                for (int sp = 1; sp <= 721; sp++) {
+                    int t1 = spawnerType1[sp], t2 = spawnerType2[sp];
+                    u32 tb = ((t1 >= 1 && t1 <= 18) ? (1u << (t1 - 1)) : 0u) | ((t2 >= 1 && t2 <= 18) ? (1u << (t2 - 1)) : 0u);
+                    if (!facetPass(facets[0].sel, tb)) continue;
+                    if (!facetPass(facets[1].sel, 1u << (SpeciesGen((u16)sp) - 1))) continue;
+                    int cat = spawnerCategory[sp]; // 1 Legend,2 Myth,3 Pseudo,4 Starter,5 Fossil (0 = none)
+                    if (!facetPass(facets[2].sel, (cat >= 1 && cat <= 5) ? (1u << (cat - 1)) : 0u)) continue;
+                    if (!facetPass(facets[3].sel, spawnerHasMega[sp] ? 1u : 0u)) continue;
+                    order[count++] = (u16)sp;
+                }
+                std::sort(order, order + count, [](u16 a, u16 b) { return string(speciesList[a - 1]) < string(speciesList[b - 1]); });
+            };
+            rebuild();
+            const int ROWS = 7, ROWH = 18, LISTY = 48;
+            int cursor = 0, scroll = 0; for (int i = 0; i < count; i++) if (order[i] == current) { cursor = i; break; }
+            if (cursor >= ROWS) scroll = (cursor > count - ROWS) ? (count - ROWS) : cursor;
+            int panel = -1, heldDir = 0, repeatTimer = 0;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            Image spr; int sprKey = -1;
+            static const char *CATN[6] = {"", "Legendary", "Mythical", "Pseudo", "Starter", "Fossil"};
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return 0;
+                PickerListNav(cursor, scroll, count, ROWS, heldDir, repeatTimer);
+                if (count > 0 && Controller::IsKeyPressed(Key::A)) return order[cursor];
+                if (Controller::IsKeyPressed(Key::B)) { if (panel >= 0) panel = -1; else return 0; }
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                if (PickerFilterHub(bot, facets, 4, panel, tap, lastPos)) { rebuild(); cursor = 0; scroll = 0; }
+
+                // TOP: list + detail strip (sprite + dex/BST/types/gen/category).
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Choose a species", 42, 26, title);
+                { string c = to_string(count) + " species"; top.DrawSysfont(txt << c, 362 - (int)OSD::GetTextWidth(true, c), 28, txt); }
+                top.DrawRect(42, 44, 316, 1, title, true);
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= count) break;
+                    int y = LISTY + i * ROWH; bool cur = (ri == cursor);
+                    if (cur) top.DrawRect(36, y, 328, ROWH, bg2, true);
+                    top.DrawSysfont((cur ? sel : txt) << speciesList[order[ri] - 1], 44, y + 2, cur ? sel : txt);
+                }
+                if (count == 0) top.DrawSysfont(txt << "No species match these filters.", 96, 100, txt);
+                else {
+                    u16 sp = order[cursor];
+                    if (sp != sprKey) { sprKey = sp; string p; BoxIconPath(p, sp, false, "BoxIcons/"); spr.LoadFromFile(p); }
+                    top.DrawRect(42, 173, 316, 1, border, true);
+                    if (spr.IsLoaded()) spr.Draw(top, 44, 176);
+                    string dex = string("#") + (sp < 100 ? "0" : "") + (sp < 10 ? "0" : "") + to_string(sp);
+                    int bst = 0; for (int d = 0; d < 6; d++) bst += gBaseStats[sp - 1][d];
+                    top.DrawSysfont(title << speciesList[sp - 1] << txt << "   " << dex << "   BST " << to_string(bst), 82, 178, txt);
+                    DrawTypeChips(top, sp, 82, 197);
+                    int cat = spawnerCategory[sp];
+                    string facts = string("Gen ") + to_string(SpeciesGen(sp)); if (cat >= 1 && cat <= 5) facts += string("   ") + CATN[cat];
+                    top.DrawSysfont(txt << facts, 82 + TypeChipsWidth(sp) + 12, 199, txt);
+                }
+                OSD::SwapBuffers();
+            }
+        }
+
+        void SpeciesRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            u16 pick = SpeciesPicker(pk.species);
+            if (pick) { pk.species = pick; SetPokemon(CurrentPtr(), &pk); }
+        }
+
+        // Visual date spinner (no keyboard) for met/egg dates. Edits io[3] = {year-2000, month, day} in place;
+        // day auto-clamps to the month (leap years included). Y clears to "None". Returns true if the user saved.
+        static int DaysInMonth(int year, int month) {
+            static const int dd[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            if (month < 1 || month > 12) return 31;
+            if (month == 2 && (year % 4 == 0)) return 29; // 2000-2099: %4 is correct
+            return dd[month - 1];
+        }
+        static bool DateEditor(const char *titleStr, const char *help1, const char *help2, u8 io[3]) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static const char *MON[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+            int yy = io[0]; int mm = io[1] < 1 ? 1 : (io[1] > 12 ? 12 : io[1]); int dd = io[2] < 1 ? 1 : io[2];
+            auto clampDay = [&]() { int dm = DaysInMonth(2000 + yy, mm); if (dd > dm) dd = dm; if (dd < 1) dd = 1; };
+            clampDay();
+            int row = 0;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return false;
+                if (Controller::IsKeyPressed(Key::B)) return false;
+                if (Controller::IsKeyPressed(Key::A)) { io[0] = (u8)yy; io[1] = (u8)mm; io[2] = (u8)dd; return true; }
+                if (Controller::IsKeyPressed(Key::Y)) { io[0] = io[1] = io[2] = 0; return true; } // clear -> None
+                if (KeyRep(Key::Up))   row = (row + 2) % 3;
+                if (KeyRep(Key::Down)) row = (row + 1) % 3;
+                if (KeyRep(Key::Left))  { if (row == 0) { if (yy > 0) yy--; } else if (row == 1) mm = mm > 1 ? mm - 1 : 12; else dd = dd > 1 ? dd - 1 : DaysInMonth(2000 + yy, mm); clampDay(); }
+                if (KeyRep(Key::Right)) { if (row == 0) { if (yy < 99) yy++; } else if (row == 1) mm = mm < 12 ? mm + 1 : 1; else { int dm = DaysInMonth(2000 + yy, mm); dd = dd < dm ? dd + 1 : 1; } clampDay(); }
+                if (Controller::IsKeyPressed(Key::L))      { if (row == 0) yy = yy > 10 ? yy - 10 : 0; else if (row == 1) mm = mm > 1 ? mm - 1 : 1; else dd = dd > 7 ? dd - 7 : 1; clampDay(); }
+                if (Controller::IsKeyPressed(Key::R))      { if (row == 0) yy = yy < 89 ? yy + 10 : 99; else if (row == 1) mm = mm < 12 ? mm + 1 : 12; else { int dm = DaysInMonth(2000 + yy, mm); dd = dd + 7 <= dm ? dd + 7 : dm; } clampDay(); }
+
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << titleStr, 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(sel << (string(MON[mm - 1]) + " " + to_string(dd) + ", " + to_string(2000 + yy)), 42, 54, sel);
+                const char *RN[3] = {"Year", "Month", "Day"};
+                string RV[3] = { to_string(2000 + yy),
+                                 string(mm < 10 ? "0" : "") + to_string(mm) + "  " + MON[mm - 1],
+                                 string(dd < 10 ? "0" : "") + to_string(dd) };
+                for (int r = 0; r < 3; r++) {
+                    int y = 90 + r * 26; bool hl = r == row;
+                    if (hl) top.DrawRect(40, y - 2, 322, 22, bg2, true);
+                    top.DrawSysfont((hl ? sel : txt) << RN[r], 56, y, hl ? sel : txt);
+                    top.DrawSysfont((hl ? sel : txt) << "-", 168, y, hl ? sel : txt);
+                    top.DrawSysfont((hl ? sel : title) << RV[r], 196, y, hl ? sel : title);
+                    top.DrawSysfont((hl ? sel : txt) << "+", 320, y, hl ? sel : txt);
+                }
+
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Date", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << help1, 30, 56, txt);
+                bot.DrawSysfont(txt << help2, 30, 74, txt);
+                bot.DrawSysfont(sel << "Up/Down" << txt << " field   " << sel << "Left/Right" << txt << " -/+", 30, 110, txt);
+                bot.DrawSysfont(sel << "L / R" << txt << " bigger step", 30, 128, txt);
+                bot.DrawSysfont(sel << "Y" << txt << " clear to None", 30, 146, txt);
+                bot.DrawSysfont(sel << "A" << txt << " save        " << sel << "B" << txt << " cancel", 30, 164, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        void MetDateRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            u8 dt[3] = {pk.metDate[0], pk.metDate[1], pk.metDate[2]};
+            if (DateEditor("Met date", "When this Pokemon was caught or", "hatched (the date on its summary).", dt)) {
+                for (int i = 0; i < 3; i++) pk.metDate[i] = dt[i]; SetPokemon(CurrentPtr(), &pk);
+            }
+        }
+
+        void EggMetDateRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            u8 dt[3] = {pk.eggDate[0], pk.eggDate[1], pk.eggDate[2]};
+            if (DateEditor("Egg met date", "When the egg was received. Set None", "for Pokemon not hatched from an egg.", dt)) {
+                for (int i = 0; i < 3; i++) pk.eggDate[i] = dt[i]; SetPokemon(CurrentPtr(), &pk);
+            }
+        }
+
+        // Draw the focused item's detail on the top screen: big sprite + name + (pocket) + effect description.
+        static void DrawItemDetail(const Screen &top, u16 id, Image &spr, int &sprKey, Color sel, Color txt, Color border, bool showPocket) {
+            static const char *POCKET[5] = {"Items", "Medicines", "Berries", "TMs & HMs", "Key Items"};
+            if (id != sprKey) { sprKey = id; string p = "BagSprites/big/"; if (id < 100) p += "0"; if (id < 10) p += "0"; p += to_string((int)id) + ".bmp"; spr.LoadFromFile(p); }
+            const int FX = 44, FY = 52;
+            top.DrawRect(FX, FY, 44, 44, Color::White, true); top.DrawRect(FX, FY, 44, 44, border, false);
+            if (spr.IsLoaded()) { int sw = spr.Width(), sh = spr.Height(); spr.Draw(top, FX + (44 - sw) / 2, FY + (44 - sh) / 2); }
+            const int IX = 102;
+            top.DrawSysfont(sel << bagItemName[id], IX, 54, sel);
+            if (showPocket && id < 801 && bagItemPocket[id] < 5) top.DrawSysfont(txt << POCKET[bagItemPocket[id]], IX, 76, txt);
+            top.DrawSysfont(txt << "Effect", 44, 104, txt);
+            const char *d = (id < 801 && gItemDesc[id][0]) ? gItemDesc[id] : "(no description)";
+            DrawWrapped(top, d, 44, 124, 320, 20, txt, 4);
+        }
+
+        // -------- Held item: PokeMart-style list filterable by pocket (L/R); top shows sprite + effect. --------
+        // Returns: -1 cancel, 0 = None (remove held item), else the chosen item id.
+        static int HeldItemPicker(u16 current) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static u16 list[256]; int count = 0;
+            static const char *HI_KIND[2] = {"Items", "Berries"};
+            PFacet facets[3] = { {"Effect", gHeldItemTagName, (u8)gHeldItemTagCount, 0},
+                                 {"Type", &g_typeName[1], 18, 0}, {"Kind", HI_KIND, 2, 0} };
+            auto rebuild = [&]() {
+                count = 0;
+                for (int k = 0; k < gHeldItemCount; k++) {
+                    u16 id = gHeldItemIds[k];
+                    if (!facetPass(facets[0].sel, gHeldItemTags[id])) continue;
+                    int ty = bagItemType[id]; u32 tb = (ty >= 1 && ty <= 18) ? (1u << (ty - 1)) : 0u;
+                    if (!facetPass(facets[1].sel, tb)) continue;
+                    bool berry = (id < 801 && bagItemPocket[id] == 2);
+                    if (!facetPass(facets[2].sel, berry ? 2u : 1u)) continue;
+                    list[count++] = id;
+                }
+                std::sort(list, list + count, [](u16 a, u16 b) { return string(bagItemName[a]) < string(bagItemName[b]); });
+            };
+            rebuild();
+            const int ROWS = 7, ROWH = 18, LISTY = 48;
+            int cursor = 0, scroll = 0; for (int i = 0; i < count; i++) if (list[i] == current) { cursor = i; break; }
+            if (cursor >= ROWS) scroll = (cursor > count - ROWS) ? (count - ROWS) : cursor;
+            int panel = -1, heldDir = 0, repeatTimer = 0, mId = -1, mStart = 0, mTick = 0, mDelay = 0;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            Image spr; int sprKey = -1;
+            static const char *POCKET[5] = {"Items", "Medicines", "Berries", "TMs & HMs", "Key Items"};
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return -1;
+                PickerListNav(cursor, scroll, count, ROWS, heldDir, repeatTimer);
+                if (Controller::IsKeyPressed(Key::Y)) return 0;             // None (remove held item)
+                if (count > 0 && Controller::IsKeyPressed(Key::A)) return list[cursor];
+                if (Controller::IsKeyPressed(Key::B)) { if (panel >= 0) panel = -1; else return -1; }
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                if (PickerFilterHub(bot, facets, 3, panel, tap, lastPos)) { rebuild(); cursor = 0; scroll = 0; }
+
+                // TOP: list + detail strip (sprite + pocket/effect-tags + description marquee).
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Choose a held item" << txt << "    (Y = no item)", 42, 26, txt);
+                { string c = to_string(count) + " items"; top.DrawSysfont(txt << c, 362 - (int)OSD::GetTextWidth(true, c), 28, txt); }
+                top.DrawRect(42, 44, 316, 1, title, true);
+                for (int i = 0; i < ROWS; i++) {
+                    int ri = scroll + i; if (ri >= count) break;
+                    int y = LISTY + i * ROWH; bool cur = (ri == cursor);
+                    if (cur) top.DrawRect(36, y, 328, ROWH, bg2, true);
+                    top.DrawSysfont((cur ? sel : txt) << bagItemName[list[ri]], 44, y + 2, cur ? sel : txt);
+                }
+                if (count == 0) top.DrawSysfont(txt << "No items match these filters.", 96, 100, txt);
+                else {
+                    u16 id = list[cursor];
+                    if (id != sprKey) { sprKey = id; string p = "BagSprites/big/"; if (id < 100) p += "0"; if (id < 10) p += "0"; p += to_string((int)id) + ".bmp"; spr.LoadFromFile(p); }
+                    top.DrawRect(42, 173, 316, 1, border, true);
+                    if (spr.IsLoaded()) spr.Draw(top, 46, 176);
+                    string tag = (id < 801 && bagItemPocket[id] < 5) ? string(POCKET[bagItemPocket[id]]) : string("");
+                    { string tg; for (int b = 0; b < gHeldItemTagCount; b++) if (gHeldItemTags[id] & (1 << b)) { if (!tg.empty()) tg += ", "; tg += gHeldItemTagName[b]; }
+                      if (!tg.empty()) tag += (tag.empty() ? "" : "  -  ") + tg; }
+                    top.DrawSysfont(title << tag, 92, 178, title);
+                    const char *d = (id < 801 && gItemDesc[id][0]) ? gItemDesc[id] : "";
+                    DrawMarquee(top, d, 92, 198, 266, txt, mId, (int)id, mStart, mTick, mDelay);
+                }
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- Poke Ball: alphabetical list of the 25 balls; top shows the ball sprite + effect. --------
+        static u8 BallPicker(u8 current) {
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static u8 order[25]; for (int i = 0; i < 25; i++) order[i] = (u8)i;
+            std::sort(order, order + 25, [](u8 a, u8 b) { return string(ballList[a].name) < string(ballList[b].name); });
+            int cursor = 0; for (int i = 0; i < 25; i++) if ((u8)ballList[order[i]].matchValue == current) { cursor = i; break; }
+            int top0 = 0; const int VIS = 8; Image spr; int sprKey = -1;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return 0;
+                if (Controller::IsKeyPressed(Key::B)) return 0;
+                if (Controller::IsKeyPressed(Key::A)) return (u8)ballList[order[cursor]].matchValue;
+                if (KeyRep(Key::Up))    cursor = (cursor + 24) % 25;
+                if (KeyRep(Key::Down))  cursor = (cursor + 1) % 25;
+                if (KeyRep(Key::Left))  cursor = cursor > 8 ? cursor - 8 : 0;
+                if (KeyRep(Key::Right)) cursor = cursor + 8 < 25 ? cursor + 8 : 24;
+                if (cursor < top0) top0 = cursor; if (cursor >= top0 + VIS) top0 = cursor - VIS + 1;
+
+                u16 id = (u16)ballList[order[cursor]].matchValue;
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Choose a Poke Ball", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                DrawItemDetail(top, id, spr, sprKey, sel, txt, border, false);
+
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Poke Balls (A-Z)", 34, 26, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                for (int r = top0; r < top0 + VIS && r < 25; r++) {
+                    int y = 50 + (r - top0) * 19;
+                    if (r == cursor) bot.DrawRect(26, y - 2, 268, 18, bg2, true);
+                    bot.DrawSysfont((r == cursor ? sel : txt) << ballList[order[r]].name, 40, y, r == cursor ? sel : txt);
+                }
+                bot.DrawSysfont(txt << "Up/Down pick   A choose   B cancel", 20 + (280 - (int)OSD::GetTextWidth(true, "Up/Down pick   A choose   B cancel")) / 2, 200, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        void HeldItemRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            int pick = HeldItemPicker(pk.heldItem);
+            if (pick >= 0) { pk.heldItem = (u16)pick; SetPokemon(CurrentPtr(), &pk); }
+        }
+
+        void BallRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            u8 pick = BallPicker(pk.ball);
+            if (pick) { pk.ball = pick; SetPokemon(CurrentPtr(), &pk); }
+        }
+
+        // -------- Moves: all 4 slots visible (type/category/power/accuracy/PP), edit move + PP Ups inline --------
+        void MovesRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            u16 mv[4]; int ppu[4];
+            for (int i = 0; i < 4; i++) { mv[i] = pk.move[i]; ppu[i] = pk.movePPUp[i] > 3 ? 3 : pk.movePPUp[i]; }
+            int row = 0, savedTtl = 0;
+            auto maxPP = [&](u16 id, int ups) -> int { if (id < 1 || id > 621) return 0; int b = gMoveExtra[id - 1][2]; return b + (b / 5) * ups; };
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) {                  // back - ask to save unsaved changes
+                    PK6 cur; bool dirty = false;
+                    if (GetPokemon(CurrentPtr(), &cur))
+                        for (int i = 0; i < 4; i++) if (cur.move[i] != mv[i] || (u8)(cur.movePPUp[i] > 3 ? 3 : cur.movePPUp[i]) != (u8)ppu[i]) { dirty = true; break; }
+                    if (!dirty) return;
+                    vector<string> opts = {"DISCARD", "SAVE"}; int choice = 1; Keyboard kb;
+                    if (kb.Setup(CenterAlign("You changed the moves.\nSave before leaving?"), true, opts, choice) != -1) {
+                        if (choice == 1) { for (int i = 0; i < 4; i++) { pk.move[i] = mv[i]; pk.movePPUp[i] = (u8)ppu[i]; pk.movePP[i] = (u8)maxPP(mv[i], ppu[i]); } SetPokemon(CurrentPtr(), &pk); }
+                        return; // SAVE or DISCARD both leave; only aborting the dialog stays
+                    }
+                }
+                if (Controller::IsKeyPressed(Key::Start)) {              // save and stay on this screen
+                    for (int i = 0; i < 4; i++) { pk.move[i] = mv[i]; pk.movePPUp[i] = (u8)ppu[i]; pk.movePP[i] = (u8)maxPP(mv[i], ppu[i]); }
+                    SetPokemon(CurrentPtr(), &pk); savedTtl = 70;
+                }
+                if (KeyRep(Key::Up))    row = (row + 3) % 4;
+                if (KeyRep(Key::Down))  row = (row + 1) % 4;
+                if (Controller::IsKeyPressed(Key::A))     { u16 pick = MovePicker(mv[row]); if (pick) { mv[row] = pick; ppu[row] = 0; } }
+                if (Controller::IsKeyPressed(Key::Y))     { mv[row] = 0; ppu[row] = 0; }
+                if (mv[row] >= 1 && mv[row] <= 621) {
+                    if (KeyRep(Key::Left))  ppu[row] = ppu[row] > 0 ? ppu[row] - 1 : 0;
+                    if (KeyRep(Key::Right)) ppu[row] = ppu[row] < 3 ? ppu[row] + 1 : 3;
+                }
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                { string spn = (pk.species >= 1 && pk.species <= 721) ? string(speciesList[pk.species - 1]) : "?";
+                  top.DrawSysfont(title << ("Moves - " + spn), 42, 26, title); }
+                top.DrawRect(42, 40, 316, 1, title, true);
+                for (int i = 0; i < 4; i++) DrawMoveRow(top, i, mv[i], ppu[i], i == row, 48 + i * 40, sel, txt, title, bg2);
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Moves & PP Ups", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << "The 4 moves this Pokemon knows.", 30, 56, txt);
+                bot.DrawSysfont(txt << "PP Ups raise a move's max PP by", 30, 74, txt);
+                bot.DrawSysfont(txt << "20% each (up to +60% at 3).", 30, 92, txt);
+                bot.DrawSysfont(sel << "A" << txt << " change move", 30, 118, txt);
+                bot.DrawSysfont(sel << "Left/Right" << txt << " PP Ups -/+", 30, 136, txt);
+                bot.DrawSysfont(sel << "Y" << txt << " clear slot", 30, 154, txt);
+                bot.DrawSysfont(sel << "Start" << txt << " save    " << sel << "B" << txt << " back", 30, 172, txt);
+                if (savedTtl > 0) { const Color green(0x35, 0xC3, 0x6A); bot.DrawSysfont(green << "Saved!", 288 - (int)OSD::GetTextWidth(true, "Saved!"), 28, green); savedTtl--; }
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- Relearn: the 4 moves the in-game Move Reminder can re-teach (and egg moves) --------
+        void RelearnRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            u16 rl[4]; for (int i = 0; i < 4; i++) rl[i] = pk.relearn[i];
+            int row = 0, savedTtl = 0;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) {                  // back - ask to save unsaved changes
+                    PK6 cur; bool dirty = false;
+                    if (GetPokemon(CurrentPtr(), &cur))
+                        for (int i = 0; i < 4; i++) if (cur.relearn[i] != rl[i]) { dirty = true; break; }
+                    if (!dirty) return;
+                    vector<string> opts = {"DISCARD", "SAVE"}; int choice = 1; Keyboard kb;
+                    if (kb.Setup(CenterAlign("You changed the relearn moves.\nSave before leaving?"), true, opts, choice) != -1) {
+                        if (choice == 1) { for (int i = 0; i < 4; i++) pk.relearn[i] = rl[i]; SetPokemon(CurrentPtr(), &pk); }
+                        return;
+                    }
+                }
+                if (Controller::IsKeyPressed(Key::Start)) { for (int i = 0; i < 4; i++) pk.relearn[i] = rl[i]; SetPokemon(CurrentPtr(), &pk); savedTtl = 70; } // save and stay
+                if (KeyRep(Key::Up))    row = (row + 3) % 4;
+                if (KeyRep(Key::Down))  row = (row + 1) % 4;
+                if (Controller::IsKeyPressed(Key::A))     { u16 pick = MovePicker(rl[row]); if (pick) rl[row] = pick; }
+                if (Controller::IsKeyPressed(Key::Y))     rl[row] = 0;
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                { string spn = (pk.species >= 1 && pk.species <= 721) ? string(speciesList[pk.species - 1]) : "?";
+                  top.DrawSysfont(title << ("Relearn moves - " + spn), 42, 26, title); }
+                top.DrawRect(42, 40, 316, 1, title, true);
+                for (int i = 0; i < 4; i++) DrawMoveRow(top, i, rl[i], -1, i == row, 48 + i * 40, sel, txt, title, bg2);
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Relearn moves", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << "Moves the in-game Move Reminder", 30, 56, txt);
+                bot.DrawSysfont(txt << "NPC can re-teach this Pokemon for", 30, 74, txt);
+                bot.DrawSysfont(txt << "free (egg moves live here too).", 30, 92, txt);
+                bot.DrawSysfont(txt << "They do NOT change current moves.", 30, 110, txt);
+                bot.DrawSysfont(sel << "A" << txt << " change   " << sel << "Y" << txt << " clear slot", 30, 140, txt);
+                bot.DrawSysfont(sel << "Start" << txt << " save    " << sel << "B" << txt << " back", 30, 168, txt);
+                if (savedTtl > 0) { const Color green(0x35, 0xC3, 0x6A); bot.DrawSysfont(green << "Saved!", 288 - (int)OSD::GetTextWidth(true, "Saved!"), 28, green); savedTtl--; }
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- Contest: vertical "- value +" for the 5 conditions + Sheen, with the flavor that raises each --------
+        void ContestRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color gold(0xF2, 0xCE, 0x70);
+            static const char *CN[6] = {"Cool", "Beauty", "Cute", "Smart", "Tough", "Sheen"};
+            static const char *FL[6] = {"Spicy", "Dry", "Sweet", "Bitter", "Sour", "any flavor"};
+            int ct[6]; for (int d = 0; d < 6; d++) ct[d] = pk.contest[d];
+            int row = 0;
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) return;            // cancel
+                if (Controller::IsKeyPressed(Key::A)) { for (int d = 0; d < 6; d++) pk.contest[d] = (u8)ct[d]; SetPokemon(CurrentPtr(), &pk); return; }
+                if (KeyRep(Key::Up))    row = (row + 5) % 6;
+                if (KeyRep(Key::Down))  row = (row + 1) % 6;
+                if (KeyRep(Key::Left))  ct[row] = ct[row] > 0   ? ct[row] - 1  : 0;
+                if (KeyRep(Key::Right)) ct[row] = ct[row] < 255 ? ct[row] + 1  : 255;
+                if (Controller::IsKeyPressed(Key::L))     ct[row] = ct[row] > 10  ? ct[row] - 10 : 0;
+                if (Controller::IsKeyPressed(Key::R))     ct[row] = ct[row] < 245 ? ct[row] + 10 : 255;
+                if (Controller::IsKeyPressed(Key::Y))     ct[row] = 255;
+                if (Controller::IsKeyPressed(Key::X))     for (int d = 0; d < 6; d++) ct[d] = 255;
+
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << ("Contest stats - " + string(speciesList[pk.species - 1])), 42, 26, title);
+                top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(txt << "Condition", 48, 46, txt); top.DrawSysfont(txt << "Flavor", 168, 46, txt); top.DrawSysfont(txt << "Value", 286, 46, txt);
+                for (int d = 0; d < 6; d++) {
+                    int y = 66 + d * 22; bool hl = d == row;
+                    if (hl) top.DrawRect(40, y - 2, 322, 20, bg2, true);
+                    Color vc = (ct[d] == 255) ? gold : (hl ? sel : title);
+                    top.DrawSysfont((hl ? sel : txt) << CN[d], 48, y, hl ? sel : txt);
+                    top.DrawSysfont(txt << FL[d], 168, y, txt);
+                    top.DrawSysfont((hl ? sel : txt) << "-", 268, y, hl ? sel : txt);
+                    top.DrawSysfont(vc << to_string(ct[d]), 292, y, vc);
+                    top.DrawSysfont((hl ? sel : txt) << "+", 340, y, hl ? sel : txt);
+                }
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Contest conditions", 34, 28, title); bot.DrawRect(28, 46, 264, 1, title, true);
+                bot.DrawSysfont(txt << "Score in Pokemon Contests. Raise", 30, 56, txt);
+                bot.DrawSysfont(txt << "each by feeding Pokeblocks/Poffins", 30, 74, txt);
+                bot.DrawSysfont(txt << "of the matching flavor. Sheen caps", 30, 92, txt);
+                bot.DrawSysfont(txt << "how many more you can feed.", 30, 110, txt);
+                bot.DrawSysfont(sel << "L/R" << txt << " -10/+10   " << sel << "Y" << txt << " 255  " << sel << "X" << txt << " all", 30, 140, txt);
+                bot.DrawSysfont(sel << "A" << txt << " save        " << sel << "B" << txt << " cancel", 30, 168, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        // -------- Origin Game: visual 4x4 grid of the 8 origin games (themed cover + name); bottom = game info --------
+        void OriginGameRich(MenuEntry *entry) {
+            (void)entry;
+            PK6 pk; if (!GetPokemon(CurrentPtr(), &pk) || pk.species < 1 || pk.species > 721) return;
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            struct GI { const char *name; const char *tag; const char *shortNm; int ver; u32 col;
+                        const char *gen; const char *region; const char *date; const char *d1; const char *d2; };
+            static const GI G[8] = {   // chronological, oldest first
+                {"Pokemon Black",    "B",  "Black",     21, 0x303030, "Gen 5", "Unova", "2010/11",  "All-new regional dex until the",      "post-game. Mascot Reshiram."},
+                {"Pokemon White",    "W",  "White",     20, 0xC8C8C8, "Gen 5", "Unova", "2010/11",  "Paired with Black (mascot Zekrom).",  "Features the White Forest area."},
+                {"Pokemon Black 2",  "B2", "Black 2",   23, 0x24407A, "Gen 5", "Unova", "2012",     "Direct sequel set two years",         "after Black & White."},
+                {"Pokemon White 2",  "W2", "White 2",   22, 0xA8C0E0, "Gen 5", "Unova", "2012",     "Sequel paired with Black 2;",         "Kyurem fusion formes appear."},
+                {"Pokemon X",        "X",  "X",        24, 0x2E6CC4, "Gen 6", "Kalos", "Oct 2013", "First Gen 6 game. Added Mega",        "Evolution, the Fairy type, 3D battles."},
+                {"Pokemon Y",        "Y",  "Y",        25, 0xD23C3C, "Gen 6", "Kalos", "Oct 2013", "Paired with X (mascot Yveltal).",     "Version-exclusive Megas differ."},
+                {"Omega Ruby",       "OR", "Omega R.",  27, 0xCC3B2E, "Gen 6", "Hoenn", "Nov 2014", "Remake of Ruby. Primal Groudon,",     "DexNav, and Soaring on Latios."},
+                {"Alpha Sapphire",   "AS", "Alpha S.",  26, 0x2A5CAA, "Gen 6", "Hoenn", "Nov 2014", "Remake of Sapphire. Primal Kyogre;",  "paired with Omega Ruby."},
+            };
+            auto RGB = [](u32 c) { return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); };
+            auto lumDark = [](u32 c) { return ((((c >> 16) & 0xFF) * 30 + ((c >> 8) & 0xFF) * 59 + (c & 0xFF) * 11) / 100) > 150; };
+
+            // Optional real cover art: drop OriginGames/<tag>.bmp (e.g. X.bmp, OR.bmp) sized 58x62 on the SD.
+            Image cov[8];
+            for (int i = 0; i < 8; i++) cov[i].LoadFromFile(string("OriginGames/") + G[i].tag + ".bmp");
+
+            int cursor = 0; for (int i = 0; i < 8; i++) if (G[i].ver == pk.version) { cursor = i; break; }
+
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return;
+                if (Controller::IsKeyPressed(Key::B)) return;
+                if (Controller::IsKeyPressed(Key::A)) { pk.version = (u8)G[cursor].ver; SetPokemon(CurrentPtr(), &pk); return; }
+                if (KeyRep(Key::Up) || KeyRep(Key::Down)) cursor = (cursor + 4) % 8;          // 2 rows -> toggle row
+                if (KeyRep(Key::Left))  cursor = (cursor / 4) * 4 + (cursor % 4 + 3) % 4;
+                if (KeyRep(Key::Right)) cursor = (cursor / 4) * 4 + (cursor % 4 + 1) % 4;
+
+                // ---- TOP: 4x2 grid of cover cards + name under each ----
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Origin Game", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                for (int i = 0; i < 8; i++) {
+                    int col = i % 4, row = i / 4;
+                    int cellx = 34 + col * 82, covx = cellx + 12, cy = 50 + row * 80;
+                    if (cov[i].IsLoaded()) {
+                        cov[i].Draw(top, covx, cy);
+                    } else {
+                        Color gc = RGB(G[i].col), tc = lumDark(G[i].col) ? Color::Black : Color::White;
+                        top.DrawRect(covx, cy, 58, 62, gc, true); top.DrawRect(covx, cy, 58, 62, border, false);
+                        int tw = (int)OSD::GetTextWidth(true, G[i].tag);
+                        top.DrawSysfont(tc << G[i].tag, covx + (58 - tw) / 2, cy + 22, tc);
+                    }
+                    if (i == cursor) { top.DrawRect(covx - 2, cy - 2, 62, 66, sel, false); top.DrawRect(covx - 3, cy - 3, 64, 68, sel, false); }
+                    int nw = (int)OSD::GetTextWidth(true, G[i].shortNm);
+                    top.DrawSysfont((i == cursor ? sel : txt) << G[i].shortNm, cellx + (82 - nw) / 2, cy + 64, i == cursor ? sel : txt);
+                }
+
+                // ---- BOTTOM: selected game info ----
+                const GI &g = G[cursor];
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << g.name, 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                bot.DrawSysfont(sel << g.gen << txt << "   -   " << sel << g.region << txt << "   -   " << g.date, 34, 58, txt);
+                bot.DrawSysfont(txt << g.d1, 34, 84, txt);
+                bot.DrawSysfont(txt << g.d2, 34, 104, txt);
+                { const char *cur = "version "; string c2;
+                  bool found = false; for (int i = 0; i < 8; i++) if (G[i].ver == pk.version) { c2 = G[i].name; found = true; break; }
+                  if (!found) c2 = string(cur) + to_string(pk.version);
+                  bot.DrawSysfont(sel << "Current: " << txt << c2, 34, 136, txt); }
+                bot.DrawSysfont(txt << "D-Pad select   A set   B cancel", 20 + (280 - (int)OSD::GetTextWidth(true, "D-Pad select   A set   B cancel")) / 2, 200, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        // ---- PC Box ++ in-app editor: categories (tabs) -> fields -> the existing PKHeX editor functions.
+        // Every editor reuses its themed keyboard/selector (all read only entry->Name()); this table just dispatches.
+        struct BoxEditField { const char *label; void (*fn)(MenuEntry*); };
+        struct BoxEditCat   { const char *name; const BoxEditField *fields; int count; };
+        static const BoxEditField BE_MAIN[] = {
+            {"Species", SpeciesRich}, {"Nickname", Nickname}, {"Nicknamed?", IsNicknamed}, {"Level", Level},
+            {"Nature", NatureRich}, {"Gender", Gender}, {"Form", Form}, {"Held Item", HeldItemRich},
+            {"Ability", AbilityRich}, {"Friendship", Friendship}, {"Language", Language}, {"Shiny", Shiny},
+            {"Egg?", IsEgg}, {"Pokerus", Pokerus}, {"Country", Country}, {"Console Region", ConsoleRegion},
+        };
+        static const BoxEditField BE_STAT[] = { {"IVs", IVRich}, {"EVs", EVRich}, {"Contest", ContestRich} };
+        static const BoxEditField BE_MOVE[] = { {"Moves", MovesRich}, {"Relearn", RelearnRich} };
+        static const BoxEditField BE_ORIG[] = {
+            {"Origin Game", OriginGameRich}, {"Ball", BallRich}, {"Met Level", MetLevel}, {"Met Date", MetDateRich},
+            {"Fateful Enc.", IsFatefulEncounter}, {"Egg Met Date", EggMetDateRich},
+        };
+        static const BoxEditField BE_MISC[] = { {"SID", SID}, {"TID", TID}, {"OT Name", OTName}, {"Latest Handler", LatestHandler} };
+        static const BoxEditCat BOX_CATS[5] = {
+            {"Main", BE_MAIN, 16}, {"Stats", BE_STAT, 3}, {"Moves", BE_MOVE, 2}, {"Origins", BE_ORIG, 6}, {"Misc", BE_MISC, 4},
+        };
+
+        // Current value of a field, formatted short for the inline "edit-the-summary" list.
+        static string BoxFieldValue(PK6 &pk, int cat, int idx) {
+            static const int inMap[6] = {0, 1, 2, 4, 5, 3}; // display HP,Atk,Def,SpA,SpD,Spe -> iv32/EV internal index
+            static const char *GEN[3] = {"M", "F", "-"};
+            auto ivs  = [&]() { string s; for (int d = 0; d < 6; d++) s += to_string((pk.iv32 >> (5 * inMap[d])) & 0x1F) + (d < 5 ? "/" : ""); return s; };
+            auto evs  = [&]() { string s; for (int d = 0; d < 6; d++) s += to_string(pk.EV[inMap[d]]) + (d < 5 ? "/" : ""); return s; };
+            auto date = [&](const u8 *d) -> string { if (!d[0] && !d[1] && !d[2]) return "None"; return to_string(2000 + d[0]) + "/" + to_string(d[1]) + "/" + to_string(d[2]); };
+
+            if (cat == 0) switch (idx) { // Main
+                case 0:  return (pk.species >= 1 && pk.species <= 721) ? string(speciesList[pk.species - 1]) : "?";
+                case 1:  { string n = Utf16Field(pk.nickname); return n.empty() ? "-" : n; }
+                case 2:  return ((pk.iv32 >> 31) & 1) ? "Yes" : "No";
+                case 3:  return to_string(LevelFromExp(pk.species, pk.exp));
+                case 4:  return pk.nature < natureList.size() ? string(natureList[pk.nature]) : to_string(pk.nature);
+                case 5:  { int g = (pk.fatefulEncounterGenderForm >> 1) & 3; return GEN[g > 2 ? 2 : g]; }
+                case 6:  { int f = pk.fatefulEncounterGenderForm >> 3; vector<string> fl = formList(pk.species);
+                           if (f >= 0 && f < (int)fl.size()) return fl[f]; return f == 0 ? "Default" : to_string(f); }
+                case 7:  return pk.heldItem == 0 ? "None" : (pk.heldItem <= 775 ? string(heldItemList[pk.heldItem - 1]) : "?");
+                case 8:  return (pk.ability >= 1 && pk.ability <= 191) ? string(abilityList[pk.ability - 1]) : "?";
+                case 9:  return to_string(pk.originalTrainerFriendship);
+                case 10: { static const char *L[] = {"-","JPN","ENG","FRE","ITA","GER","-","SPA","KOR","CHS","CHT"}; return (pk.language < 11) ? string(L[pk.language]) : to_string(pk.language); }
+                case 11: return IsShiny(&pk) ? "Yes" : "No";
+                case 12: return ((pk.iv32 >> 30) & 1) ? "Yes" : "No";
+                case 13: return pk.infected ? "Yes" : "No";
+                case 14: { for (const Nations &c : countryList) if (c.name && c.id == pk.country) return string(c.name); return to_string(pk.country); }
+                case 15: { static const char *CR[6] = {"Japan", "Americas", "Europe", "China", "Korea", "Taiwan"};
+                           return (pk.consoleRegion >= 1 && pk.consoleRegion <= 6) ? string(CR[pk.consoleRegion - 1]) : to_string(pk.consoleRegion); }
+            }
+            else if (cat == 1) switch (idx) { // Stats
+                case 0: return ivs();
+                case 1: return evs();
+                case 2: { string s; for (int i = 0; i < 6; i++) s += to_string(pk.contest[i]) + (i < 5 ? "/" : ""); return s; }
+            }
+            else if (cat == 2) switch (idx) { // Moves
+                case 0: return (pk.move[0] >= 1 && pk.move[0] <= 621) ? string(movesList[pk.move[0] - 1]) : "-";
+                case 1: { int n = 0; for (int i = 0; i < 4; i++) if (pk.relearn[i]) ++n; return to_string(n) + " set"; }
+            }
+            else if (cat == 3) switch (idx) { // Origins
+                case 0: { for (const Origins &o : originList) if (o.name && o.matchValue == pk.version) return string(o.name); return to_string(pk.version); }
+                case 1: { for (const Balls &b : ballList) if (b.name && b.matchValue == pk.ball) return string(b.name); return to_string(pk.ball); }
+                case 2: return to_string(pk.metLevel);
+                case 3: return date(pk.metDate);
+                case 4: return (pk.fatefulEncounterGenderForm & 1) ? "Yes" : "No";
+                case 5: return date(pk.eggDate);
+            }
+            else if (cat == 4) switch (idx) { // Misc
+                case 0: return to_string(pk.SID);
+                case 1: return to_string(pk.TID);
+                case 2: { string n = Utf16Field(pk.originalTrainerName); return n.empty() ? "-" : n; }
+                case 3: { string n = Utf16Field(pk.hiddenTrainerName); return n.empty() ? "None" : n; }
+            }
+            return "";
+        }
+
+        // PC Box ++ editor "Quick Actions" (X): one-tap bulk power-edits on the working copy at ptr.
+        // No keyboard; each action writes immediately via SetPokemon(ptr) and the top mini-summary
+        // reflects it live. Returns the last action's toast text ("" if none). Revert-all lives on the
+        // editor's Start (it needs editOrig), not here.
+        static string BoxQuickActions(u32 ptr) {
+            PK6 pk; if (!GetPokemon(ptr, &pk) || pk.species < 1 || pk.species > 721) return "";
+            const Screen &top = OSD::GetTopScreen(); const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            static const int inMap[6] = {0, 1, 2, 4, 5, 3}; // display HP,Atk,Def,SpA,SpD,Spe -> iv32/EV index
+            static const char *ITEMS[] = {
+                "Max IVs (31)", "Max EVs (252/252/4)", "Clear EVs (0)", "Max Friendship (255)",
+                "Toggle Pokerus", "Restore PP", "Reroll PID",
+            };
+            const int N = 7; int cursor = 0; string msg;
+
+            while (Controller::IsKeyDown(Key::X) || Controller::IsKeyDown(Key::A)) { Controller::Update(); OSD::SwapBuffers(); }
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) return msg;
+                if (Controller::IsKeyPressed(Key::B) || Controller::IsKeyPressed(Key::X)) return msg;
+                if (KeyRep(Key::Up))   cursor = (cursor + N - 1) % N;
+                if (KeyRep(Key::Down)) cursor = (cursor + 1) % N;
+                if (Controller::IsKeyPressed(Key::A)) {
+                    switch (cursor) {
+                        case 0: pk.iv32 = (pk.iv32 & 0xC0000000u) | 0x3FFFFFFFu; msg = "IVs maxed (31)"; break; // keep egg/nick bits
+                        case 1: { for (int i = 0; i < 6; i++) pk.EV[i] = 0;
+                                  int b1 = -1, b2 = -1; // two highest base stats among Atk..Spe (display 1..5)
+                                  for (int d = 1; d < 6; d++) {
+                                      if (b1 < 0 || gBaseStats[pk.species - 1][d] > gBaseStats[pk.species - 1][b1]) { b2 = b1; b1 = d; }
+                                      else if (b2 < 0 || gBaseStats[pk.species - 1][d] > gBaseStats[pk.species - 1][b2]) { b2 = d; }
+                                  }
+                                  if (b1 >= 0) pk.EV[inMap[b1]] = 252;
+                                  if (b2 >= 0) pk.EV[inMap[b2]] = 252;
+                                  pk.EV[0] = 4; // 4 HP
+                                  msg = "EVs set 252/252/4"; break; }
+                        case 2: for (int i = 0; i < 6; i++) pk.EV[i] = 0; msg = "EVs cleared"; break;
+                        case 3: pk.originalTrainerFriendship = 255; AdjustFriendship(&pk, 255); msg = "Friendship 255"; break; // OT + handler
+                        case 4: if (pk.infected) { SetPokerusStatus(&pk, 0, 0); msg = "Pokerus removed"; }
+                                else { SetPokerusStatus(&pk, 4, 1); msg = "Pokerus given"; } break;
+                        case 5: { for (int i = 0; i < 4; i++) if (pk.move[i] >= 1 && pk.move[i] <= 621) {
+                                      int base = gMoveExtra[pk.move[i] - 1][2]; int up = pk.movePPUp[i]; if (up > 3) up = 3;
+                                      pk.movePP[i] = (u8)(base * (5 + up) / 5);
+                                  } msg = "PP restored"; break; }
+                        case 6: pk.PID = Utils::Random(1, 0xFFFFFFFF); msg = "PID rerolled"; break;
+                    }
+                    SetPokemon(ptr, &pk);
+                    while (Controller::IsKeyDown(Key::A)) { Controller::Update(); OSD::SwapBuffers(); }
+                }
+
+                // ---- TOP: live mini-summary so each edit shows instantly ----
+                int level = LevelFromExp(pk.species, pk.exp);
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Quick Actions", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                top.DrawSysfont(title << speciesList[pk.species - 1] << txt << "   Lv " << to_string(level), 42, 52, txt);
+                { string ivs, evs; for (int d = 0; d < 6; d++) { ivs += to_string((pk.iv32 >> (5 * inMap[d])) & 0x1F) + (d < 5 ? "/" : ""); evs += to_string(pk.EV[inMap[d]]) + (d < 5 ? "/" : ""); }
+                  top.DrawSysfont(sel << "IVs " << txt << ivs, 42, 78, txt);
+                  top.DrawSysfont(sel << "EVs " << txt << evs, 42, 98, txt); }
+                top.DrawSysfont(sel << "Friendship " << txt << to_string(pk.originalTrainerFriendship)
+                                    << sel << "   Pokerus " << txt << (pk.infected ? "Yes" : "No"), 42, 118, txt);
+                top.DrawSysfont(sel << "Shiny " << txt << (IsShiny(&pk) ? "Yes" : "No"), 42, 138, txt);
+
+                // ---- BOTTOM: action list ----
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Quick Actions", 34, 26, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                for (int i = 0; i < N; i++) {
+                    int y = 52 + i * 19;
+                    if (i == cursor) bot.DrawRect(26, y - 2, 268, 18, bg2, true);
+                    bot.DrawSysfont((i == cursor ? sel : txt) << ITEMS[i], 40, y, i == cursor ? sel : txt);
+                }
+                if (!msg.empty()) bot.DrawSysfont(title << msg, 34, 190, title);
+                bot.DrawSysfont(txt << "A apply   B back", 20 + (280 - (int)OSD::GetTextWidth(true, "A apply   B back")) / 2, 206, txt);
+                OSD::SwapBuffers();
+            }
+        }
+
+        void BoxBrowserPlus(MenuEntry *entry) {
+            (void)entry;
+            const u32 base = DetermineSpeciesPointer(); // box 1 / slot 1 (game-specific), 31 boxes x 30 slots
+            auto cellAddr = [&](int box, int slot) -> u32 { return base + box * 6960 + slot * 0xE8; };
+
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color markCol(0xE5, 0x43, 0x3C); // pending move/clone source highlight (red)
+
+            // Grid geometry: 6 columns x 5 rows = 30 slots, inside the standard top window (30,20,340,200).
+            const int COLS = 6, ROWS = 5, CELLW = 48, CELLH = 35, GX0 = 56, GY0 = 42;
+            auto cellLeft = [&](int i) { return GX0 + (i % COLS) * CELLW; };
+            auto cellTop  = [&](int i) { return GY0 + (i / COLS) * CELLH; };
+
+            int curBox = (gBoxNumber >= 1 && gBoxNumber <= 31) ? gBoxNumber - 1 : 0;
+            int cursor = (gPositionNumber >= 1 && gPositionNumber <= 30) ? gPositionNumber - 1 : 0;
+            int loadedBox = -1;
+
+            // Per-box cache (reloaded only on box change): species + shiny + the 30 grid icons.
+            static u16 boxSpecies[30]; static u8 boxShiny[30];
+            Image gridIcon[30];
+            Image cardSprite; int cardKey = -1; // 72px sprite of the focused slot (species*2+shiny)
+
+            // Pending move/swap or clone source, and find state.
+            int markMode = 0;            // 0 none, 1 = move/swap (X), 2 = clone (Y)
+            int markBox = -1, markSlot = -1; u32 markAddr = 0;
+            static u16 fHitBox[930], fHitSlot[930]; int fN = 0, fIdx = 0; u16 fSpecies = 0; bool findActive = false;
+            string status; int statusTtl = 0;
+            auto setStatus = [&](const string &s) { status = s; statusTtl = 90; };
+
+            // Editor (PKSM-style): mode 0 = storage grid, mode 1 = in-app editor of the focused slot.
+            int mode = 0, editCat = 0, editField = 0, editTop = 0;
+            MenuEntry editEntry("Edit"); // reusable temp entry to invoke the editors (they read only Name())
+            static u8 editScratch[0xE8], editOrig[0xE8]; // PKSM-style working copy: edits land here, commit on Save
+            u32 editCommitAddr = 0;       // the real slot address the working copy belongs to
+
+            // Swallow the A/B that opened this view so it doesn't bleed into the first frame.
+            while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B)) { Controller::Update(); OSD::SwapBuffers(); }
+
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) break; // release the game + handle sleep
+
+                if (Controller::IsKeyPressed(Key::Select)) {
+                    while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                    PluginMenu::Close();
+                    break;
+                }
+
+                if (mode == 0) {
+                // ===================== STORAGE (grid) MODE =====================
+                // ---- input ----
+                if (KeyRep(Key::Up))    cursor = (cursor + 30 - COLS) % 30;
+                if (KeyRep(Key::Down))  cursor = (cursor + COLS) % 30;
+                if (KeyRep(Key::Left))  cursor = (cursor + 29) % 30;
+                if (KeyRep(Key::Right)) cursor = (cursor + 1) % 30;
+                if (Controller::IsKeyPressed(Key::L))     curBox = (curBox + 30) % 31;
+                if (Controller::IsKeyPressed(Key::R))     curBox = (curBox + 1) % 31;
+
+                if (Controller::IsKeyPressed(Key::A)) {
+                    // Open the in-app editor on this slot (only if occupied).
+                    if (curBox == loadedBox && boxSpecies[cursor]) {
+                        gPartyMode = false;
+                        gBoxNumber = (u8)(curBox + 1); gPositionNumber = (u8)(cursor + 1);
+                        // Non-destructive: copy the slot into a working buffer; edits hit it, the real slot is
+                        // only written when the user picks SAVE on exit.
+                        editCommitAddr = cellAddr(curBox, cursor);
+                        Process::CopyMemory(editScratch, (u8*)editCommitAddr, 0xE8);
+                        Process::CopyMemory(editOrig, editScratch, 0xE8);
+                        dataPointer = (u32)(uintptr_t)editScratch;
+                        mode = 1; editCat = 0; editField = 0; editTop = 0;
+                    } else setStatus("Empty slot - nothing to edit");
+                }
+
+                if (Controller::IsKeyPressed(Key::X)) {
+                    if (markMode == 1) {
+                        u32 dst = cellAddr(curBox, cursor);
+                        if (dst == markAddr) { markMode = 0; setStatus("Move cancelled"); }
+                        else {
+                            u8 a[0xE8], b[0xE8];
+                            if (Process::CopyMemory(a, (u8*)markAddr, 0xE8) && Process::CopyMemory(b, (u8*)dst, 0xE8) &&
+                                Process::CopyMemory((u8*)markAddr, b, 0xE8) && Process::CopyMemory((u8*)dst, a, 0xE8))
+                                setStatus("Swapped B" + to_string(markBox + 1) + ":" + to_string(markSlot + 1) +
+                                          " <-> B" + to_string(curBox + 1) + ":" + to_string(cursor + 1));
+                            else setStatus("Swap failed");
+                            markMode = 0; loadedBox = -1; // refresh the visible box
+                        }
+                    } else {
+                        markMode = 1; markBox = curBox; markSlot = cursor; markAddr = cellAddr(curBox, cursor);
+                        setStatus("MOVE: pick destination (X)");
+                    }
+                }
+
+                if (Controller::IsKeyPressed(Key::Y)) {
+                    if (markMode == 2) {
+                        u32 dst = cellAddr(curBox, cursor);
+                        if (dst == markAddr) { markMode = 0; setStatus("Clone cancelled"); }
+                        else {
+                            bool occupied = boxSpecies[cursor] != 0 && curBox == loadedBox;
+                            bool go = !occupied ||
+                                      DangerConfirm("OVERWRITE?", "The destination slot already\nhas a Pokemon. Cloning will\nreplace it.", "Overwrite it?");
+                            if (go) {
+                                if (Process::CopyMemory((u8*)dst, (u8*)markAddr, 0xE8))
+                                    setStatus("Cloned -> B" + to_string(curBox + 1) + ":" + to_string(cursor + 1));
+                                else setStatus("Clone failed");
+                                markMode = 0; loadedBox = -1;
+                            } else { markMode = 0; setStatus("Clone cancelled"); }
+                        }
+                    } else {
+                        if (boxSpecies[cursor] == 0 && curBox == loadedBox) setStatus("Nothing to clone here");
+                        else { markMode = 2; markBox = curBox; markSlot = cursor; markAddr = cellAddr(curBox, cursor);
+                               setStatus("CLONE: pick destination (Y)"); }
+                    }
+                }
+
+                if (Controller::IsKeyPressed(Key::Start)) {
+                    if (findActive && fN > 0) { // cycle to the next copy without re-typing
+                        fIdx = (fIdx + 1) % fN; curBox = fHitBox[fIdx]; cursor = fHitSlot[fIdx];
+                        setStatus(string(speciesList[fSpecies - 1]) + "  " + to_string(fIdx + 1) + "/" + to_string(fN));
+                    } else {
+                        SearchForSpecies(entry); // fills global speciesID (1-based) via keyboard
+                        int sp = speciesID;
+                        if (sp > 0) {
+                            fSpecies = (u16)sp; fN = 0;
+                            PK6 pk;
+                            for (int b = 0; b < 31 && fN < 930; ++b)
+                                for (int s = 0; s < 30 && fN < 930; ++s)
+                                    if (GetPokemon(cellAddr(b, s), &pk) && pk.species == fSpecies) { fHitBox[fN] = (u16)b; fHitSlot[fN] = (u16)s; ++fN; }
+                            if (fN == 0) { findActive = false; setStatus(string(speciesList[sp - 1]) + ": not found"); }
+                            else { findActive = true; fIdx = 0; curBox = fHitBox[0]; cursor = fHitSlot[0];
+                                   setStatus(string(speciesList[sp - 1]) + "  1/" + to_string(fN) + " (Start=next)"); }
+                        }
+                    }
+                }
+
+                if (Controller::IsKeyPressed(Key::B)) {
+                    if (markMode) { markMode = 0; setStatus("Cancelled"); }
+                    else if (findActive) { findActive = false; fN = 0; setStatus("Find cleared"); }
+                    else break; // exit the browser
+                }
+
+                // ---- (re)load the box on change, with a one-frame "Loading" splash ----
+                if (curBox != loadedBox) {
+                    top.DrawRect(30, 20, 340, 200, bg, true);
+                    top.DrawRect(30, 20, 340, 200, border, false);
+                    string ld = "Loading Box " + to_string(curBox + 1) + "...";
+                    top.DrawSysfont(title << ld, 30 + (340 - (int)OSD::GetTextWidth(true, ld)) / 2, 112, title);
+                    OSD::SwapBuffers();
+
+                    PK6 pk;
+                    for (int i = 0; i < 30; ++i) {
+                        bool ok = GetPokemon(cellAddr(curBox, i), &pk) && pk.species >= 1 && pk.species <= 721;
+                        boxSpecies[i] = ok ? pk.species : 0;
+                        boxShiny[i]   = ok ? (u8)(IsShiny(&pk) ? 1 : 0) : 0;
+                        if (ok) { string p; BoxIconPath(p, pk.species, boxShiny[i], "BoxIcons/"); gridIcon[i].LoadFromFile(p); }
+                        else gridIcon[i].Clear();
+                    }
+                    loadedBox = curBox; cardKey = -1;
+                }
+
+                int occ = 0; for (int i = 0; i < 30; ++i) if (boxSpecies[i]) ++occ;
+
+                // ---- TOP: header + the 6x5 grid ----
+                top.DrawRect(30, 20, 340, 200, bg, true);
+                top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "PC Box ++", 42, 26, title);
+                {
+                    string h = "Box " + to_string(curBox + 1) + " / 31    " + to_string(occ) + "/30";
+                    top.DrawSysfont(txt << h, 358 - (int)OSD::GetTextWidth(true, h), 28, txt);
+                }
+                top.DrawRect(42, 40, 316, 1, title, true);
+
+                for (int i = 0; i < 30; ++i) {
+                    int cl = cellLeft(i), ct = cellTop(i);
+                    int tx = cl + 4, ty = ct + 1, tw = 40, th = 33;     // tray tile
+                    int ix = cl + 8, iy = ct + 1;                       // 32px icon origin
+                    top.DrawRect(tx, ty, tw, th, bg2, true);
+                    top.DrawRect(tx, ty, tw, th, border, false);
+                    if (boxSpecies[i] && gridIcon[i].IsLoaded())
+                        gridIcon[i].Draw(top, ix, iy);
+                    // pending move/clone source = red frame
+                    if (markMode && curBox == markBox && i == markSlot) {
+                        top.DrawRect(tx, ty, tw, th, markCol, false);
+                        top.DrawRect(tx + 1, ty + 1, tw - 2, th - 2, markCol, false);
+                    }
+                    // cursor = bright double frame
+                    if (i == cursor) {
+                        top.DrawRect(tx, ty, tw, th, sel, false);
+                        top.DrawRect(tx + 1, ty + 1, tw - 2, th - 2, sel, false);
+                    }
+                }
+
+                // ---- BOTTOM: focused slot card + controls ----
+                bot.DrawRect(20, 20, 280, 200, bg, true);
+                bot.DrawRect(20, 20, 280, 200, border, false);
+
+                u16 fsp = (curBox == loadedBox) ? boxSpecies[cursor] : 0;
+                u8  fsh = (curBox == loadedBox) ? boxShiny[cursor] : 0;
+
+                // 72px sprite, framed (reuses the Spawner BMPs, shiny-aware).
+                const int FX = 30, FY = 40;
+                bot.DrawRect(FX, FY, 88, 88, Color::White, true);
+                bot.DrawRect(FX, FY, 88, 88, border, false);
+                if (fsp) {
+                    int key = fsp * 2 + fsh;
+                    if (key != cardKey) {
+                        cardKey = key; string p; BoxIconPath(p, fsp, fsh, "Spawner/");
+                        cardSprite.LoadFromFile(p);
+                    }
+                    if (cardSprite.IsLoaded()) {
+                        int sw = cardSprite.Width(), sh = cardSprite.Height();
+                        cardSprite.Draw(bot, FX + (88 - sw) / 2, FY + (88 - sh) / 2);
+                    }
+                } else cardKey = -1;
+
+                if (fsp) {
+                    PK6 pk;
+                    if (GetPokemon(cellAddr(curBox, cursor), &pk)) {
+                        int level = LevelFromExp(pk.species, pk.exp);
+                        string nature = pk.nature < natureList.size() ? natureList[pk.nature] : to_string(pk.nature);
+                        const int LX = 128;
+                        bot.DrawSysfont(title << speciesList[fsp - 1], LX, 42, title);
+                        bot.DrawSysfont(sel << "Lv " << txt << to_string(level), LX, 64, txt);
+                        bot.DrawSysfont(sel << "Nat " << txt << nature, LX, 82, txt);
+                        bot.DrawSysfont(sel << "Shiny " << txt << (fsh ? "Yes" : "No"), LX, 100, txt);
+                        DrawTypeChips(bot, fsp, LX, 118); // type chips
+
+                        // Compact 6-stat row under the sprite.
+                        u16 stt[6]; CalcStats(pk.species, level, pk.nature, pk.iv32, pk.EV, stt);
+                        static const char *sN[6] = {"HP", "At", "Df", "SA", "SD", "Sp"};
+                        const int sx0 = 30, sdx = 44;
+                        for (int d = 0; d < 6; ++d) {
+                            bot.DrawSysfont(sel << sN[d], sx0 + d * sdx, 140, sel);
+                            bot.DrawSysfont(txt << to_string(stt[d]), sx0 + d * sdx, 156, txt);
+                        }
+                    }
+                } else {
+                    bot.DrawSysfont(txt << "Empty slot", 128, 64, txt);
+                    bot.DrawSysfont(txt << "Box " << to_string(curBox + 1) << " / Slot " << to_string(cursor + 1), 128, 86, txt);
+                }
+
+                // Status line (transient) or the active-mode prompt.
+                if (statusTtl > 0) { bot.DrawSysfont(markCol << status, 20 + (280 - (int)OSD::GetTextWidth(true, status)) / 2, 176, markCol); --statusTtl; }
+
+                // Controls hint (compact, context-aware).
+                string hint = markMode == 1 ? "X drop  B cancel  L/R box"
+                            : markMode == 2 ? "Y drop  B cancel  L/R box"
+                            : "A edit  X move  Y clone  Start find";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 196, txt);
+                } // ===================== end STORAGE mode =====================
+                else {
+                    // ===================== EDITOR MODE =====================
+                    int n = BOX_CATS[editCat].count;
+
+                    if (Controller::IsKeyPressed(Key::B)) {
+                        bool dirty = false; for (int k = 0; k < 0xE8; ++k) if (editScratch[k] != editOrig[k]) { dirty = true; break; }
+                        if (!dirty) mode = 0; // nothing changed -> just leave
+                        else {
+                            vector<string> opts = {"DISCARD edits", "SAVE to box"};
+                            int choice = 1; Keyboard kb;
+                            int r = kb.Setup(CenterAlign("Keep your edits to\nBox " + to_string(curBox + 1) + " / Slot " + to_string(cursor + 1) + " ?"), true, opts, choice);
+                            if (r != -1) { // -1 = aborted the dialog -> stay in the editor
+                                if (choice == 1) {
+                                    if (Process::CopyMemory((u8*)editCommitAddr, editScratch, 0xE8)) { loadedBox = -1; cardKey = -1; setStatus("Saved to box (save the game to keep it)"); }
+                                    else setStatus("Save failed");
+                                } else setStatus("Edits discarded");
+                                mode = 0;
+                            }
+                        }
+                    }
+                    else {
+                        if (Controller::IsKeyPressed(Key::L)) { editCat = (editCat + 4) % 5; editField = 0; editTop = 0; n = BOX_CATS[editCat].count; }
+                        if (Controller::IsKeyPressed(Key::R)) { editCat = (editCat + 1) % 5; editField = 0; editTop = 0; n = BOX_CATS[editCat].count; }
+                        if (KeyRep(Key::Up))   editField = (editField + n - 1) % n;
+                        if (KeyRep(Key::Down)) editField = (editField + 1) % n;
+                        if (Controller::IsKeyPressed(Key::A)) {
+                            editEntry.Name() = BOX_CATS[editCat].fields[editField].label;
+                            gPartyMode = false; dataPointer = (u32)(uintptr_t)editScratch; // edit the working copy
+                            BOX_CATS[editCat].fields[editField].fn(&editEntry);
+                            cardKey = -1; // working copy changed -> refresh the card sprite (grid waits for Save)
+                            // The field editor may return with a key still held (e.g. MovesRich/RelearnRich exit on
+                            // START-to-save). Drain it so it doesn't bleed into the Y/X/Start handlers below - Start
+                            // would otherwise instantly REVERT the edit that was just made.
+                            while (Controller::IsKeyDown(Key::Start) || Controller::IsKeyDown(Key::A) ||
+                                   Controller::IsKeyDown(Key::B) || Controller::IsKeyDown(Key::X) ||
+                                   Controller::IsKeyDown(Key::Y)) { Controller::Update(); OSD::SwapBuffers(); }
+                        }
+                        // Free-button power tools (all hit the working copy; Save/Discard on B still applies).
+                        if (Controller::IsKeyPressed(Key::Y)) { // instant shiny toggle
+                            u32 ep = (u32)(uintptr_t)editScratch; PK6 sp;
+                            if (GetPokemon(ep, &sp) && sp.species >= 1 && sp.species <= 721) {
+                                bool on = !IsShiny(&sp); MakeShiny(&sp, on); SetPokemon(ep, &sp);
+                                cardKey = -1; setStatus(on ? "Shiny: On" : "Shiny: Off");
+                            }
+                        }
+                        if (Controller::IsKeyPressed(Key::X)) { // Quick Actions popup (IVs/EVs/Friendship/Pokerus/PP/PID)
+                            string r = BoxQuickActions((u32)(uintptr_t)editScratch);
+                            cardKey = -1; if (!r.empty()) setStatus(r);
+                        }
+                        if (Controller::IsKeyPressed(Key::Start)) { // revert ALL edits back to the pristine copy
+                            Process::CopyMemory(editScratch, editOrig, 0xE8); cardKey = -1; setStatus("Reverted all edits");
+                        }
+                    }
+
+                    const int VIS = 8; // keep the selected field inside the scroll window
+                    if (editField < editTop) editTop = editField;
+                    if (editField >= editTop + VIS) editTop = editField - VIS + 1;
+                    { int mx = n - VIS; if (mx < 0) mx = 0; if (editTop > mx) editTop = mx; }
+
+                    PK6 pk; bool ok = GetPokemon(dataPointer, &pk) && pk.species >= 1 && pk.species <= 721; // working copy
+
+                    // ---- TOP: live summary card ----
+                    top.DrawRect(30, 20, 340, 200, bg, true);
+                    top.DrawRect(30, 20, 340, 200, border, false);
+                    top.DrawSysfont(title << ("Edit  -  Box " + to_string(curBox + 1) + " / Slot " + to_string(cursor + 1)), 42, 26, title);
+                    top.DrawRect(42, 40, 316, 1, title, true);
+                    if (ok) {
+                        int key = pk.species * 2 + (IsShiny(&pk) ? 1 : 0);
+                        if (key != cardKey) { cardKey = key; string p; BoxIconPath(p, pk.species, IsShiny(&pk), "Spawner/"); cardSprite.LoadFromFile(p); }
+                        const int FX = 44, FY = 50;
+                        top.DrawRect(FX, FY, 88, 88, Color::White, true);
+                        top.DrawRect(FX, FY, 88, 88, border, false);
+                        if (cardSprite.IsLoaded()) { int sw = cardSprite.Width(), sh = cardSprite.Height(); cardSprite.Draw(top, FX + (88 - sw) / 2, FY + (88 - sh) / 2); }
+                        DrawTypeChips(top, pk.species, 358 - TypeChipsWidth(pk.species), 70); // type chips, right of the Level row
+
+                        int level = LevelFromExp(pk.species, pk.exp);
+                        string nature  = pk.nature < natureList.size() ? string(natureList[pk.nature]) : to_string(pk.nature);
+                        string ability = (pk.ability >= 1 && pk.ability <= 191) ? string(abilityList[pk.ability - 1]) : "?";
+                        string item    = pk.heldItem == 0 ? "None" : (pk.heldItem <= 775 ? string(heldItemList[pk.heldItem - 1]) : "?");
+                        const char *G[3] = {"M", "F", "-"}; int g = (pk.fatefulEncounterGenderForm >> 1) & 3; if (g > 2) g = 2;
+                        const int IX = 150;
+                        top.DrawSysfont(title << speciesList[pk.species - 1], IX, 50, title);
+                        top.DrawSysfont(sel << "Lv " << txt << to_string(level), IX, 72, txt);
+                        top.DrawSysfont(sel << "Nature " << txt << nature, IX, 90, txt);
+                        top.DrawSysfont(sel << "Ability " << txt << ability, IX, 108, txt);
+                        top.DrawSysfont(sel << "Held " << txt << item, IX, 126, txt);
+                        top.DrawSysfont(sel << "Shiny " << txt << (IsShiny(&pk) ? "Yes" : "No") << sel << "  Gender " << txt << G[g], IX, 144, txt);
+
+                        u16 stt[6]; CalcStats(pk.species, level, pk.nature, pk.iv32, pk.EV, stt);
+                        static const char *sN[6] = {"HP", "Atk", "Def", "SpA", "SpD", "Spe"};
+                        const int sx0 = 46, sdx = 52;
+                        for (int d = 0; d < 6; d++) {
+                            top.DrawSysfont(sel   << sN[d],            sx0 + d * sdx, 174, sel);
+                            top.DrawSysfont(title << to_string(stt[d]), sx0 + d * sdx, 192, title);
+                        }
+                    } else {
+                        top.DrawSysfont(txt << "Empty / invalid slot - press B to go back.", 42, 60, txt);
+                    }
+
+                    // ---- BOTTOM: category tabs + field list with inline values ----
+                    bot.DrawRect(20, 20, 280, 200, bg, true);
+                    bot.DrawRect(20, 20, 280, 200, border, false);
+                    { int tx = 30;
+                      for (int c = 0; c < 5; c++) {
+                          const char *nm = BOX_CATS[c].name; int w = (int)OSD::GetTextWidth(true, nm);
+                          if (c == editCat) { bot.DrawRect(tx - 3, 24, w + 6, 18, bg2, true); bot.DrawSysfont(sel << nm, tx, 26, sel); }
+                          else bot.DrawSysfont(txt << nm, tx, 26, txt);
+                          tx += w + 12;
+                      }
+                    }
+                    bot.DrawRect(28, 46, 264, 1, title, true);
+                    if (ok) {
+                        for (int r = editTop; r < editTop + VIS && r < n; r++) {
+                            int y = 52 + (r - editTop) * 18;
+                            const char *lab = BOX_CATS[editCat].fields[r].label;
+                            string val = BoxFieldValue(pk, editCat, r);
+                            if (r == editField) {
+                                bot.DrawRect(26, y - 2, 268, 18, bg2, true);
+                                bot.DrawSysfont(sel   << lab, 34, y, sel);
+                                bot.DrawSysfont(title << val, 290 - (int)OSD::GetTextWidth(true, val), y, title);
+                            } else {
+                                bot.DrawSysfont(txt << lab, 34, y, txt);
+                                bot.DrawSysfont(txt << val, 290 - (int)OSD::GetTextWidth(true, val), y, txt);
+                            }
+                        }
+                        if (editTop > 0)         bot.DrawSysfont(txt << "^", 286, 50, txt);
+                        if (editTop + VIS < n)   bot.DrawSysfont(txt << "v", 286, 196, txt);
+                    }
+                    string eh = "A edit  L/R tab  X tools  Y shiny  B back";
+                    bot.DrawSysfont(txt << eh, 20 + (280 - (int)OSD::GetTextWidth(true, eh)) / 2, 204, txt);
+                }
+
+                OSD::SwapBuffers();
+            }
+        }
+
+        // ===================== Change Party Stats (visual battle-party editor) =====================
+        // One menu entry opens this dual-screen editor (PC Box ++ mold). It edits the LIVE in-battle
+        // party struct, which only exists while IfInBattle(). The seven legacy functions become its
+        // sections: slot picker + Status, Stats (base & stages), HP/PP, Item, Moves, EXP multiplier.
+        // Battle-struct offsets (for slot s, base = battleOffset[i] + s*4, dereferenced by Process):
+        //   species 0xC, maxHP 0xE, curHP 0x10, held item 0x12, status bytes 0x20/24/28/2C/30,
+        //   base stats 0xF6 + k*2 (Atk/Def/SpA/SpD/Spe, u16), stat stages 0x104 + l (u8, stored value+6),
+        //   moves 0x11C + slot*0xE (u16), PP 0x11E + slot*0xE (u8, written as (pp<<8)|pp).
+
+        // --- continuous re-apply (freeze) state + a hidden companion cheat entry ----------------------
+        // Base stats and HP get recomputed by the battle engine, so to make them stick they are re-applied
+        // every frame by a companion MenuEntry's GameFunc (the proven cheat-loop mechanism). Status, item
+        // and moves persist on their own, so those are one-shot writes.
+        static u16  g_pbStat[5]  = {0, 0, 0, 0, 0};      // base-stat override (0 = leave the game's value)
+        static u8   g_pbStage[7] = {0, 0, 0, 0, 0, 0, 0}; // stat-stage override, stored as value+6 (0 = leave)
+        static u16  g_pbHP = 0;                           // HP override (0 = leave)
+        static u8   g_pbPP = 0;                           // PP override (0 = leave)
+        static bool g_pbFreezeStats = false, g_pbFreezeHP = false;
+        static int  g_pbFreezeSlot = 0;                   // party slot (0-5) the freeze targets
+        static MenuEntry *g_pbApplyEntry = nullptr;
+
+        void UpdatePartyBattleApply(MenuEntry *e) {
+            (void)e;
+            if (!IfInBattle() || battleOffset.empty()) return;
+            for (size_t i = 0; i < battleOffset.size(); ++i) {
+                u32 b = battleOffset[i] + (u32)g_pbFreezeSlot * sizeof(u32);
+                if (g_pbFreezeStats) {
+                    for (int k = 0; k < 5; ++k) if (g_pbStat[k])  Process::Write16(b, 0xF6 + k * 2, g_pbStat[k]);
+                    for (int l = 0; l < 7; ++l) if (g_pbStage[l]) Process::Write8(b, 0x104 + l, g_pbStage[l]);
+                }
+                if (g_pbFreezeHP) {
+                    if (g_pbHP) { Process::Write16(b, 0x10, g_pbHP); Process::Write16(b, 0xE, g_pbHP); }
+                    if (g_pbPP) { u16 pp = (u16)((g_pbPP << 8) | g_pbPP); for (int p = 0; p < 4; ++p) Process::Write16(b, 0x11E + p * 0xE, pp); }
+                }
+            }
+        }
+        static void PBEnableApply(void) {
+            if (g_pbApplyEntry == nullptr) g_pbApplyEntry = new MenuEntry("PartyBattleApply", UpdatePartyBattleApply);
+            g_pbApplyEntry->Enable(); // idempotent: registers the freeze GameFunc with the execute loop
+        }
+
+        // --- EXP multiplier (verbatim port of UpdateExpMultiplier; patches the game's code region) ------
+        static vector<MemoryManager> g_pbExpMgrs;
+        static bool g_pbExpInit = false;
+        static u8   g_pbExpMult = 1; // 1 = off
+        static void PBApplyExp(void) {
+            static const vector<u32> address = AutoGameSet({0x53EDA0, 0x175FB0}, {0x579860, 0x16B81C});
+            if (g_pbExpMult > 1) {
+                if (!g_pbExpInit) {
+                    for (u32 addr : address) for (int i = 0; i < 5; ++i) g_pbExpMgrs.emplace_back(addr + i * 0x4);
+                    g_pbExpInit = true;
+                }
+                u32 instr[5] = {0xE1D002B2, 0xE92D4002, (u32)(0xE3A01000 + g_pbExpMult), 0xE0000190, 0xE8BD8002};
+                size_t index = 0; bool ok = true;
+                for (int i = 0; i < 5; ++i) { if (index >= g_pbExpMgrs.size() || !g_pbExpMgrs[index].Write(instr[i])) { ok = false; break; } ++index; }
+                if (ok && g_pbExpMgrs.size() > address.size() && index < g_pbExpMgrs.size())
+                    g_pbExpMgrs[index].Write(AutoGameSet(0xEB0F237A, 0xEB10380F));
+            } else {
+                for (auto &m : g_pbExpMgrs) if (m.HasOriginalValue()) m.~MemoryManager();
+                g_pbExpMgrs.clear(); g_pbExpInit = false;
+            }
+        }
+
+        void PartyBattleEditor(MenuEntry *entry) {
+            (void)entry;
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x3C, 0xB3, 0x71), warn(0xE5, 0x43, 0x3C);
+
+            static const char *STAT5[5]   = {"Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"};
+            static const char *STAGE7[7]  = {"Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed", "Accuracy", "Evasion"};
+            static const char *STATUS6[6] = {"None", "Paralyze", "Sleep", "Freeze", "Burn", "Poison"};
+            static const u32   STATUSOFF[5] = {0x20, 0x24, 0x28, 0x2C, 0x30};
+            static const char *SECTIONS[6] = {"Status", "Stats", "HP / PP", "Item", "Moves", "EXP"};
+
+            int slot = 0;     // 0-5 selected party slot
+            int section = -1; // -1 hub; 0 Status, 1 Stats, 2 HP/PP, 4 Moves, 5 EXP (3 Item = direct picker)
+            int row = 0, scroll = 0, mvSlot = 0;
+            string flash; int flashTtl = 0;
+            auto setFlash = [&](const string &s) { flash = s; flashTtl = 110; };
+            Image spr; int sprKey = -1;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) {
+                    while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                    PluginMenu::Close(); break;
+                }
+
+                bool inB = IfInBattle() && !battleOffset.empty();
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+
+                // ---- not in battle: wait screen ----
+                if (!inB) {
+                    top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                    top.DrawSysfont(title << "Change Party Stats", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                    const char *m1 = "Start a battle to edit your party.";
+                    const char *m2 = "These tweaks only exist during battle.";
+                    top.DrawSysfont(txt << m1, 42 + (316 - (int)OSD::GetTextWidth(true, m1)) / 2, 104, txt);
+                    top.DrawSysfont(txt << m2, 42 + (316 - (int)OSD::GetTextWidth(true, m2)) / 2, 124, txt);
+                    bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                    const char *h = "B / SELECT  exit";
+                    bot.DrawSysfont(txt << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 112, txt);
+                    if (Controller::IsKeyPressed(Key::B)) break;
+                    OSD::SwapBuffers(); continue;
+                }
+
+                // ---- live data for the selected slot ----
+                u32 sAddr = Process::Read32(battleOffset[0] + (u32)slot * sizeof(u32));
+                auto rd8  = [&](u32 off) -> u8  { u8 v = 0;  if (sAddr) Process::Read8(sAddr + off, v);  return v; };
+                auto rd16 = [&](u32 off) -> u16 { u16 v = 0; if (sAddr) Process::Read16(sAddr + off, v); return v; };
+                auto wr8  = [&](u32 off, u8 v)  { for (size_t i = 0; i < battleOffset.size(); ++i) Process::Write8(battleOffset[i]  + (u32)slot * sizeof(u32), off, v); };
+                auto wr16 = [&](u32 off, u16 v) { for (size_t i = 0; i < battleOffset.size(); ++i) Process::Write16(battleOffset[i] + (u32)slot * sizeof(u32), off, v); };
+
+                u16 bsp = rd16(0xC); bool valid = bsp >= 1 && bsp <= 721;
+                PK6 pk; bool hasPk = false;
+                if (valid) { u32 pk6 = AutoGameSet(0x81FF744, 0x81FEEC8) + (u32)slot * 0x1E4; hasPk = GetPokemon(pk6, &pk) && pk.species >= 1 && pk.species <= 721; }
+                int level = hasPk ? LevelFromExp(pk.species, pk.exp) : 0;
+                bool shiny = hasPk && IsShiny(&pk);
+                u16 maxHP = 0; if (hasPk) { u16 s6[6]; CalcStats(pk.species, level, pk.nature, pk.iv32, pk.EV, s6); maxHP = s6[0]; }
+                int curStatus = 0; for (int i = 0; i < 5; ++i) if (rd8(STATUSOFF[i])) { curStatus = i + 1; break; }
+
+                // ============================== INPUT ==============================
+                if (Controller::IsKeyPressed(Key::B)) { if (section >= 0) { section = -1; row = scroll = 0; } else break; }
+
+                if (section < 0) {
+                    // slot switching lives in the hub only, so L/R stay free for the section panels
+                    if (Controller::IsKeyPressed(Key::Left)  || Controller::IsKeyPressed(Key::L)) { slot = (slot + 5) % 6; sprKey = -1; }
+                    if (Controller::IsKeyPressed(Key::Right) || Controller::IsKeyPressed(Key::R)) { slot = (slot + 1) % 6; sprKey = -1; }
+                    // touch: slot tiles
+                    for (int i = 0; i < 6; ++i) if (hit(26 + i * 44, 30, 40, 28)) { slot = i; sprKey = -1; }
+                    // touch: section buttons (2 cols x 3 rows)
+                    for (int s = 0; s < 6; ++s) {
+                        int c = s % 2, r = s / 2, bx = 30 + c * 135, by = 72 + r * 44;
+                        if (hit(bx, by, 125, 36)) {
+                            if (s == 3) { // Item -> direct picker
+                                int pick = HeldItemPicker(rd16(0x12)); drainKeys();
+                                if (pick >= 0) { wr16(0x12, (u16)pick); setFlash(pick == 0 ? "Item removed" : "Item: " + string(heldItemList[pick - 1])); }
+                            } else { section = s; row = scroll = 0; mvSlot = 0; }
+                        }
+                    }
+                }
+                else if (section == 0) { // ---------- Status ----------
+                    auto applyStatus = [&](int idx) { for (int i = 0; i < 5; ++i) wr8(STATUSOFF[i], 0); if (idx >= 1) wr8(STATUSOFF[idx - 1], 1); setFlash(string("Status: ") + STATUS6[idx]); };
+                    for (int s = 0; s < 6; ++s) { int c = s % 2, r = s / 2; if (hit(30 + c * 135, 60 + r * 38, 125, 32)) applyStatus(s); }
+                    if (Controller::IsKeyPressed(Key::Up))   row = (row + 5) % 6;
+                    if (Controller::IsKeyPressed(Key::Down)) row = (row + 1) % 6;
+                    if (Controller::IsKeyPressed(Key::A))    applyStatus(row);
+                    if (hit(30, 196, 125, 22)) { section = -1; row = 0; }
+                }
+                else if (section == 1 || section == 2) { // ---------- Stats / HP-PP ----------
+                    int nRows = (section == 1) ? 12 : 2;
+                    auto adjust = [&](int r2, int delta) {
+                        if (section == 2) {
+                            if (r2 == 0) { int v = (int)rd16(0x10) + delta; if (v < 1) v = 1; if (v > 999) v = 999; wr16(0x10, (u16)v); wr16(0xE, (u16)v); g_pbHP = (u16)v; }
+                            else { int v = (int)rd8(0x11E) + delta; if (v < 0) v = 0; if (v > 99) v = 99; u16 pp = (u16)((v << 8) | v); for (int p = 0; p < 4; ++p) wr16(0x11E + p * 0xE, pp); g_pbPP = (u8)v; }
+                            g_pbFreezeHP = true; g_pbFreezeSlot = slot; PBEnableApply();
+                        } else if (r2 < 5) { int v = (int)rd16(0xF6 + r2 * 2) + delta; if (v < 1) v = 1; if (v > 999) v = 999; wr16(0xF6 + r2 * 2, (u16)v); g_pbStat[r2] = (u16)v; g_pbFreezeStats = true; g_pbFreezeSlot = slot; PBEnableApply(); }
+                        else { int l = r2 - 5; int v = (int)rd8(0x104 + l) - 6 + delta; if (v < -6) v = -6; if (v > 6) v = 6; wr8(0x104 + l, (u8)(v + 6)); g_pbStage[l] = (u8)(v + 6); g_pbFreezeStats = true; g_pbFreezeSlot = slot; PBEnableApply(); }
+                    };
+                    if (Controller::IsKeyPressed(Key::Up))    row = (row + nRows - 1) % nRows;
+                    if (Controller::IsKeyPressed(Key::Down))  row = (row + 1) % nRows;
+                    if (KeyRep(Key::Left))  adjust(row, -1);
+                    if (KeyRep(Key::Right)) adjust(row, +1);
+                    // visible-row touch [-]/[+]
+                    int VIS = 7; if (row < scroll) scroll = row; if (row >= scroll + VIS) scroll = row - VIS + 1;
+                    for (int i = 0; i < VIS; ++i) { int r2 = scroll + i; if (r2 >= nRows) break; int y = 54 + i * 20;
+                        if (hit(228, y, 22, 18)) { row = r2; adjust(r2, -1); }
+                        if (hit(258, y, 22, 18)) { row = r2; adjust(r2, +1); }
+                    }
+                    bool fr = (section == 1) ? g_pbFreezeStats : g_pbFreezeHP;
+                    if (hit(30, 196, 120, 22) && fr) { // Clear freeze
+                        if (section == 1) { g_pbFreezeStats = false; for (int k = 0; k < 5; ++k) g_pbStat[k] = 0; for (int l = 0; l < 7; ++l) g_pbStage[l] = 0; }
+                        else { g_pbFreezeHP = false; g_pbHP = 0; g_pbPP = 0; }
+                        setFlash("Freeze cleared");
+                    }
+                    if (hit(168, 196, 120, 22)) { section = -1; row = scroll = 0; }
+                }
+                else if (section == 4) { // ---------- Moves ----------
+                    if (Controller::IsKeyPressed(Key::Up))   mvSlot = (mvSlot + 3) % 4;
+                    if (Controller::IsKeyPressed(Key::Down)) mvSlot = (mvSlot + 1) % 4;
+                    auto pickMove = [&](int ms) { u16 cur = rd16(0x11C + ms * 0xE); u16 pick = MovePicker(cur); drainKeys(); if (pick) { wr16(0x11C + ms * 0xE, pick); setFlash(string("Move ") + to_string(ms + 1) + ": " + movesList[pick - 1]); } };
+                    if (Controller::IsKeyPressed(Key::A)) pickMove(mvSlot);
+                    for (int i = 0; i < 4; ++i) if (hit(30, 56 + i * 32, 258, 28)) { mvSlot = i; pickMove(i); }
+                    if (hit(30, 196, 125, 22)) { section = -1; mvSlot = 0; }
+                }
+                else if (section == 5) { // ---------- EXP multiplier ----------
+                    if (KeyRep(Key::Left))  { int v = (int)g_pbExpMult - 1; if (v < 1) v = 1; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (KeyRep(Key::Right)) { int v = (int)g_pbExpMult + 1; if (v > 100) v = 100; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (Controller::IsKeyPressed(Key::L)) { int v = (int)g_pbExpMult - 10; if (v < 1) v = 1; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (Controller::IsKeyPressed(Key::R)) { int v = (int)g_pbExpMult + 10; if (v > 100) v = 100; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (hit(40, 96, 60, 40))  { int v = (int)g_pbExpMult - 1; if (v < 1) v = 1; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (hit(220, 96, 60, 40)) { int v = (int)g_pbExpMult + 1; if (v > 100) v = 100; g_pbExpMult = (u8)v; PBApplyExp(); }
+                    if (hit(30, 196, 125, 22)) { section = -1; }
+                }
+
+                // ============================== TOP: live card ==============================
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Change Party Stats", 42, 26, title);
+                { string h = "Slot " + to_string(slot + 1) + " / 6"; top.DrawSysfont(txt << h, 358 - (int)OSD::GetTextWidth(true, h), 28, txt); }
+                top.DrawRect(42, 40, 316, 1, title, true);
+
+                if (!valid) {
+                    top.DrawSysfont(txt << "This party slot is empty.", 42 + (316 - (int)OSD::GetTextWidth(true, "This party slot is empty.")) / 2, 110, txt);
+                } else {
+                    int key = bsp * 2 + (shiny ? 1 : 0);
+                    if (key != sprKey) { sprKey = key; string p; BoxIconPath(p, bsp, shiny, "Spawner/"); spr.LoadFromFile(p); }
+                    const int FX = 44, FY = 50; top.DrawRect(FX, FY, 84, 84, Color::White, true); top.DrawRect(FX, FY, 84, 84, border, false);
+                    if (spr.IsLoaded()) { int sw = spr.Width(), sh = spr.Height(); spr.Draw(top, FX + (84 - sw) / 2, FY + (84 - sh) / 2); }
+                    const int IX = 144;
+                    { string nameLine = title << speciesList[bsp - 1]; if (shiny) nameLine = nameLine << sel << "  \xE2\x98\x85"; top.DrawSysfont(nameLine, IX, 50, title); }
+                    if (hasPk) top.DrawSysfont(sel << "Lv " << txt << to_string(level), IX, 70, txt);
+                    DrawTypeChips(top, bsp, IX, 89);
+                    u16 curHP = rd16(0x10);
+                    top.DrawSysfont(sel << "HP " << txt << (to_string(curHP) + (maxHP ? "/" + to_string(maxHP) : "")), IX, 108, txt);
+                    top.DrawSysfont(sel << "Status " << (curStatus ? warn : good) << (curStatus ? STATUS6[curStatus] : "OK"), IX, 126, txt);
+                    u16 it = rd16(0x12);
+                    top.DrawSysfont(sel << "Item " << txt << (it == 0 ? "None" : (it <= 775 ? string(heldItemList[it - 1]) : "?")), IX, 144, txt);
+
+                    static const char *sN5[5] = {"Atk", "Def", "SpA", "SpD", "Spe"};
+                    const int sx0 = 46, sdx = 58;
+                    for (int k = 0; k < 5; ++k) {
+                        u16 v = rd16(0xF6 + k * 2); int stg = (int)rd8(0x104 + k) - 6;
+                        top.DrawSysfont(sel << sN5[k], sx0 + k * sdx, 168, sel);
+                        top.DrawSysfont(txt << to_string(v), sx0 + k * sdx, 184, txt);
+                        if (stg != 0) { string sg = (stg > 0 ? "+" : "") + to_string(stg); top.DrawSysfont((stg > 0 ? good : warn) << sg, sx0 + k * sdx + 28, 184, txt); }
+                    }
+                    if (g_pbFreezeStats || g_pbFreezeHP || g_pbExpMult > 1) {
+                        string fz = "Active:"; if (g_pbFreezeStats) fz += " Stats"; if (g_pbFreezeHP) fz += " HP"; if (g_pbExpMult > 1) fz += " EXPx" + to_string(g_pbExpMult);
+                        top.DrawSysfont(good << fz, 358 - (int)OSD::GetTextWidth(true, fz), 200, good);
+                    }
+                }
+
+                // ============================== BOTTOM ==============================
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                auto btn = [&](int x, int y, int w, int h, const string &label, bool active, const string &sub) {
+                    bot.DrawRect(x, y, w, h, active ? sel : bg2, true); bot.DrawRect(x, y, w, h, active ? title : border, false);
+                    int tw = (int)OSD::GetTextWidth(true, label);
+                    bot.DrawSysfont((active ? bg : txt) << label, x + (w - tw) / 2, y + (sub.empty() ? (h - 14) / 2 : 5), txt);
+                    if (!sub.empty()) { int sw = (int)OSD::GetTextWidth(true, sub); bot.DrawSysfont((active ? bg : sel) << sub, x + (w - sw) / 2, y + h - 17, sel); }
+                };
+
+                if (section < 0) {
+                    bot.DrawSysfont(title << "Party slot", 30, 24, title);
+                    for (int i = 0; i < 6; ++i) {
+                        u32 a = Process::Read32(battleOffset[0] + (u32)i * sizeof(u32)); u16 sp2 = 0; if (a) Process::Read16(a + 0xC, sp2);
+                        bool ok = sp2 >= 1 && sp2 <= 721; int x = 26 + i * 44;
+                        bot.DrawRect(x, 30, 40, 28, i == slot ? sel : bg2, true); bot.DrawRect(x, 30, 40, 28, i == slot ? title : border, false);
+                        string n = to_string(i + 1);
+                        bot.DrawSysfont((i == slot ? bg : (ok ? txt : Color::Gray)) << n, x + 20 - (int)OSD::GetTextWidth(true, n) / 2, 38, txt);
+                    }
+                    string subs[6]; subs[0] = curStatus ? STATUS6[curStatus] : "OK"; subs[3] = ""; subs[5] = g_pbExpMult > 1 ? "x" + to_string(g_pbExpMult) : "x1";
+                    for (int s = 0; s < 6; ++s) { int c = s % 2, r = s / 2; btn(30 + c * 135, 72 + r * 44, 125, 36, SECTIONS[s], false, subs[s]); }
+                    const char *h = flashTtl > 0 ? flash.c_str() : "Tap a slot / option   L/R slot   B exit";
+                    bot.DrawSysfont((flashTtl > 0 ? good : txt) << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 204, txt);
+                }
+                else if (section == 0) { // Status panel
+                    bot.DrawSysfont(title << "Status condition", 30, 24, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                    for (int s = 0; s < 6; ++s) { int c = s % 2, r = s / 2; btn(30 + c * 135, 60 + r * 38, 125, 32, STATUS6[s], curStatus == s, ""); }
+                    btn(30, 196, 125, 22, "< Back", false, "");
+                    if (flashTtl > 0) bot.DrawSysfont(good << flash, 300 - (int)OSD::GetTextWidth(true, flash), 200, good);
+                }
+                else if (section == 1 || section == 2) { // Stats / HP panel
+                    int nRows = (section == 1) ? 12 : 2;
+                    bot.DrawSysfont(title << (section == 1 ? "Stats (base & stages)" : "HP / PP"), 30, 24, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                    int VIS = 7; if (row < scroll) scroll = row; if (row >= scroll + VIS) scroll = row - VIS + 1;
+                    for (int i = 0; i < VIS; ++i) {
+                        int r2 = scroll + i; if (r2 >= nRows) break; int y = 54 + i * 20; bool cur = (r2 == row);
+                        string lab, val;
+                        if (section == 2) { if (r2 == 0) { lab = "HP"; val = to_string(rd16(0x10)); } else { lab = "PP (all moves)"; val = to_string(rd8(0x11E)); } }
+                        else if (r2 < 5) { lab = STAT5[r2]; val = to_string(rd16(0xF6 + r2 * 2)); }
+                        else { int s2 = (int)rd8(0x104 + (r2 - 5)) - 6; lab = string(STAGE7[r2 - 5]) + " stage"; val = (s2 > 0 ? "+" : "") + to_string(s2); }
+                        if (cur) bot.DrawRect(26, y - 2, 268, 19, bg2, true);
+                        bot.DrawSysfont((cur ? sel : txt) << lab, 34, y, cur ? sel : txt);
+                        bot.DrawSysfont(txt << val, 210 - (int)OSD::GetTextWidth(true, val), y, txt);
+                        bot.DrawRect(228, y, 22, 18, bg2, true); bot.DrawRect(228, y, 22, 18, border, false); bot.DrawSysfont(sel << "-", 236, y + 1, sel);
+                        bot.DrawRect(258, y, 22, 18, bg2, true); bot.DrawRect(258, y, 22, 18, border, false); bot.DrawSysfont(sel << "+", 266, y + 1, sel);
+                    }
+                    bool fr = (section == 1) ? g_pbFreezeStats : g_pbFreezeHP;
+                    btn(30, 196, 120, 22, fr ? "Clear freeze" : "(not frozen)", fr, "");
+                    btn(168, 196, 120, 22, "< Back", false, "");
+                    if (flashTtl > 0) bot.DrawSysfont(good << flash, 20 + (280 - (int)OSD::GetTextWidth(true, flash)) / 2, 178, good);
+                }
+                else if (section == 4) { // Moves panel
+                    bot.DrawSysfont(title << "Moves", 30, 24, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                    for (int i = 0; i < 4; ++i) {
+                        int y = 56 + i * 32; bool cur = (i == mvSlot); u16 mid = rd16(0x11C + i * 0xE);
+                        if (cur) bot.DrawRect(28, y, 262, 28, bg2, true); bot.DrawRect(28, y, 262, 28, cur ? title : border, false);
+                        bot.DrawSysfont((cur ? sel : txt) << ("Move " + to_string(i + 1)), 36, y + 7, cur ? sel : txt);
+                        string mn = (mid >= 1 && mid <= 621) ? string(movesList[mid - 1]) : "-";
+                        bot.DrawSysfont(txt << mn, 284 - (int)OSD::GetTextWidth(true, mn), y + 7, txt);
+                    }
+                    btn(30, 196, 125, 22, "< Back", false, "");
+                    if (flashTtl > 0) bot.DrawSysfont(good << flash, 300 - (int)OSD::GetTextWidth(true, flash), 200, good);
+                }
+                else if (section == 5) { // EXP panel
+                    bot.DrawSysfont(title << "EXP multiplier", 30, 24, title); bot.DrawRect(28, 44, 264, 1, title, true);
+                    bot.DrawSysfont(txt << "EXP gained after each battle.", 30, 60, txt);
+                    bot.DrawRect(40, 96, 60, 40, bg2, true); bot.DrawRect(40, 96, 60, 40, border, false); bot.DrawSysfont(sel << "-10/-1", 50, 110, sel);
+                    string xv = "x" + to_string(g_pbExpMult);
+                    bot.DrawSysfont(title << xv, 160 - (int)OSD::GetTextWidth(true, xv) / 2, 104, title);
+                    bot.DrawRect(220, 96, 60, 40, bg2, true); bot.DrawRect(220, 96, 60, 40, border, false); bot.DrawSysfont(sel << "+1/+10", 230, 110, sel);
+                    bot.DrawSysfont(txt << "Left/Right +-1   L/R +-10   x1 = off", 30, 158, txt);
+                    btn(30, 196, 125, 22, "< Back", false, "");
+                }
+
+                if (flashTtl > 0) --flashTtl;
+                OSD::SwapBuffers();
+            }
+        }
+
+        // Short effect text for the Enemy Helper's suggested items. gItemDesc (from Showdown) only covers held
+        // items / balls, so battle CONSUMABLES (potions, X items, Guard Spec., Full Heal) are blank there and get
+        // their blurb from here; anything else falls back to gItemDesc.
+        static string ItemBlurb(int id) {
+            switch (id) {
+                case 24: return "Fully restores one Pokemon's HP.";
+                case 25: return "Restores 200 HP to one Pokemon.";
+                case 27: return "Cures any status condition.";
+                case 55: return "Blocks stat drops for 5 turns.";
+                case 56: return "Raises your crit ratio this battle.";
+                case 57: return "Raises your Attack this battle.";
+                case 58: return "Raises your Defense this battle.";
+                case 59: return "Raises your Speed this battle.";
+                case 61: return "Raises your Sp. Atk this battle.";
+                case 62: return "Raises your Sp. Def this battle.";
+            }
+            // Real effect text for everything else: prefer bagItemDesc (PokeAPI - covers medicines/berries/items, same
+            // as PokeMart Anywhere), then gItemDesc (Showdown - held items/balls). No more generic "An item." fallback.
+            if (id >= 1 && id < 801) {
+                if (bagItemDesc[id][0]) return string(bagItemDesc[id]);
+                if (gItemDesc[id][0])   return string(gItemDesc[id]);
+            }
+            return string();
+        }
+
+        // ===================== FUN STUFF (mini-games hub) =====================
+        // A playful root-menu category: a grid of mini-games (styled like the Origin Game grid) with a shared
+        // FREE/PAID toggle on the bottom screen. FREE = you still get items/mons/spawns, but your money never
+        // changes; PAID = real Pokedollars are at stake (entry fees + payouts). The toggle persists across
+        // sessions in Data.bin (reserved[5]) via g_funPayMode / SetFunPayMode. Each game lives in its own static
+        // function below; the hub just picks one. Opened as a folder-as-button from Main.cpp (FunStuffOnAction).
+        struct FunGame { const char *tag; const char *name; const char *shortNm; const char *blurb; const char *desc; u32 col; bool money; };
+        // Order = on-screen tile order (row1 = idx 0..3, row2 = idx 4..6). Dispatch in launch() switch must match index-for-index.
+        static const FunGame FUN_GAMES[7] = {
+            {"TRUMP", "Top Trumps",       "Top Trumps", "Bet: your Pokemon vs a challenger on one stat.",
+             "A stat duel: one of your party Pokemon faces a random challenger. Pick a stat to compare - the higher value wins.\n"
+             "PAID: bet Pokedollars; a win doubles it, a loss forfeits it.\n"
+             "FREE: play for bragging rights, no money changes.", 0x8E44AD, true},
+            {"LOOT",  "Loot Box",         "Loot Box",   "Open a mystery box for a random item.",
+             "Pick a box tier and open it for a random item, dropped straight into your bag. Pricier tiers pull from rarer pools.\n"
+             "PAID: the box costs Pokedollars.\n"
+             "FREE: open it for nothing and still keep the item.", 0xC8902E, true},
+            {"WHEEL", "Spin the Wheel",   "Wheel",      "Spin for cash, items, a rare spawn... or a curse.",
+             "Spin a wheel of fates: win or lose cash, grab a random item, summon a rare wild spawn, hit the jackpot, or eat a curse.\n"
+             "PAID: every outcome is real.\n"
+             "FREE: item and spawn prizes still land, but the money slices are just for show.", 0x16A085, true},
+            {"SLOT",  "Slot Machine",     "Slots",      "Match three reels to win Pokedollars.",
+             "Three reels, one pull - line up matching symbols to win Pokedollars, Game Corner style.\n"
+             "PAID: bet coins and real payouts hit your wallet.\n"
+             "FREE: play just for the thrill, no money changes.", 0xC0392B, true},
+            {"DICE",  "Random Challenge", "Challenge",  "Roll for the next wild Pokemon you will face.",
+             "Roll, and the wheel cycles through Pokemon until one locks in - that becomes the next wild Pokemon you meet in grass, caves or water.\n"
+             "Its level is scaled to your team's average, give or take a few, and a full card previews what you face.\n"
+             "No money is involved here - the same in FREE or PAID.", 0x2E6CC4, false},
+            {"TEAM",  "Team Generator",   "Team",       "Roll six random Pokemon into your PC boxes.",
+             "Roll a full team of six random Pokemon - species, nature and IVs randomized - straight into your empty PC box slots. Great for a surprise challenge run.\n"
+             "PAID: charges a fee to generate.\n"
+             "FREE: generate for free.", 0x27AE60, true},
+            {"HI-LO", "Higher or Lower",  "Hi-Lo",      "Guess if the next item costs more or less.",
+             "An item price is shown; guess whether the next item costs more or less, and build a streak.\n"
+             "PAID: bet on each call to double or lose.\n"
+             "FREE: just chase the longest streak, nothing at stake.", 0x2980B9, true},
+        };
+
+        // Each mini-game is a self-contained dual-screen tool (filled in across the build phases). Stubs for now.
+        static void FunComingSoon(const char *name) {
+            MessageBox(CenterAlign(string(name) + "\n\nComing soon!"), DialogType::DialogOk, ClearScreen::Both)();
+        }
+        // #1 Random Challenge: a sprite "roulette" rolls through Pokemon and lands on one, which becomes the next
+        // wild encounter (UpdateWildSpawner). Its level is scaled near the team's average. No money either mode.
+        static bool FunRandomChallenge() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A);
+            const Color bad(0xC0, 0x39, 0x2B);       // red for the FIGHT! button
+            const bool isORAS = (currGameSeries == GameSeries::ORAS);
+
+            // Input-timing-seeded RNG: the species the reel lands on depends on WHEN the player hits ROLL, so it
+            // is unpredictable in practice. Persists across visits so repeats differ.
+            static u32 rng = 0x2545F491; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+
+            // Team average level (0 if no saved party found).
+            auto partyAvg = [&]() -> int {
+                u32 base = FindPartyBase(); if (!base) return 0;
+                int sum = 0, cnt = 0;
+                for (int i = 0; i < 6; i++) { PK6 pk; u32 p = base + i * 0x104; bool ok = gPartyEncrypted ? GetPokemon(p, &pk) : GetPokemonRaw(p, &pk); if (ok && pk.species >= 1 && pk.species <= 721) { sum += LevelFromExp(pk.species, pk.exp); cnt++; } }
+                return cnt ? (sum + cnt / 2) / cnt : 0;
+            };
+            int avg = partyAvg();
+
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            Image spr; int sprKey = -1;
+            Image cover; cover.LoadFromFile("FunStuff/DICE_card.bmp");   // bigger cover for the 88x88 frame (before the first roll)
+            if (!cover.IsLoaded()) cover.LoadFromFile("FunStuff/DICE.bmp"); // fall back to the small grid tile
+
+            int state = 0;                 // 0 = ready/result, 1 = rolling
+            int spinSp = (int)rnd(721) + 1;// species shown on the reel
+            int resultSp = 0, resultLv = 0;
+            int btn = 0;                   // result buttons: 0 = ROLL AGAIN, 1 = FIGHT!
+            bool close = false;            // true -> caller (FunHub) closes the plugin to the game
+
+            const int FX = 156, FY = 44;            // 88x88 sprite frame, horizontally centered (window 30..370)
+            // Roll is timed by WALL-CLOCK (not frame count): the per-frame SD sprite load drops the loop to ~13fps,
+            // so a frame counter would run far longer than intended. Clock locks the result at exactly 4 real seconds.
+            Clock rollClock; float lastSwapEl = 0.f; const float ROLL_SECS = 4.0f;
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (state == 0 && Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+
+                // ---- buttons: single ROLL when idle; ROLL AGAIN / FIGHT! after a result ----
+                auto startRoll = [&]() { rng ^= ticks * 2654435761u; state = 1; rollClock.Restart(); lastSwapEl = 0.f; btn = 0; };
+                auto commit = [&]() { UpdateWildSpawner(resultSp, 0, resultLv, isORAS); };   // set the wild ONLY on FIGHT!
+                if (state == 0) {
+                    if (resultSp) {
+                        if (Controller::IsKeyPressed(Key::Left) || Controller::IsKeyPressed(Key::Right)) btn ^= 1;
+                        if (hit(40, 142, 114, 40)) startRoll();
+                        else if (hit(166, 142, 114, 40)) { commit(); close = true; break; }    // FIGHT! -> commit + close to the game
+                        else if (Controller::IsKeyPressed(Key::A)) { if (btn == 0) startRoll(); else { commit(); close = true; break; } }
+                    } else {
+                        if (Controller::IsKeyPressed(Key::A) || hit(40, 142, 240, 40)) startRoll();
+                    }
+                }
+
+                // advance the reel while rolling: timed by wall-clock, swap cadence decelerates, lock at 4s exactly
+                if (state == 1) {
+                    float el = rollClock.GetElapsedTime().AsSeconds();
+                    float p = el / ROLL_SECS; if (p > 1.f) p = 1.f;
+                    float interval = 0.03f + p * p * 0.30f;   // sprite swap gap: ~30ms early -> ~330ms near the end
+                    if (el - lastSwapEl >= interval) { spinSp = (int)rnd(721) + 1; lastSwapEl = el; }
+                    if (el >= ROLL_SECS) {                    // 4 real seconds elapsed -> lock the PREVIEW (commit happens on FIGHT!)
+                        resultSp = spinSp;
+                        int lv = (avg > 0 ? avg : 5) + (int)rnd(7) - 3;
+                        if (lv < 2) lv = 2; if (lv > 100) lv = 100;
+                        resultLv = lv;
+                        state = 0;
+                    }
+                }
+
+                int showSp = (state == 1) ? spinSp : (resultSp ? resultSp : spinSp);
+
+                // ===== TOP: reel / result card =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Random Challenge", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+
+                int frX = FX, frY = FY;   // default
+                int idleTextX = 148, resTextX = 148, rollTextX = 148;
+                if (state == 1) {                // rolling: tile on the left, "Rolling..." to its right (group centered)
+                    int tw = (int)OSD::GetTextWidth(true, "Rolling...");
+                    int groupW = 88 + 16 + tw, gx = 30 + (340 - groupW) / 2;
+                    frX = gx; rollTextX = gx + 88 + 16; frY = 56;
+                } else if (state == 0 && !resultSp) {   // idle: center the whole [cover | 4-line prompt] group, H and V
+                    const char *IL[4] = {"Press ROLL", "to summon", "a wild challenger", "for your team"};
+                    int tw = 0; for (int i = 0; i < 4; i++) { int w = (int)OSD::GetTextWidth(true, IL[i]); if (w > tw) tw = w; }
+                    int groupW = 88 + 16 + tw, gx = 30 + (340 - groupW) / 2;
+                    frX = gx; idleTextX = gx + 88 + 16;
+                    frY = 86;                    // lower the group so it is vertically centered in the window
+                } else if (resultSp) {           // result: center the whole [sprite | text column] group
+                    string nm = speciesList[resultSp - 1];
+                    string num = "#"; int d = resultSp; num += (char)('0' + (d / 100) % 10); num += (char)('0' + (d / 10) % 10); num += (char)('0' + d % 10);
+                    int bst = 0; for (int i = 0; i < 6; i++) bst += gBaseStats[resultSp - 1][i];
+                    int tw = (int)OSD::GetTextWidth(true, nm);
+                    int w2 = (int)OSD::GetTextWidth(true, num); if (w2 > tw) tw = w2;
+                    int w3 = TypeChipsWidth((u16)resultSp); if (w3 > tw) tw = w3;
+                    int w4 = (int)OSD::GetTextWidth(true, "Level " + to_string(resultLv)); if (w4 > tw) tw = w4;
+                    int w5 = (int)OSD::GetTextWidth(true, "BST " + to_string(bst)); if (w5 > tw) tw = w5;
+                    int groupW = 88 + 16 + tw, gx = 30 + (340 - groupW) / 2;
+                    frX = gx; resTextX = gx + 88 + 16; frY = 56;
+                }
+                top.DrawRect(frX, frY, 88, 88, Color::White, true); top.DrawRect(frX, frY, 88, 88, border, false);
+                if (state == 0 && !resultSp) {            // before the first roll: show the mini-game cover art
+                    if (cover.IsLoaded()) { int sw = cover.Width(), sh = cover.Height(); cover.Draw(top, frX + (88 - sw) / 2, frY + (88 - sh) / 2); }
+                    top.DrawRect(frX, frY, 88, 88, border, false);   // crisp themed edge over the cover (no white margin)
+                } else if (showSp >= 1 && showSp <= 721) {
+                    if (showSp != sprKey) { sprKey = showSp; string p; BoxIconPath(p, (u16)showSp, false, "Spawner/"); spr.LoadFromFile(p); }
+                    if (spr.IsLoaded()) { int sw = spr.Width(), sh = spr.Height(); spr.Draw(top, frX + (88 - sw) / 2, frY + (88 - sh) / 2); }
+                }
+
+                auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+                if (state == 1) {
+                    top.DrawSysfont(sel << "Rolling...", rollTextX, frY + 38, sel);   // blue, vertically centered with the tile
+                    const char *r = "The wheel is picking your next challenger!";
+                    top.DrawSysfont(txt << r, ctrX(r), frY + 96, txt);
+                } else if (resultSp) {   // result: side-by-side card (sprite left, text column right), group centered
+                    top.DrawSysfont(title << speciesList[resultSp - 1], resTextX, frY + 2, title);
+                    { string num = "#"; int d = resultSp; num += (char)('0' + (d / 100) % 10); num += (char)('0' + (d / 10) % 10); num += (char)('0' + d % 10); top.DrawSysfont(txt << num, resTextX, frY + 20, txt); }
+                    DrawTypeChips(top, (u16)resultSp, resTextX, frY + 36);
+                    int bst = 0; for (int i = 0; i < 6; i++) bst += gBaseStats[resultSp - 1][i];
+                    top.DrawSysfont(sel << "Level " << txt << to_string(resultLv), resTextX, frY + 58, txt);
+                    top.DrawSysfont(sel << "BST " << txt << to_string(bst), resTextX, frY + 76, txt);
+                    const char *g1 = "Next wild encounter set!"; const char *g2 = "Find it in grass, caves or water.";
+                    top.DrawSysfont(good << g1, ctrX(g1), frY + 102, good);
+                    top.DrawSysfont(good << g2, ctrX(g2), frY + 118, good);
+                } else {   // idle: 4-line prompt beside the cover tile (whole group centered, see idleTextX/frY)
+                    top.DrawSysfont(txt << "Press ROLL",         idleTextX, frY + 12, txt);
+                    top.DrawSysfont(txt << "to summon",         idleTextX, frY + 30, txt);
+                    top.DrawSysfont(txt << "a wild challenger", idleTextX, frY + 48, txt);
+                    top.DrawSysfont(txt << "for your team",     idleTextX, frY + 66, txt);
+                }
+
+                // ===== BOTTOM: ROLL button + info =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Random Challenge", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                { string a = avg > 0 ? ("Your team average: Lv " + to_string(avg)) : "No saved team found - using Lv 5"; bot.DrawSysfont(txt << a, 34, 60, txt); }
+                bot.DrawSysfont(txt << "Rolling sets your next wild", 34, 86, txt);
+                bot.DrawSysfont(txt << "encounter, near your level.", 34, 102, txt);
+                if (state == 1) {                         // rolling: single (disabled) button
+                    bot.DrawRect(40, 142, 240, 40, bg2, true); bot.DrawRect(40, 142, 240, 40, border, false);
+                    const char *L = "ROLLING...";
+                    bot.DrawSysfont(txt << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 154, txt);
+                } else if (resultSp) {                    // result: ROLL AGAIN | FIGHT! (red)
+                    Color f0 = (btn == 0) ? sel : bg2, t0 = (btn == 0) ? bg : txt;
+                    bot.DrawRect(40, 142, 114, 40, f0, true); bot.DrawRect(40, 142, 114, 40, border, false);
+                    const char *LA = "ROLL AGAIN";
+                    bot.DrawSysfont(t0 << LA, 40 + (114 - (int)OSD::GetTextWidth(true, LA)) / 2, 154, t0);
+                    Color f1 = (btn == 1) ? bad : bg2, t1 = (btn == 1) ? Color::White : bad;   // FIGHT! always red
+                    bot.DrawRect(166, 142, 114, 40, f1, true); bot.DrawRect(166, 142, 114, 40, border, false);
+                    const char *LF = "FIGHT!";
+                    bot.DrawSysfont(t1 << LF, 166 + (114 - (int)OSD::GetTextWidth(true, LF)) / 2, 154, t1);
+                } else {                                  // first time: single ROLL
+                    bot.DrawRect(40, 142, 240, 40, sel, true); bot.DrawRect(40, 142, 240, 40, border, false);
+                    const char *L = "ROLL";
+                    bot.DrawSysfont(bg << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 154, bg);
+                }
+                const char *hint = (state == 1) ? "Rolling..." : (resultSp ? "Left/Right pick   A select   B back" : "A roll   B back");
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 194, txt);
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #2 Loot Box: pick a tier, open a mystery box for a random item from that tier's price band; the item
+        // is added to your bag. PAID: the box costs Pokedollars. FREE: open any tier for nothing (item granted).
+        static bool FunLootBox() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            bool close = false;
+            static u32 rng = 0x68E31DA4; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+            auto iconPath = [](int id) { string p = "BagSprites/big/"; if (id < 100) p += "0"; if (id < 10) p += "0"; p += to_string(id) + ".bmp"; return p; };
+
+            struct Tier { const char *name; int cost; u32 col; };
+            static const Tier TIERS[3] = {
+                {"Common",   200, 0x5DA130},
+                {"Rare",     600, 0x2E6CC4},
+                {"Premium", 1500, 0xC8902E},
+            };
+            auto RGB = [](u32 c) { return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); };
+            auto bright = [](u32 c) { return ((((c >> 16) & 0xFF) * 30 + ((c >> 8) & 0xFF) * 59 + (c & 0xFF) * 11) / 100) > 150; };
+
+            // ONE pool of all loot-eligible priced items. EXCLUDE TM/HM (pocket 3) and Key Items (pocket 4) so a
+            // loot drop can never hand out a story/progression item; only Items/Medicines/Berries (0/1/2). Tiers no
+            // longer band by price - openBox() draws value-weighted (items <= box price common, pricier ones rare).
+            static int fpool[400]; int nf = 0;
+            for (int i = 0; i < bagItemCount && nf < 400; i++) { int id = bagItemList[i]; if (id <= 0 || id >= 801) continue; int pk = bagItemPocket[id]; if (pk != 0 && pk != 1 && pk != 2) continue; if (bagItemCost[id] <= 0) continue; fpool[nf++] = id; }
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            Image ico; int icoKey = -1;
+            // 88x88 tier chest art for the mystery box: FunStuff/LOOT_0..2.bmp (Common/Rare/Premium). Fallback = colored box + "?".
+            Image lootImg[3]; for (int i = 0; i < 3; i++) lootImg[i].LoadFromFile("FunStuff/LOOT_" + to_string(i) + ".bmp");
+            int tier = 0, btn = 0;
+            bool opened = false; int wonId = 0; // opened == an item is revealed and PENDING a claim (SELL / ADD TO BAG)
+            string flash; int flashTtl = 0;
+            auto setFlash = [&](const string &s) { flash = s; flashTtl = 150; };
+
+            // Open a box: charge the price (PAID), then draw an item. This is for FUN, not a casino: a fixed 60% of
+            // opens WIN (item worth >= the box price) and 40% lose (a cheaper consolation). Inside the win bucket the
+            // weight ~ (C/v)^2, so a modest win is common but pricey jackpots stay rare; the lose bucket is uniform.
+            // The weighted pick uses a 24-bit rng (the shared rnd() is only 16-bit, too small for the bucket totals).
+            auto openBox = [&]() {
+                if (nf == 0) return;
+                int C = TIERS[tier].cost;
+                if (g_funPayMode == 1) { if ((int)BagMoney() < C) { setFlash("Not enough money!"); return; } BagAddMoney(-C); }
+                rng ^= ticks * 2654435761u;
+                auto rnd32 = [&](u32 n) -> u32 { rng = rng * 1103515245u + 12345u; u32 h = rng >> 8; return n ? (h % n) : 0u; };
+                bool win = (rnd(100) < 60);   // 60% win / 40% lose - a deliberate sense of winning
+                auto wOf = [&](u32 v) -> u32 { if (!win) return 1u; u64 num = (u64)C * (u64)C * 1000ull; u32 w = (u32)(num / ((u64)v * (u64)v)); return w ? w : 1u; };
+                u32 total = 0;
+                for (int k = 0; k < nf; k++) { u32 v = (u32)bagItemCost[fpool[k]]; if ((v >= (u32)C) != win) continue; total += wOf(v); }
+                if (total == 0) { wonId = fpool[rnd32((u32)nf)]; opened = true; btn = 0; return; }   // empty bucket -> any item
+                u32 r = rnd32(total); wonId = fpool[nf - 1];
+                for (int k = 0; k < nf; k++) { u32 v = (u32)bagItemCost[fpool[k]]; if ((v >= (u32)C) != win) continue; u32 w = wOf(v); if (r < w) { wonId = fpool[k]; break; } r -= w; }
+                opened = true; btn = 0;
+            };
+
+            const int BX = 156, BY = 50, BS = 88;   // centered mystery-box / item frame
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                // reveal-claim button geometry: always 2 buttons - PAID [SELL | ADD TO BAG], FREE [SKIP | ADD TO BAG]
+                auto btnX = [&](int i) { return (i == 0) ? 38 : 166; };   // 2 buttons centered in the 280-wide window
+                auto btnW = [&](int i) { (void)i; return 116; };
+                if (!opened) {   // idle: pick tier, OPEN BOX
+                    if (KeyRep(Key::Left)  || KeyRep(Key::L)) tier = (tier + 2) % 3;
+                    if (KeyRep(Key::Right) || KeyRep(Key::R)) tier = (tier + 1) % 3;
+                    for (int i = 0; i < 3; i++) if (hit(28 + i * 88, 58, 84, 24)) tier = i;
+                    if (Controller::IsKeyPressed(Key::A) || hit(40, 156, 240, 34)) openBox();
+                } else {   // reveal: 2 buttons -> PAID [SELL | ADD TO BAG], FREE [SKIP | ADD TO BAG]; either returns to idle
+                    if (KeyRep(Key::Left)  || KeyRep(Key::L) || KeyRep(Key::Right) || KeyRep(Key::R)) btn = (btn + 1) % 2;
+                    int tapped = -1; for (int i = 0; i < 2; i++) if (hit(btnX(i), 156, btnW(i), 34)) tapped = i;
+                    int act = (tapped >= 0) ? tapped : (Controller::IsKeyPressed(Key::A) ? btn : -1);
+                    if (act == 0) {        // left: SELL (PAID) / SKIP (FREE) - both discard the item and return to idle
+                        if (paid) { setFlash("Sold " + string(bagItemName[wonId]) + " for $" + commafy(bagItemCost[wonId])); BagAddMoney(+bagItemCost[wonId]); }
+                        opened = false;
+                    } else if (act == 1) { // ADD TO BAG (both modes)
+                        if (BagGiveItem(wonId) == 0) { setFlash("Added " + string(bagItemName[wonId]) + "!"); opened = false; } else setFlash("Bag is full!");
+                    }
+                }
+
+                // ===== TOP =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Loot Box", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+
+                if (!opened) {   // mystery box of the selected tier
+                    if (lootImg[tier].IsLoaded()) {   // chest art fills the frame; redraw the themed border on top
+                        lootImg[tier].Draw(top, BX, BY); top.DrawRect(BX, BY, BS, BS, border, false);
+                    } else {                          // fallback: colored box + "?"
+                        Color tc = RGB(TIERS[tier].col);
+                        top.DrawRect(BX, BY, BS, BS, tc, true); top.DrawRect(BX, BY, BS, BS, border, false);
+                        top.DrawSysfont(Color::White << "?", BX + BS / 2 - 3, BY + BS / 2 - 8, Color::White);
+                    }
+                    { string n = string(TIERS[tier].name) + " Box"; top.DrawSysfont(title << n, ctrX(n), BY + BS + 8, title); }
+                    if (paid) { string c2 = "Costs  $" + commafy(TIERS[tier].cost); top.DrawSysfont(sel << c2, ctrX(c2), BY + BS + 26, sel); }
+                    else      { const char *f = "FREE to open"; top.DrawSysfont(good << f, ctrX(f), BY + BS + 26, good); }
+                    { const char *f2 = "Win often - big jackpots stay rare"; top.DrawSysfont(txt << f2, ctrX(f2), BY + BS + 44, txt); }
+                } else {   // revealed item - icon stays in the SAME spot as the mystery box (no jump)
+                    bool won = !paid || (bagItemCost[wonId] >= TIERS[tier].cost);
+                    Color wc = won ? good : bad;
+                    if (wonId != icoKey) { icoKey = wonId; ico.LoadFromFile(iconPath(wonId)); }
+                    top.DrawRect(BX, BY, BS, BS, Color::White, true);
+                    if (ico.IsLoaded()) { int sw = ico.Width(), sh = ico.Height(); ico.Draw(top, BX + (BS - sw) / 2, BY + (BS - sh) / 2); }
+                    top.DrawRect(BX, BY, BS, BS, wc, false); top.DrawRect(BX - 1, BY - 1, BS + 2, BS + 2, wc, false);
+                    {   // verdict in the gutter RIGHT of the (centered) tile: won (item >= price) / lost / got (FREE) + net $
+                        const char *w1 = "You", *w2 = !paid ? "got!" : (won ? "won!" : "lost"); int gC = (BX + BS + 370) / 2;
+                        top.DrawSysfont(wc << w1, gC - (int)OSD::GetTextWidth(true, w1) / 2, BY + 18, wc);
+                        top.DrawSysfont(wc << w2, gC - (int)OSD::GetTextWidth(true, w2) / 2, BY + 36, wc);
+                        if (paid) { int net = bagItemCost[wonId] - TIERS[tier].cost; string ns = won ? ("+$" + commafy(net)) : ("-$" + commafy(-net)); top.DrawSysfont(wc << ns, gC - (int)OSD::GetTextWidth(true, ns) / 2, BY + 58, wc); }
+                    }
+                    { string n = bagItemName[wonId]; top.DrawSysfont(title << n, ctrX(n), BY + BS + 8, title); }
+                    { string pr = "$" + commafy(bagItemCost[wonId]); top.DrawSysfont(sel << pr, ctrX(pr), BY + BS + 26, sel); }
+                    {   // item description below (ItemBlurb covers consumables; fallback by pocket), wrap <=2 lines
+                        string d = ItemBlurb(wonId);
+                        if (d.empty()) { int pk = bagItemPocket[wonId]; d = (pk == 1) ? "A medicine." : (pk == 2 ? "A Berry." : "An item."); }
+                        vector<string> words, lines; string w;
+                        for (size_t i = 0; i < d.size(); ++i) { if (d[i] == ' ') { if (!w.empty()) { words.push_back(w); w.clear(); } } else w += d[i]; }
+                        if (!w.empty()) words.push_back(w);
+                        string line;
+                        for (size_t k = 0; k < words.size(); ++k) { string cand = line.empty() ? words[k] : line + " " + words[k]; if ((int)OSD::GetTextWidth(true, cand) > 316 && !line.empty()) { lines.push_back(line); line = words[k]; } else line = cand; }
+                        if (!line.empty()) lines.push_back(line);
+                        for (size_t k = 0; k < lines.size() && k < 2; ++k) top.DrawSysfont(txt << lines[k], ctrX(lines[k]), 182 + (int)k * 16, txt);
+                    }
+                }
+
+                // ===== BOTTOM =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Loot Box", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                for (int i = 0; i < 3; i++) {   // chips painted in each tier's own color; selected one gets a cyan ring
+                    int x = 28 + i * 88; bool curs = (i == tier);
+                    Color tc = RGB(TIERS[i].col), tt = bright(TIERS[i].col) ? Color::Black : Color::White;
+                    bot.DrawRect(x, 58, 84, 24, tc, true);
+                    bot.DrawSysfont(tt << TIERS[i].name, x + (84 - (int)OSD::GetTextWidth(true, TIERS[i].name)) / 2, 63, tt);
+                    if (curs) { bot.DrawRect(x, 58, 84, 24, bad, false); bot.DrawRect(x - 1, 57, 86, 26, bad, false); }   // selected chip = red ring
+                    else bot.DrawRect(x, 58, 84, 24, border, false);
+                }
+                if (paid) bot.DrawSysfont(txt << (string(TIERS[tier].name) + " box costs  $" + commafy(TIERS[tier].cost)), 34, 90, txt);
+                else      bot.DrawSysfont(good << "FREE - open any box for nothing", 34, 90, good);
+                bot.DrawSysfont(txt << "Money:  " << good << ("$" + commafy((int)BagMoney())), 34, 108, txt);
+                if (flashTtl > 0) { bot.DrawSysfont(good << flash, 20 + (280 - (int)OSD::GetTextWidth(true, flash)) / 2, 134, good); }
+
+                if (!opened) {   // idle: single OPEN BOX
+                    bot.DrawRect(40, 156, 240, 34, sel, true); bot.DrawRect(40, 156, 240, 34, border, false);
+                    bot.DrawSysfont(bg << "OPEN BOX", 40 + (240 - (int)OSD::GetTextWidth(true, "OPEN BOX")) / 2, 165, bg);
+                } else {   // claim buttons: PAID [SELL green | ADD TO BAG red], FREE [SKIP red | ADD TO BAG green]; focused = cyan ring
+                    const char *lab[2]; Color col[2];
+                    if (paid) { lab[0] = "SELL"; lab[1] = "ADD TO BAG"; col[0] = good; col[1] = bad; }
+                    else      { lab[0] = "SKIP"; lab[1] = "ADD TO BAG"; col[0] = bad;  col[1] = good; }
+                    for (int i = 0; i < 2; i++) {
+                        bot.DrawRect(btnX(i), 156, btnW(i), 34, col[i], true); bot.DrawRect(btnX(i), 156, btnW(i), 34, border, false);
+                        bot.DrawSysfont(Color::White << lab[i], btnX(i) + (btnW(i) - (int)OSD::GetTextWidth(true, lab[i])) / 2, 165, Color::White);
+                        if (i == btn) { bot.DrawRect(btnX(i), 156, btnW(i), 34, sel, false); bot.DrawRect(btnX(i) - 1, 155, btnW(i) + 2, 36, sel, false); }
+                    }
+                }
+                const char *hint = !opened ? "L/R tier   A open   B back" : "L/R pick   A choose   B back";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+                if (flashTtl > 0) --flashTtl;
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #3 Top Trumps: pick a stat; your random party Pokemon duels a random challenger on that BASE stat;
+        // higher wins. PAID: bet Pokedollars (win +bet / lose -bet). FREE: just W/L, no money.
+        static bool FunTopTrumps() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            bool close = false;
+            static u32 rng = 0x9E3779B1; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+
+            // collect the player's valid party species (your side draws from these)
+            int party[6], nParty = 0;
+            { u32 base = FindPartyBase();
+              if (base) for (int i = 0; i < 6; i++) { PK6 pk; u32 p = base + i * 0x104; bool ok = gPartyEncrypted ? GetPokemon(p, &pk) : GetPokemonRaw(p, &pk); if (ok && pk.species >= 1 && pk.species <= 721) party[nParty++] = pk.species; } }
+            static const char *STAT[6] = {"HP", "Atk", "Def", "SpA", "SpD", "Spe"};
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            Image sprL, sprR; int keyL = -1, keyR = -1;
+            int statIdx = 1, bet = 500;
+            bool revealed = false;
+            int yourSp = 0, rivalSp = 0, yourVal = 0, rivalVal = 0, outcome = 0; // 1 win / -1 lose / 0 tie
+
+            auto deal = [&]() {     // draw a fresh pair; their stats stay hidden until the player picks a stat
+                if (!nParty) return;
+                rng ^= ticks * 2654435761u;
+                yourSp = party[rnd(nParty)];
+                rivalSp = (int)rnd(721) + 1;
+                revealed = false;
+            };
+            auto reveal = [&]() {   // lock in the chosen stat: your mon vs the rival on that base stat
+                if (!nParty || revealed) return;
+                yourVal = gBaseStats[yourSp - 1][statIdx];
+                rivalVal = gBaseStats[rivalSp - 1][statIdx];
+                outcome = (yourVal > rivalVal) ? 1 : (yourVal < rivalVal ? -1 : 0);
+                if (g_funPayMode == 1) { int money = (int)BagMoney(); if (bet > money) bet = money; if (outcome > 0) BagAddMoney(+bet); else if (outcome < 0) BagAddMoney(-bet); }
+                revealed = true;
+            };
+            deal();   // deal the first pair so both Pokemon are visible right away
+
+            const int FL = 86, FR = 238, FY = 56, FS = 76;   // two 76x76 frames, symmetric about the window centre (x=200)
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                if (!revealed) {   // betting: choose the stat (and bet in PAID)
+                    if (KeyRep(Key::Left))  statIdx = (statIdx + 5) % 6;
+                    if (KeyRep(Key::Right)) statIdx = (statIdx + 1) % 6;
+                    for (int i = 0; i < 6; i++) if (hit(30 + i * 44, 58, 42, 22)) statIdx = i;
+                    if (paid) { int money = (int)BagMoney(); if (KeyRep(Key::Up)) bet += 100; if (KeyRep(Key::Down)) bet -= 100; if (bet > money) bet = money; if (bet < 100) bet = (money < 100 ? money : 100); }
+                }
+                if (nParty && (Controller::IsKeyPressed(Key::A) || hit(40, 150, 240, 34))) { if (revealed) deal(); else reveal(); }
+
+                // ===== TOP: two contestant frames =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Top Trumps", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                { // winner's frame gets a bold stroke after reveal: GREEN if YOU win, RED if you lose; else theme border
+                  bool winL = revealed && outcome > 0, winR = revealed && outcome < 0;
+                  Color wc = (outcome > 0) ? good : bad;
+                  top.DrawRect(FL, FY, FS, FS, Color::White, true); top.DrawRect(FL, FY, FS, FS, winL ? wc : border, false);
+                  if (winL) top.DrawRect(FL - 1, FY - 1, FS + 2, FS + 2, wc, false);
+                  top.DrawRect(FR, FY, FS, FS, Color::White, true); top.DrawRect(FR, FY, FS, FS, winR ? wc : border, false);
+                  if (winR) top.DrawRect(FR - 1, FY - 1, FS + 2, FS + 2, wc, false); }
+                top.DrawSysfont(title << "VS", 200 - (int)OSD::GetTextWidth(true, "VS") / 2, FY + FS / 2 - 6, title);
+
+                if (nParty) {
+                    // both sprites + names are visible the whole time; stat VALUES are hidden until reveal
+                    if (yourSp != keyL) { keyL = yourSp; string p; BoxIconPath(p, (u16)yourSp, false, "Spawner/"); sprL.LoadFromFile(p); }
+                    if (rivalSp != keyR) { keyR = rivalSp; string p; BoxIconPath(p, (u16)rivalSp, false, "Spawner/"); sprR.LoadFromFile(p); }
+                    if (sprL.IsLoaded()) { int sw = sprL.Width(), sh = sprL.Height(); sprL.Draw(top, FL + (FS - sw) / 2, FY + (FS - sh) / 2); }
+                    if (sprR.IsLoaded()) { int sw = sprR.Width(), sh = sprR.Height(); sprR.Draw(top, FR + (FS - sw) / 2, FY + (FS - sh) / 2); }
+                    { string n = speciesList[yourSp - 1]; Color c = (revealed && outcome > 0) ? good : txt; top.DrawSysfont(c << n, FL + FS / 2 - (int)OSD::GetTextWidth(true, n) / 2, FY + FS + 4, c); }
+                    { string n = speciesList[rivalSp - 1]; Color c = (revealed && outcome < 0) ? good : txt; top.DrawSysfont(c << n, FR + FS / 2 - (int)OSD::GetTextWidth(true, n) / 2, FY + FS + 4, c); }
+                    { string v = string(STAT[statIdx]) + " " + (revealed ? to_string(yourVal) : string("?")); top.DrawSysfont(sel << v, FL + FS / 2 - (int)OSD::GetTextWidth(true, v) / 2, FY + FS + 20, sel); }
+                    { string v = string(STAT[statIdx]) + " " + (revealed ? to_string(rivalVal) : string("?")); top.DrawSysfont(sel << v, FR + FS / 2 - (int)OSD::GetTextWidth(true, v) / 2, FY + FS + 20, sel); }
+                    if (revealed) {
+                        string banner = outcome > 0 ? "YOU WIN!" : (outcome < 0 ? "RIVAL WINS" : "TIE - no change");
+                        if (paid && outcome) banner += (outcome > 0 ? "  +$" : "  -$") + commafy(bet);
+                        Color bc = outcome > 0 ? good : (outcome < 0 ? bad : txt);
+                        top.DrawSysfont(bc << banner, ctrX(banner), 188, bc);
+                    } else {
+                        const char *p1 = "Which stat does YOUR Pokemon (left) win?";
+                        top.DrawSysfont(txt << p1, ctrX(p1), 188, txt);
+                    }
+                } else {
+                    const char *e = "No saved team - save your game first.";
+                    top.DrawSysfont(txt << e, ctrX(e), 120, txt);
+                }
+
+                // ===== BOTTOM: stat chips + bet + DUEL =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Top Trumps", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                for (int i = 0; i < 6; i++) {
+                    int x = 30 + i * 44; bool curs = (i == statIdx);
+                    bot.DrawRect(x, 58, 42, 22, curs ? sel : bg2, true); bot.DrawRect(x, 58, 42, 22, border, false);
+                    bot.DrawSysfont((curs ? bg : txt) << STAT[i], x + (42 - (int)OSD::GetTextWidth(true, STAT[i])) / 2, 62, curs ? bg : txt);
+                }
+                if (paid) bot.DrawSysfont(txt << "Bet  " << bad << ("$" + commafy(bet)) << txt << ("    Money  $" + commafy((int)BagMoney())), 34, 92, txt);
+                else      bot.DrawSysfont(good << "FREE - just for bragging rights", 34, 92, good);
+                { // REVEAL! uses the theme accent; NEXT MATCH turns RED (white text) to nudge the next tap
+                  Color f = !nParty ? bg2 : (revealed ? bad : sel);
+                  Color ft = !nParty ? txt : (revealed ? Color::White : bg);
+                  bot.DrawRect(40, 150, 240, 34, f, true); bot.DrawRect(40, 150, 240, 34, border, false);
+                  const char *L = revealed ? "NEXT MATCH" : "REVEAL!";
+                  bot.DrawSysfont(ft << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 159, ft); }
+                const char *hint = revealed ? "A next match   B back" : (paid ? "L/R stat  U/D bet  A reveal  B back" : "L/R stat   A reveal   B back");
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #4 Spin the Wheel: a prize carousel of fates. A weighted draw picks the outcome; the strip decelerates and
+        // lands on it. Outcomes: cash +/-, a random item, a rare wild spawn, a jackpot, or a curse (-half your money).
+        // PAID: money outcomes are real. FREE: items & spawns still land; the cash slices are just for show.
+        static bool FunWheel() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            const bool isORAS = (currGameSeries == GameSeries::ORAS);
+            bool close = false;
+            static u32 rng = 0x9E3779B1; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+            auto RGB = [](u32 c) { return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); };
+            auto bright = [](u32 c) { return ((((c >> 16) & 0xFF) * 30 + ((c >> 8) & 0xFF) * 59 + (c & 0xFF) * 11) / 100) > 150; };
+
+            enum Kind { K_CASH, K_ITEM, K_SPAWN, K_JACK, K_LOSE, K_CURSE };
+            struct Seg { Kind kind; int mult; const char *label; u32 col; int weight; };   // mult = x(bet) for cash/jackpot/lose
+            static const Seg WHEEL[12] = {
+                { K_CASH,   2, "x2",    0x1B7A3A, 18 },
+                { K_ITEM,   0, "ITEM",  0x2E6CC4, 12 },
+                { K_CASH,   3, "x3",    0x1B7A3A, 10 },
+                { K_LOSE,   1, "LOSE",  0xD08020, 12 },
+                { K_SPAWN,  0, "RARE",  0x7038F8,  7 },
+                { K_ITEM,   0, "ITEM",  0x2E6CC4, 12 },
+                { K_CASH,   2, "x2",    0x1B7A3A, 12 },
+                { K_JACK,  20, "x20",   0xD4AF37,  3 },
+                { K_LOSE,   1, "LOSE",  0xD08020, 10 },
+                { K_SPAWN,  0, "RARE",  0x7038F8,  5 },
+                { K_CASH,   5, "x5",    0x16A085,  6 },
+                { K_CURSE,  0, "CURSE", 0x8B1A1A,  3 },
+            };
+            const int LEN = 12;
+            int totalW = 0; for (int i = 0; i < LEN; i++) totalW += WHEEL[i].weight;
+
+            // pools: priced bag items (pockets 0/1/2, no TM/HM/Key) for ITEM; high-BST species for SPAWN (rare feel)
+            static int ipool[400]; int ni = 0;
+            for (int i = 0; i < bagItemCount && ni < 400; i++) { int id = bagItemList[i]; if (id <= 0 || id >= 801) continue; int pk = bagItemPocket[id]; if (pk != 0 && pk != 1 && pk != 2) continue; if (bagItemCost[id] <= 0) continue; ipool[ni++] = id; }
+            static int rpool[200]; int nr = 0;
+            for (int sp = 1; sp <= 721 && nr < 200; sp++) { int bst = 0; for (int k = 0; k < 6; k++) bst += gBaseStats[sp - 1][k]; if (bst >= 580) rpool[nr++] = sp; }
+
+            auto partyAvg = [&]() -> int {
+                u32 base = FindPartyBase(); if (!base) return 0;
+                int sum = 0, cnt = 0;
+                for (int i = 0; i < 6; i++) { PK6 pk; u32 p = base + i * 0x104; bool ok = gPartyEncrypted ? GetPokemon(p, &pk) : GetPokemonRaw(p, &pk); if (ok && pk.species >= 1 && pk.species <= 721) { sum += LevelFromExp(pk.species, pk.exp); cnt++; } }
+                return cnt ? (sum + cnt / 2) / cnt : 0;
+            };
+            int avg = partyAvg();
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            // 60x60 wheel-segment icons FunStuff/WHEEL_0..5.bmp (index = Kind); fallback = colored box + label.
+            Image wheelImg[6]; for (int i = 0; i < 6; i++) wheelImg[i].LoadFromFile("FunStuff/WHEEL_" + to_string(i) + ".bmp");
+            Image rIco; int rIcoKey = -1;   // result sprite: the won ITEM (bag icon) or the SPAWN Pokemon
+            auto iconPath = [](int id) { string p = "BagSprites/big/"; if (id < 100) p += "0"; if (id < 10) p += "0"; p += to_string(id) + ".bmp"; return p; };
+
+            int cur = 0;                 // center segment under the pointer
+            int state = 0;               // 0 = idle/result, 1 = spinning
+            bool resolved = false;
+            int spinLeft = 0, total = 0, stepCtr = 0, target = 0;
+            int bet = 100;                                   // PAID stake (Up/Down), scales the cash multipliers
+            int rItem = 0, rSpawn = 0, rLv = 0, rCash = 0;   // result payload
+
+            auto chooseTarget = [&]() -> int {
+                int r = (int)rnd((u32)totalW), acc = 0;
+                for (int i = 0; i < LEN; i++) { acc += WHEEL[i].weight; if (r < acc) return i; }
+                return LEN - 1;
+            };
+            auto startSpin = [&]() {
+                rng ^= ticks * 2654435761u;
+                target = chooseTarget();
+                int rem = (target - cur + LEN) % LEN;
+                spinLeft = rem + LEN * 2;   // a couple of full loops, then land exactly on target
+                total = spinLeft; stepCtr = 0; state = 1; resolved = false;
+            };
+            auto applyOutcome = [&]() {
+                const Seg &s = WHEEL[cur]; bool paid = (g_funPayMode == 1);
+                rItem = 0; rSpawn = 0; rLv = 0; rCash = 0;
+                switch (s.kind) {
+                    case K_CASH:  rCash = bet * s.mult;  if (paid) BagAddMoney(+rCash); break;
+                    case K_JACK:  rCash = bet * s.mult;  if (paid) BagAddMoney(+rCash); break;
+                    case K_LOSE:  rCash = -bet * s.mult; if (paid) BagAddMoney(rCash); break;
+                    case K_CURSE: { int m = (int)BagMoney(); rCash = -(m / 2); if (paid) BagAddMoney(-(m / 2)); } break;
+                    case K_ITEM:  if (ni) { int id = ipool[(int)rnd((u32)ni)]; rItem = (BagGiveItem(id) == 0) ? id : -1; } break;
+                    case K_SPAWN: if (nr) { int sp = rpool[(int)rnd((u32)nr)]; int lv = (avg > 0 ? avg : 5) + (int)rnd(7) - 3; if (lv < 2) lv = 2; if (lv > 100) lv = 100; UpdateWildSpawner(sp, 0, lv, isORAS); rSpawn = sp; rLv = lv; } break;
+                }
+                resolved = true;
+            };
+
+            // visible carousel: 5 tiles, the center one under the pointer
+            const int TW = 60, TH = 60, GAP = 6, TY = 76;
+            const int X0 = 30 + (340 - (5 * TW + 4 * GAP)) / 2;   // first tile x (whole strip centered)
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (state == 0 && Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                if (state == 0 && paid) { int money = (int)BagMoney(); if (KeyRep(Key::Up)) bet += 100; if (KeyRep(Key::Down)) bet -= 100; if (bet > money) bet = money; if (bet < 100) bet = (money < 100 ? money : 100); }
+                if (state == 0 && (Controller::IsKeyPressed(Key::A) || hit(40, 150, 240, 34))) startSpin();
+                if (state == 1) {
+                    if (stepCtr <= 0) {
+                        cur = (cur + 1) % LEN; spinLeft--;
+                        stepCtr = 1 + (total - spinLeft) / 6;   // gap grows -> decelerates
+                        if (spinLeft <= 0) { state = 0; applyOutcome(); }
+                    } else stepCtr--;
+                }
+
+                // ===== TOP: prize carousel =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Spin the Wheel", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                for (int t = 0; t < 7; t++) top.DrawRect(200 - (7 - t), 62 + t, (7 - t) * 2, 1, title, true);   // down-pointer
+                for (int j = 0; j < 5; j++) {
+                    int seg = ((cur + j - 2) % LEN + LEN) % LEN; int k = WHEEL[seg].kind;
+                    int x = X0 + j * (TW + GAP);
+                    bool ico = wheelImg[k].IsLoaded();
+                    if (ico) { wheelImg[k].Draw(top, x, TY); top.DrawRect(x, TY + TH - 14, TW, 14, RGB(WHEEL[seg].col), true); }   // label strip over the icon foot
+                    else     { top.DrawRect(x, TY, TW, TH, RGB(WHEEL[seg].col), true); }
+                    top.DrawRect(x, TY, TW, TH, border, false);
+                    const char *L = WHEEL[seg].label; Color tc = bright(WHEEL[seg].col) ? Color::Black : Color::White;
+                    top.DrawSysfont(tc << L, x + (TW - (int)OSD::GetTextWidth(true, L)) / 2, ico ? (TY + TH - 13) : (TY + TH / 2 - 6), tc);
+                    if (j == 2) { top.DrawRect(x, TY, TW, TH, title, false); top.DrawRect(x - 1, TY - 1, TW + 2, TH + 2, title, false); top.DrawRect(x - 2, TY - 2, TW + 4, TH + 4, title, false); }
+                }
+                if (state == 1) { const char *r = "Spinning..."; top.DrawSysfont(sel << r, ctrX(r), TY + TH + 18, sel); }
+                else if (resolved) {
+                    const Seg &s = WHEEL[cur];
+                    bool showSprite = (s.kind == K_ITEM && rItem > 0) || (s.kind == K_SPAWN && rSpawn > 0);
+                    if (showSprite) {   // ITEM / SPAWN: show the REAL won item icon / spawned Pokemon, with its details
+                        bool isItem = (s.kind == K_ITEM);
+                        int want = isItem ? rItem : (100000 + rSpawn);
+                        if (want != rIcoKey) { rIcoKey = want; string p; if (isItem) p = iconPath(rItem); else BoxIconPath(p, (u16)rSpawn, false, "Spawner/"); rIco.LoadFromFile(p); }
+                        string l1 = isItem ? string(bagItemName[rItem]) : string(speciesList[rSpawn - 1]);
+                        string l2 = isItem ? ("$" + commafy(bagItemCost[rItem])) : ("Lv " + to_string(rLv));
+                        string l3 = isItem ? "Added to your bag!" : "Waiting in the wild!";
+                        int tw = (int)OSD::GetTextWidth(true, l1);
+                        { int w = (int)OSD::GetTextWidth(true, l2); if (w > tw) tw = w; }
+                        { int w = (int)OSD::GetTextWidth(true, l3); if (w > tw) tw = w; }
+                        const int FS = 76, FYr = 140;   // 76 frame holds the 72x72 Spawner sprite (2px margin), fits y140..216
+                        int groupW = FS + 12 + tw, gx = 30 + (340 - groupW) / 2, tx = gx + FS + 12;
+                        top.DrawRect(gx, FYr, FS, FS, Color::White, true);
+                        if (rIco.IsLoaded()) { int sw = rIco.Width(), sh = rIco.Height(); rIco.Draw(top, gx + (FS - sw) / 2, FYr + (FS - sh) / 2); }
+                        top.DrawRect(gx, FYr, FS, FS, good, false); top.DrawRect(gx - 1, FYr - 1, FS + 2, FS + 2, good, false);
+                        top.DrawSysfont(title << l1, tx, FYr + 12, title);
+                        top.DrawSysfont(sel << l2, tx, FYr + 32, sel);
+                        top.DrawSysfont(good << l3, tx, FYr + 52, good);
+                    } else {
+                        string b1, b2; Color bc = good;
+                        switch (s.kind) {
+                            case K_CASH:  b1 = paid ? ("You won  $" + commafy(rCash) + "!") : ("Win!  x" + to_string(s.mult)); b2 = paid ? ("x" + to_string(s.mult) + " your bet") : "FREE - cash for show"; bc = good; break;
+                            case K_JACK:  b1 = "JACKPOT!"; b2 = paid ? ("+$" + commafy(rCash) + "  (x" + to_string(s.mult) + ")") : ("x" + to_string(s.mult) + "  (FREE)"); bc = RGB(0xD4AF37); break;
+                            case K_LOSE:  b1 = paid ? ("You lost  $" + commafy(-rCash) + ".") : "You lose your bet"; b2 = paid ? "" : "FREE - no cash lost"; bc = bad; break;
+                            case K_CURSE: b1 = "CURSED!"; b2 = paid ? ("Lost half your cash  (-$" + commafy(-rCash) + ")") : "FREE - no cash lost"; bc = bad; break;
+                            case K_ITEM:  b1 = "Bag is full!"; b2 = "No room for the item"; bc = bad; break;
+                            case K_SPAWN: b1 = "A rare spawn awaits!"; b2 = "No spawn available"; bc = good; break;
+                        }
+                        top.DrawSysfont(bc << b1, ctrX(b1), TY + TH + 16, bc);
+                        if (!b2.empty()) top.DrawSysfont(txt << b2, ctrX(b2), TY + TH + 36, txt);
+                    }
+                } else {
+                    const char *r1 = "Cash tiles pay your bet x2 to x20!"; top.DrawSysfont(txt << r1, ctrX(r1), TY + TH + 16, txt);
+                    const char *r2 = "Win items, rare spawns, or a curse!"; top.DrawSysfont(txt << r2, ctrX(r2), TY + TH + 36, txt);
+                }
+
+                // ===== BOTTOM =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Spin the Wheel", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                if (paid) bot.DrawSysfont(txt << ("Bet:  $" + commafy(bet)), 34, 64, txt);
+                else      bot.DrawSysfont(good << "Items & spawns real - cash for show", 34, 64, good);
+                bot.DrawSysfont(txt << "Money:  " << good << ("$" + commafy((int)BagMoney())), 34, 84, txt);
+                {
+                    bool result = (state == 0 && resolved);
+                    Color f = (state == 1) ? bg2 : (result ? bad : sel), ft = (state == 1) ? txt : (result ? Color::White : bg);
+                    bot.DrawRect(40, 150, 240, 34, f, true); bot.DrawRect(40, 150, 240, 34, border, false);
+                    const char *L = (state == 1) ? "SPINNING..." : (result ? "SPIN AGAIN" : "SPIN");
+                    bot.DrawSysfont(ft << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 159, ft);
+                }
+                const char *hint = paid ? "U/D bet   A spin   B back" : "A spin   B back";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #5 Slot Machine: three reels of symbols; line them up to win. PAID: bet coins, real payout. FREE: just
+        // for the thrill (no money). Payouts: three 7s = 50x, three of a kind = 10x, two 7s = 5x, any pair = 2x.
+        static bool FunSlots() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            bool close = false;
+            static u32 rng = 0x1F123BB5; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+            auto RGB = [](u32 c) { return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); };
+
+            struct Sym { const char *s; u32 col; };   // fallback text/color if the BMP icon is missing
+            static const Sym SYM[6] = { {"7", 0xD4AF37}, {"BALL", 0xCC3B2E}, {"CHRY", 0xC0392B}, {"PIKA", 0xE0B000}, {"STAR", 0x7038F8}, {"BELL", 0x16A085} };
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            // 64x64 reel icons (Game Corner set): FunStuff/SLOT_0..5.bmp (0=7=jackpot). Fallback = colored box + tag.
+            Image slotImg[6]; for (int i = 0; i < 6; i++) slotImg[i].LoadFromFile("FunStuff/SLOT_" + to_string(i) + ".bmp");
+
+            int reel[3] = {0, 2, 4};
+            int bet = 100, payout = 0;
+            int state = 0;             // 0 = idle/result, 1 = spinning
+            bool resolved = false;
+            int spinLeft = 0, stepCtr[3] = {0, 0, 0};
+            static const int STOPF[3] = {54, 28, 0};   // reel i keeps spinning while spinLeft > STOPF[i]
+
+            auto spin = [&]() {
+                rng ^= ticks * 2654435761u;
+                if (g_funPayMode == 1) { int money = (int)BagMoney(); if (bet > money) bet = money; if (bet > 0) BagAddMoney(-bet); }
+                state = 1; spinLeft = 82; resolved = false; payout = 0; for (int i = 0; i < 3; i++) stepCtr[i] = 0;
+            };
+            auto resolve = [&]() {
+                int mult = 0; bool all3 = (reel[0] == reel[1] && reel[1] == reel[2]);
+                if (all3) mult = (reel[0] == 0) ? 50 : 10;
+                else { int sevens = (reel[0] == 0) + (reel[1] == 0) + (reel[2] == 0); bool pair = (reel[0] == reel[1] || reel[1] == reel[2] || reel[0] == reel[2]); mult = (sevens >= 2) ? 5 : (pair ? 2 : 0); }
+                payout = (g_funPayMode == 1) ? bet * mult : mult;   // FREE: store multiplier just to show "x N"
+                if (g_funPayMode == 1 && payout > 0) BagAddMoney(+payout);
+                resolved = true;
+            };
+
+            const int RW = 64, RY = 64, RX[3] = {92, 168, 244};   // 3 reels, symmetric about x=200
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                if (state == 0 && paid) { int money = (int)BagMoney(); if (KeyRep(Key::Up)) bet += 100; if (KeyRep(Key::Down)) bet -= 100; if (bet > money) bet = money; if (bet < 100) bet = (money < 100 ? money : 100); }
+                if (state == 0 && (Controller::IsKeyPressed(Key::A) || hit(40, 150, 240, 34))) spin();
+
+                if (state == 1) {   // spin: each reel cycles, stops staggered
+                    spinLeft--;
+                    for (int i = 0; i < 3; i++) {
+                        if (spinLeft > STOPF[i]) { if (stepCtr[i] <= 0) { reel[i] = (int)rnd(6); stepCtr[i] = 2 + (82 - spinLeft) / 18; } else stepCtr[i]--; }
+                    }
+                    if (spinLeft <= 0) { state = 0; resolve(); }
+                }
+
+                // ===== TOP: 3 reels =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Slot Machine", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                for (int i = 0; i < 3; i++) {
+                    int si = reel[i];
+                    if (slotImg[si].IsLoaded()) { slotImg[si].Draw(top, RX[i], RY); top.DrawRect(RX[i], RY, RW, RW, border, false); }
+                    else {
+                        Color sc = RGB(SYM[si].col);
+                        top.DrawRect(RX[i], RY, RW, RW, sc, true); top.DrawRect(RX[i], RY, RW, RW, border, false);
+                        const char *s = SYM[si].s;
+                        top.DrawSysfont(Color::White << s, RX[i] + (RW - (int)OSD::GetTextWidth(true, s)) / 2, RY + RW / 2 - 6, Color::White);
+                    }
+                }
+                if (state == 1) { const char *r = "Spinning..."; top.DrawSysfont(sel << r, ctrX(r), 150, sel); }
+                else if (resolved) {
+                    if (payout > 0) {
+                        string banner = paid ? ("WIN  $" + commafy(payout) + "!") : ("WIN!  x" + to_string(payout));
+                        top.DrawSysfont(good << banner, ctrX(banner), 150, good);
+                    } else {
+                        const char *r = "No match - try again!"; top.DrawSysfont(bad << r, ctrX(r), 150, bad);
+                    }
+                } else {
+                    const char *r = "Pull the lever to spin!"; top.DrawSysfont(txt << r, ctrX(r), 150, txt);
+                }
+                {   // payout table with the multipliers in green
+                    const string GT = (string)good, TT = (string)txt;
+                    string cl = TT + "Three 7s " + GT + "x50" + TT + "   Three " + GT + "x10" + TT + "   Two 7s " + GT + "x5" + TT + "   Pair " + GT + "x2";
+                    top.DrawSysfont(cl, ctrX(cl), 196, txt);
+                }
+
+                // ===== BOTTOM =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Slot Machine", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                if (paid) bot.DrawSysfont(txt << ("Bet:  $" + commafy(bet)), 34, 64, txt);
+                else      bot.DrawSysfont(good << "FREE - play just for the thrill", 34, 64, good);
+                bot.DrawSysfont(txt << "Money:  " << good << ("$" + commafy((int)BagMoney())), 34, 84, txt);
+                {   // SPIN / SPIN AGAIN (red after a result)
+                    bool result = (state == 0 && resolved);
+                    Color f = (state == 1) ? bg2 : (result ? bad : sel), ft = (state == 1) ? txt : (result ? Color::White : bg);
+                    bot.DrawRect(40, 150, 240, 34, f, true); bot.DrawRect(40, 150, 240, 34, border, false);
+                    const char *L = (state == 1) ? "SPINNING..." : (result ? "SPIN AGAIN" : "SPIN");
+                    bot.DrawSysfont(ft << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 159, ft);
+                }
+                const char *hint = paid ? "U/D bet   A spin   B back" : "A spin   B back";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #6 Higher or Lower: an item price is shown; guess if the next item costs more or less. Build a streak.
+        // PAID: each correct guess wins the bet, each wrong loses it. FREE: streak only, no money.
+        static bool FunHighLow() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            bool close = false;
+            static u32 rng = 0xB5297A4D; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+            auto iconPath = [](int id) { string p = "BagSprites/big/"; if (id < 100) p += "0"; if (id < 10) p += "0"; p += to_string(id) + ".bmp"; return p; };
+
+            // pool of priced items (cost > 0)
+            static int pool[600]; int nPool = 0;
+            for (int i = 0; i < bagItemCount && nPool < 600; i++) { int id = bagItemList[i]; if (id > 0 && id < 801 && bagItemCost[id] > 0) pool[nPool++] = id; }
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            Image icoA, icoB; int keyA = -1, keyB = -1;
+            int curId = nPool ? pool[rnd(nPool)] : 0, nextId = 0;
+            bool revealed = false, correct = false, guessHigher = false;
+            int streak = 0, best = (int)g_hiLoBest, bet = 500;   // best persists across sessions (Data.bin reserved[6])
+
+            auto guess = [&](bool higher) {
+                if (!nPool || revealed) return;
+                guessHigher = higher;
+                rng ^= ticks * 2654435761u;
+                do { nextId = pool[rnd(nPool)]; } while (nextId == curId && nPool > 1);
+                int cc = bagItemCost[curId], nc = bagItemCost[nextId];
+                correct = higher ? (nc >= cc) : (nc <= cc);   // ties count as correct (generous)
+                if (g_funPayMode == 1) { int money = (int)BagMoney(); if (bet > money) bet = money; BagAddMoney(correct ? +bet : -bet); }
+                if (correct) { streak++; if (streak > best) { best = streak; SetHiLoBest((u32)best); } } else streak = 0;
+                revealed = true;
+            };
+            auto cont = [&]() { curId = nextId; nextId = 0; revealed = false; };
+
+            const int FL = 86, FR = 238, FY = 54, FS = 76;   // reveal: two item frames, symmetric about x=200
+            const int CX = 156, CY = 48, CS = 88;            // ask: one centered item frame
+
+            while (true) {
+                Controller::Update();
+                ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (Controller::IsKeyPressed(Key::B)) break;
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                if (paid && !revealed) { int money = (int)BagMoney(); if (KeyRep(Key::Up)) bet += 100; if (KeyRep(Key::Down)) bet -= 100; if (bet > money) bet = money; if (bet < 100) bet = (money < 100 ? money : 100); }
+                if (!revealed) {   // LEFT box = LOWER, RIGHT box = HIGHER (positions match the keys)
+                    if (Controller::IsKeyPressed(Key::Left)  || hit(40, 116, 114, 40)) guess(false);
+                    if (Controller::IsKeyPressed(Key::Right) || hit(166, 116, 114, 40)) guess(true);
+                } else {
+                    if (Controller::IsKeyPressed(Key::A) || hit(40, 116, 240, 40)) cont();
+                }
+
+                // ===== TOP =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Higher or Lower", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+
+                if (!nPool) {
+                    const char *e = "No priced items available.";
+                    top.DrawSysfont(txt << e, ctrX(e), 120, txt);
+                } else if (!revealed) {   // ask: single centered current item
+                    top.DrawRect(CX, CY, CS, CS, Color::White, true); top.DrawRect(CX, CY, CS, CS, border, false);
+                    if (curId != keyA) { keyA = curId; icoA.LoadFromFile(iconPath(curId)); }
+                    if (icoA.IsLoaded()) { int sw = icoA.Width(), sh = icoA.Height(); icoA.Draw(top, CX + (CS - sw) / 2, CY + (CS - sh) / 2); }
+                    top.DrawRect(CX, CY, CS, CS, border, false);
+                    { string n = bagItemName[curId]; top.DrawSysfont(title << n, ctrX(n), CY + CS + 6, title); }
+                    { string pr = "Costs  $" + commafy(bagItemCost[curId]); top.DrawSysfont(sel << pr, ctrX(pr), CY + CS + 24, sel); }
+                    const char *q = "Will the next item cost more or less?";
+                    top.DrawSysfont(txt << q, ctrX(q), CY + CS + 46, txt);
+                } else {                  // reveal: current vs next, side by side
+                    top.DrawRect(FL, FY, FS, FS, Color::White, true); top.DrawRect(FL, FY, FS, FS, border, false);
+                    top.DrawRect(FR, FY, FS, FS, Color::White, true); top.DrawRect(FR, FY, FS, FS, border, false);
+                    if (curId != keyA) { keyA = curId; icoA.LoadFromFile(iconPath(curId)); }
+                    if (nextId != keyB) { keyB = nextId; icoB.LoadFromFile(iconPath(nextId)); }
+                    if (icoA.IsLoaded()) { int sw = icoA.Width(), sh = icoA.Height(); icoA.Draw(top, FL + (FS - sw) / 2, FY + (FS - sh) / 2); }
+                    if (icoB.IsLoaded()) { int sw = icoB.Width(), sh = icoB.Height(); icoB.Draw(top, FR + (FS - sw) / 2, FY + (FS - sh) / 2); }
+                    { // the "winner" depends on the guess: HIGHER -> the pricier item, LOWER -> the cheaper one.
+                      // Its stroke is GREEN if your guess was right, RED if wrong.
+                      bool winL = guessHigher ? (bagItemCost[curId] > bagItemCost[nextId]) : (bagItemCost[curId] < bagItemCost[nextId]);
+                      bool winR = guessHigher ? (bagItemCost[nextId] > bagItemCost[curId]) : (bagItemCost[nextId] < bagItemCost[curId]);
+                      Color wc = correct ? good : bad;
+                      top.DrawRect(FL, FY, FS, FS, winL ? wc : border, false);
+                      if (winL) top.DrawRect(FL - 1, FY - 1, FS + 2, FS + 2, wc, false);
+                      top.DrawRect(FR, FY, FS, FS, winR ? wc : border, false);
+                      if (winR) top.DrawRect(FR - 1, FY - 1, FS + 2, FS + 2, wc, false); }
+                    top.DrawSysfont(title << (bagItemCost[nextId] >= bagItemCost[curId] ? ">" : "<"), 200 - 3, FY + FS / 2 - 6, title);
+                    { string a = "$" + commafy(bagItemCost[curId]); top.DrawSysfont(sel << a, FL + FS / 2 - (int)OSD::GetTextWidth(true, a) / 2, FY + FS + 4, sel); }
+                    { string na = bagItemName[curId]; top.DrawSysfont(txt << na, FL + FS / 2 - (int)OSD::GetTextWidth(true, na) / 2, FY + FS + 20, txt); }
+                    { string b2 = "$" + commafy(bagItemCost[nextId]); top.DrawSysfont(sel << b2, FR + FS / 2 - (int)OSD::GetTextWidth(true, b2) / 2, FY + FS + 4, sel); }
+                    { string nn = bagItemName[nextId]; top.DrawSysfont(txt << nn, FR + FS / 2 - (int)OSD::GetTextWidth(true, nn) / 2, FY + FS + 20, txt); }
+                    string banner = correct ? "CORRECT!" : "WRONG";
+                    if (paid) banner += (correct ? "  +$" : "  -$") + commafy(bet);
+                    Color bc = correct ? good : bad;
+                    top.DrawSysfont(bc << banner, ctrX(banner), 188, bc);
+                }
+
+                // ===== BOTTOM =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Higher or Lower", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                { string s = "Streak  " + to_string(streak) + "      Best  " + to_string(best); bot.DrawSysfont(txt << s, 34, 58, txt); }
+                if (paid) { string m = "Bet  $" + commafy(bet) + "    Money  $" + commafy((int)BagMoney()); bot.DrawSysfont(txt << m, 34, 82, txt); }
+                else      { bot.DrawSysfont(good << "FREE - chase the longest streak", 34, 82, good); }
+
+                if (!revealed) {
+                    bot.DrawRect(40, 116, 114, 40, bad, true); bot.DrawRect(40, 116, 114, 40, border, false);       // LOWER (left, red)
+                    bot.DrawSysfont(Color::White << "LOWER", 40 + (114 - (int)OSD::GetTextWidth(true, "LOWER")) / 2, 128, Color::White);
+                    bot.DrawRect(166, 116, 114, 40, good, true); bot.DrawRect(166, 116, 114, 40, border, false);     // HIGHER (right, green)
+                    bot.DrawSysfont(Color::White << "HIGHER", 166 + (114 - (int)OSD::GetTextWidth(true, "HIGHER")) / 2, 128, Color::White);
+                    const char *hint = paid ? "Left lower  Right higher  U/D bet  B back" : "Left lower   Right higher   B back";
+                    bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+                } else {
+                    bot.DrawRect(40, 116, 240, 40, bad, true); bot.DrawRect(40, 116, 240, 40, border, false);   // RED to nudge the next tap
+                    bot.DrawSysfont(Color::White << "CONTINUE", 40 + (240 - (int)OSD::GetTextWidth(true, "CONTINUE")) / 2, 128, Color::White);
+                    const char *hint = "A continue   B back";
+                    bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+                }
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+        // #8 Random Team Generator: build 6 random Pokemon from scratch and write them into the EMPTY slots of a
+        // chosen PC box. Reuses the proven SetPokemon (checksum+shuffle+encrypt). Trainer identity (TID/SID/OT name/
+        // version/language/geo) is CLONED from one of your party mons so the new mons are legally "yours". Only ever
+        // writes to slots where GetPokemon() finds no valid mon (never overwrites an existing one).
+        static bool FunTeamGen() {
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A), bad(0xC0, 0x39, 0x2B);
+            bool close = false;
+            static u32 rng = 0xC2B2AE35; u32 ticks = 0;
+            auto rnd = [&](u32 n) { rng = rng * 1103515245u + 12345u; return n ? ((rng >> 16) % n) : 0u; };
+            auto rnd32 = [&]() -> u32 { rng = rng * 1103515245u + 12345u; u32 a = rng; rng = rng * 1103515245u + 12345u; return (a & 0xFFFF0000u) | (rng >> 16); };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            auto ctrX = [&](const string &s) { return 30 + (340 - (int)OSD::GetTextWidth(true, s)) / 2; };
+
+            const int FEE = 2000;
+            const u32 boxBase = AutoGameSet((u32)0x8C861C8, (u32)0x8C9E134);
+            auto slotAddr = [&](int box, int slot) -> u32 { return boxBase + (u32)box * 6960u + (u32)slot * 0xE8u; };
+
+            // exp for an exact level: invert LevelFromExp's growthType/growthTable (no new data).
+            auto expForLevel = [&](u16 sp, int lvl) -> u32 {
+                int type = 0;
+                for (size_t t = 0; t < growthType.size(); ++t)
+                    if (find(growthType[t].begin(), growthType[t].end(), (int)sp) != growthType[t].end()) { type = (int)t; break; }
+                if (lvl < 1) lvl = 1; if (lvl > 100) lvl = 100;
+                return (u32)growthTable[lvl - 1][type];
+            };
+            // move name -> real game move id (movesList is game-id ordered: index i = move id i+1).
+            auto findMoveId = [&](const char *nm) -> u16 {
+                for (int i = 0; i < 621; i++) { const char *a = movesList[i], *b = nm; while (*a && *a == *b) { a++; b++; } if (*a == *b) return (u16)(i + 1); }
+                return 0;
+            };
+            // a species' level-up moveset at a level = last 4 entries with level <= lvl, resolved to real ids.
+            auto movesAt = [&](int sp, int lvl, u16 out[4]) {
+                int s0 = spawnerMoveOff[sp], s1 = spawnerMoveOff[sp + 1];
+                int qual[80], qn = 0;
+                for (int i = s0; i < s1; i++) { if (spawnerMoveLv[i] <= lvl) { if (qn < 80) qual[qn++] = spawnerMoveIdx[i]; } else break; }
+                int count = qn < 4 ? qn : 4, n = 0;
+                for (int j = 0; j < count; j++) { u16 id = findMoveId(spawnerMoveNames[qual[qn - count + j]]); if (id) out[n++] = id; }
+                if (n == 0) out[n++] = 1; // Pound fallback so the mon is battle-usable
+                for (; n < 4; n++) out[n] = 0;
+            };
+
+            // clone trainer identity from a party mon (REQUIRED - else block: avoids building a half-valid foreign mon)
+            PK6 templ; bool haveTempl = false;
+            { u32 base = FindPartyBase();
+              if (base) for (int i = 0; i < 6 && !haveTempl; i++) { PK6 t; u32 p = base + i * 0x104; bool ok = gPartyEncrypted ? GetPokemon(p, &t) : GetPokemonRaw(p, &t); if (ok && t.species >= 1 && t.species <= 721) { templ = t; haveTempl = true; } } }
+            auto partyAvg = [&]() -> int {
+                u32 base = FindPartyBase(); if (!base) return 0; int sum = 0, cnt = 0;
+                for (int i = 0; i < 6; i++) { PK6 pk; u32 p = base + i * 0x104; bool ok = gPartyEncrypted ? GetPokemon(p, &pk) : GetPokemonRaw(p, &pk); if (ok && pk.species >= 1 && pk.species <= 721) { sum += LevelFromExp(pk.species, pk.exp); cnt++; } }
+                return cnt ? (sum + cnt / 2) / cnt : 0;
+            };
+            int avg = partyAvg(); if (avg < 1) avg = 50; if (avg > 100) avg = 100;
+
+            // build one random mon: clone the template, override only the gameplay fields.
+            auto buildMon = [&](PK6 &pk, u16 sp, int lvl) {
+                pk = templ;
+                pk.sanity = 0;
+                pk.encryptionConstant = rnd32();
+                pk.PID = rnd32();
+                pk.species = sp;
+                pk.heldItem = 0;
+                pk.exp = expForLevel(sp, lvl);
+                pk.ability = (u8)(spawnerAbil0[sp] + 1);   // spawnerAbil0 = abilityID-1
+                pk.abilityNumber = 1;
+                pk.markValue = 0;
+                pk.nature = (u8)rnd(25);
+                pk.currentHandler = 0;                      // OT is the current handler -> fully yours
+                int gender = (spawnerCategory[sp] == 1 || spawnerCategory[sp] == 2) ? 2 : (int)rnd(2); // legendary/mythical -> genderless
+                pk.fatefulEncounterGenderForm = (u8)(gender << 1);   // fateful=0, gender=bits1-2, form=0
+                for (int i = 0; i < 6; i++) pk.EV[i] = 0;
+                u32 iv = 0; for (int i = 0; i < 6; i++) iv |= ((u32)rnd(32) << (5 * i)); iv &= ~0xC0000000u; // clear isEgg(30)/isNicknamed(31)
+                pk.iv32 = iv;
+                u16 mv[4]; movesAt(sp, lvl, mv);
+                for (int i = 0; i < 4; i++) { pk.move[i] = mv[i]; pk.relearn[i] = mv[i]; pk.movePP[i] = mv[i] ? gMoveExtra[mv[i] - 1][2] : 0; pk.movePPUp[i] = 0; }
+                for (int z = 0; z < 26; z++) pk.nickname[z] = 0;
+                { const char *nm = speciesList[sp - 1]; u16 *u = (u16*)pk.nickname; int j = 0; for (; nm[j] && j < 12; j++) u[j] = (u16)(u8)nm[j]; u[j] = 0; }
+                pk.ball = 4;
+                pk.metLevel = (u8)lvl;
+                pk.originalTrainerFriendship = 70;
+            };
+
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            int boxSel = 0, mode = 0;   // boxSel 0-indexed (display +1); mode 0 RANDOM/1 COMP/2 MATCH/3 GAUNTLET
+            static const char *MODEN[4] = {"RANDOM", "COMPETITIVE", "MATCH TEAM", "GAUNTLET"};
+            int freeCount = 0;
+            auto recount = [&]() { freeCount = 0; for (int s = 0; s < 30; s++) { PK6 t; if (!GetPokemon(slotAddr(boxSel, s), &t)) freeCount++; } };
+            recount();
+
+            bool shown = false; u16 genSp[6] = {0}; int genLv[6] = {0}; PK6 genPk[6]; Image grid[6]; int gridKey[6]; for (int i = 0; i < 6; i++) gridKey[i] = -1;
+            int btn = 1;   // shown-state button cursor: 0 = REROLL, 1 = BOX 'EM ALL
+            string flash; int flashTtl = 0; auto setFlash = [&](const string &s) { flash = s; flashTtl = 200; };
+
+            auto levelFor = [&](int k) -> int {
+                if (mode == 1) return 50;
+                if (mode == 2) return avg;
+                if (mode == 3) { static const int g[6] = {15, 30, 45, 60, 75, 90}; return g[k]; }
+                return (int)rnd(100) + 1;   // RANDOM 1-100
+            };
+            // GENERATE / REROLL: build 6 mons into memory ONLY (preview). Nothing is written or charged yet.
+            auto doGen = [&]() {
+                if (!haveTempl) { setFlash("Put a Pokemon in your party first!"); return; }
+                int free = 0; for (int s = 0; s < 30; s++) { PK6 t; if (!GetPokemon(slotAddr(boxSel, s), &t)) free++; }
+                if (free < 6) { setFlash("Box " + to_string(boxSel + 1) + " has only " + to_string(free) + " free slots"); return; }
+                rng ^= ticks * 2654435761u;
+                for (int k = 0; k < 6; k++) {
+                    u16 sp; bool dup; int guard = 0;
+                    do { sp = (u16)(rnd(721) + 1); dup = false; for (int j = 0; j < k; j++) if (genSp[j] == sp) dup = true; } while (dup && ++guard < 50);
+                    int lvl = levelFor(k);
+                    buildMon(genPk[k], sp, lvl);   // held in memory, NOT written to the box
+                    genSp[k] = sp; genLv[k] = lvl;
+                }
+                for (int i = 0; i < 6; i++) gridKey[i] = -1;
+                shown = true; btn = 0;   // pre-select REROLL on the preview screen (safer than BOX 'EM ALL)
+            };
+            // BOX 'EM ALL: charge the fee (PAID) and actually write the 6 previewed mons into the box's empty slots.
+            auto commitTeam = [&]() {
+                int empt[30], ne = 0;
+                for (int s = 0; s < 30; s++) { PK6 t; if (!GetPokemon(slotAddr(boxSel, s), &t)) empt[ne++] = s; }
+                if (ne < 6) { setFlash("Box " + to_string(boxSel + 1) + " has only " + to_string(ne) + " free slots"); return; }
+                if (g_funPayMode == 1) { if ((int)BagMoney() < FEE) { setFlash("Not enough money!"); return; } BagAddMoney(-FEE); }
+                for (int k = 0; k < 6; k++) SetPokemon(slotAddr(boxSel, empt[k]), &genPk[k]);
+                setFlash("Boxed 6 into Box " + to_string(boxSel + 1) + "!");
+                shown = false; recount();
+            };
+
+            while (true) {
+                Controller::Update(); ticks++;
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) { while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); } close = true; break; }
+                if (Controller::IsKeyPressed(Key::B)) { if (shown) shown = false; else break; }
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+                bool paid = (g_funPayMode == 1);
+
+                if (!shown) {
+                    if (KeyRep(Key::Left)  || KeyRep(Key::L)) { boxSel = (boxSel + 30) % 31; recount(); }
+                    if (KeyRep(Key::Right) || KeyRep(Key::R)) { boxSel = (boxSel + 1) % 31; recount(); }
+                    if (KeyRep(Key::Up))   mode = (mode + 3) % 4;
+                    if (KeyRep(Key::Down)) mode = (mode + 1) % 4;
+                    if (Controller::IsKeyPressed(Key::A) || hit(40, 150, 240, 34)) doGen();
+                } else {   // preview: REROLL (left) | BOX 'EM ALL (right)
+                    if (Controller::IsKeyPressed(Key::Left) || Controller::IsKeyPressed(Key::Right)) btn ^= 1;
+                    if (hit(40, 150, 114, 34)) doGen();
+                    else if (hit(166, 150, 114, 34)) commitTeam();
+                    else if (Controller::IsKeyPressed(Key::A)) { if (btn == 0) doGen(); else commitTeam(); }
+                }
+
+                // ===== TOP =====
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Team Generator", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                if (!shown) {
+                    const char *t1 = "Generate 6 random Pokemon"; top.DrawSysfont(txt << t1, ctrX(t1), 58, txt);
+                    { string b = "into Box " + to_string(boxSel + 1); top.DrawSysfont(title << b, ctrX(b), 80, title); }
+                    { string f = "Box " + to_string(boxSel + 1) + ":  " + to_string(freeCount) + "/30 slots free"; Color fc = freeCount >= 6 ? txt : bad; top.DrawSysfont(fc << f, ctrX(f), 108, fc); }
+                    { static const char *RG[4] = {"Lv 1-100", "Lv 50", "", "Lv 15-90"}; string r = (mode == 2) ? ("~Lv " + to_string(avg)) : string(RG[mode]); string m = "Levels:  " + string(MODEN[mode]) + "  (" + r + ")"; top.DrawSysfont(sel << m, ctrX(m), 136, sel); }
+                    if (paid) { string c = "Costs  $" + commafy(FEE) + " to keep"; top.DrawSysfont(sel << c, ctrX(c), 164, sel); }
+                    else      { const char *f = "FREE"; top.DrawSysfont(good << f, ctrX(f), 164, good); }
+                    { const char *n = "They land straight into your PC boxes."; top.DrawSysfont(txt << n, ctrX(n), 192, txt); }
+                } else {
+                    { const char *h = "Preview - 6 random Pokemon (not saved yet)"; top.DrawSysfont(title << h, ctrX(h), 50, title); }
+                    for (int i = 0; i < 6; i++) {
+                        int cx = 30 + 57 + (i % 3) * 113, ry = 70 + (i / 3) * 76;
+                        if (gridKey[i] != (int)genSp[i]) { gridKey[i] = (int)genSp[i]; string p; BoxIconPath(p, genSp[i], false, "BoxIcons/"); grid[i].LoadFromFile(p); }
+                        top.DrawRect(cx - 18, ry, 36, 36, Color::White, true); top.DrawRect(cx - 18, ry, 36, 36, border, false);
+                        if (grid[i].IsLoaded()) { int sw = grid[i].Width(), sh = grid[i].Height(); grid[i].Draw(top, cx - sw / 2, ry + (36 - sh) / 2); }
+                        { string n = speciesList[genSp[i] - 1]; while (n.size() > 1 && (int)OSD::GetTextWidth(true, n) > 108) n.pop_back(); top.DrawSysfont(txt << n, cx - (int)OSD::GetTextWidth(true, n) / 2, ry + 38, txt); }
+                        { string lv = "Lv " + to_string(genLv[i]); top.DrawSysfont(sel << lv, cx - (int)OSD::GetTextWidth(true, lv) / 2, ry + 54, sel); }
+                    }
+                }
+
+                // ===== BOTTOM =====
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << "Team Generator", 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+                if (paid) bot.DrawSysfont(txt << "Money:  " << good << ("$" + commafy((int)BagMoney())), 34, 64, txt);
+                else      bot.DrawSysfont(good << "FREE - no fee, the mons are real", 34, 64, good);
+                if (!shown) {
+                    { string b = "Box " + to_string(boxSel + 1) + "   (" + to_string(freeCount) + " free)"; bot.DrawSysfont(txt << b, 34, 88, txt); }
+                    bot.DrawSysfont(txt << ("Mode:  " + string(MODEN[mode])), 34, 110, txt);
+                }
+                if (shown) {   // 6 Type-1 chips (3x2, same order as the top grid) to read the team's type spread
+                    static const int xC[3] = {78, 160, 242}, yR[2] = {88, 112};
+                    for (int i = 0; i < 6; i++) {
+                        int t1 = (genSp[i] >= 1 && genSp[i] <= 721) ? spawnerType1[genSp[i]] : 0;
+                        int w = (t1 >= 1 && t1 <= 18) ? (int)OSD::GetTextWidth(true, g_typeName[t1]) + 12 : 0;
+                        if (w) DrawTypeChip(bot, xC[i % 3] - w / 2, yR[i / 3], t1);
+                    }
+                }
+                if (flashTtl > 0) bot.DrawSysfont(bad << flash, 20 + (280 - (int)OSD::GetTextWidth(true, flash)) / 2, 132, bad);
+                if (shown) {   // two buttons: REROLL (blue) | BOX 'EM ALL (green); focused gets a 2px ring
+                    bot.DrawRect(40, 150, 114, 34, sel, true); bot.DrawRect(40, 150, 114, 34, border, false);
+                    const char *LR = "REROLL"; bot.DrawSysfont(Color::White << LR, 40 + (114 - (int)OSD::GetTextWidth(true, LR)) / 2, 159, Color::White);
+                    bot.DrawRect(166, 150, 114, 34, good, true); bot.DrawRect(166, 150, 114, 34, border, false);
+                    const char *LB = "BOX 'EM ALL"; bot.DrawSysfont(Color::White << LB, 166 + (114 - (int)OSD::GetTextWidth(true, LB)) / 2, 159, Color::White);
+                    int fx = (btn == 0) ? 40 : 166; bot.DrawRect(fx, 150, 114, 34, title, false); bot.DrawRect(fx - 1, 149, 116, 36, title, false);
+                } else {
+                    bool can = (freeCount >= 6 && (!paid || (int)BagMoney() >= FEE));
+                    Color f = can ? sel : bg2, ft = can ? bg : txt;
+                    bot.DrawRect(40, 150, 240, 34, f, true); bot.DrawRect(40, 150, 240, 34, border, false);
+                    const char *L = "GENERATE";
+                    bot.DrawSysfont(ft << L, 40 + (240 - (int)OSD::GetTextWidth(true, L)) / 2, 159, ft);
+                }
+                const char *hint = shown ? "L/R pick   A select   B back" : "L/R box   U/D mode   A go   B back";
+                bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+                if (flashTtl > 0) --flashTtl;
+
+                OSD::SwapBuffers();
+            }
+            drainKeys();
+            return close;
+        }
+
+        void FunHub(MenuEntry *entry) {
+            (void)entry;
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            const Color good(0x1B, 0x7A, 0x3A);   // readable green for the Money value (matches the other minigames)
+            auto RGB = [](u32 c) { return Color((u8)(c >> 16), (u8)(c >> 8), (u8)c); };
+            auto bright = [](u32 c) { return ((((c >> 16) & 0xFF) * 30 + ((c >> 8) & 0xFF) * 59 + (c & 0xFF) * 11) / 100) > 150; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+
+            int cursor = 0;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            // Optional per-game art: drop FunStuff/<tag>.bmp (50x54, 24-bit) on the SD - e.g. DICE.bmp, LOOT.bmp.
+            // If present it replaces the colored tile; if missing, the tile falls back to a colored box + tag text.
+            Image cov[7];
+            for (int i = 0; i < 7; i++) cov[i].LoadFromFile(string("FunStuff/") + FUN_GAMES[i].tag + ".bmp");
+
+            auto launch = [&](int i) -> bool {   // returns true if the game asked to close the plugin (FIGHT!)
+                bool close = false;
+                switch (i) {   // index must match FUN_GAMES[] order: TRUMP/LOOT/WHEEL/SLOT/DICE/TEAM/HI-LO
+                    case 0: close = FunTopTrumps();       break;
+                    case 1: close = FunLootBox();         break;
+                    case 2: close = FunWheel();           break;
+                    case 3: close = FunSlots();           break;
+                    case 4: close = FunRandomChallenge(); break;
+                    case 5: close = FunTeamGen();         break;
+                    case 6: close = FunHighLow();         break;
+                }
+                drainKeys();
+                return close;
+            };
+
+            // Word-wrap a game's description into bottom-screen lines, honoring '\n' as a paragraph break
+            // (emits a blank line between paragraphs so the text breathes). Wrapped to maxW px.
+            auto buildDesc = [&](const FunGame &gm, int maxW) {
+                vector<string> lines, paras; { string p; string text = gm.desc; for (size_t i = 0; i < text.size(); ++i) { if (text[i] == '\n') { paras.push_back(p); p.clear(); } else p += text[i]; } paras.push_back(p); }
+                for (size_t pi = 0; pi < paras.size(); ++pi) {
+                    if (pi > 0) lines.push_back("");                  // blank line between paragraphs
+                    vector<string> words; string w;
+                    for (size_t i = 0; i < paras[pi].size(); ++i) { if (paras[pi][i] == ' ') { if (!w.empty()) { words.push_back(w); w.clear(); } } else w += paras[pi][i]; }
+                    if (!w.empty()) words.push_back(w);
+                    string line;
+                    for (size_t k = 0; k < words.size(); ++k) { string cand = line.empty() ? words[k] : line + " " + words[k]; if ((int)OSD::GetTextWidth(true, cand) > maxW && !line.empty()) { lines.push_back(line); line = words[k]; } else line = cand; }
+                    if (!line.empty()) lines.push_back(line);
+                }
+                return lines;
+            };
+            bool infoMode = false;   // X toggles: bottom screen shows the focused game's full description (top keeps the grid)
+
+            const int BTN_X = 28, BTN_W = 264, BTN_H = 30, FREE_Y = 96, PAID_Y = 132;   // raised ~16px into the free area under the blurb
+
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) {
+                    while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                    PluginMenu::Close(); break;
+                }
+                if (Controller::IsKeyPressed(Key::B)) { if (infoMode) infoMode = false; else break; }
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+
+                // ---- navigation (7 tiles in a 4-wide grid: row0 = 0..3, row1 = 4..6). D-Pad still browses while
+                // the description is open, so the bottom-screen text follows the selected game live. ----
+                if (KeyRep(Key::Left))  cursor = (cursor + 6) % 7;
+                if (KeyRep(Key::Right)) cursor = (cursor + 1) % 7;
+                if (KeyRep(Key::Up))    { if (cursor >= 4) cursor -= 4; }
+                if (KeyRep(Key::Down))  { if (cursor + 4 < 7) cursor += 4; }
+                if (Controller::IsKeyPressed(Key::X)) infoMode = !infoMode;          // X: toggle the description panel
+                if (!infoMode && Controller::IsKeyPressed(Key::A)) { if (launch(cursor)) { PluginMenu::Close(); break; } }
+
+                // ---- TOP: grid of game tiles ----
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Mini Game Corner", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                for (int i = 0; i < 7; i++) {
+                    int col = i % 4, row = i / 4;
+                    int nrow = (i < 4) ? 4 : 3;                                          // tiles in this row (L1=4, L2=3)
+                    int cellx = 30 + (340 - nrow * 82) / 2 + col * 82, covx = cellx + 16, cy = 50 + row * 80;  // each row centered in the 340-wide window
+                    if (cov[i].IsLoaded()) {
+                        cov[i].Draw(top, covx, cy);
+                    } else {
+                        Color gc = RGB(FUN_GAMES[i].col), tc = bright(FUN_GAMES[i].col) ? Color::Black : Color::White;
+                        top.DrawRect(covx, cy, 50, 54, gc, true); top.DrawRect(covx, cy, 50, 54, border, false);
+                        int tw = (int)OSD::GetTextWidth(true, FUN_GAMES[i].tag);
+                        top.DrawSysfont(tc << FUN_GAMES[i].tag, covx + (50 - tw) / 2, cy + 22, tc);
+                    }
+                    if (i == cursor) { top.DrawRect(covx - 2, cy - 2, 54, 58, sel, false); top.DrawRect(covx - 3, cy - 3, 56, 60, sel, false); }
+                    int nw = (int)OSD::GetTextWidth(true, FUN_GAMES[i].shortNm);
+                    top.DrawSysfont((i == cursor ? sel : txt) << FUN_GAMES[i].shortNm, cellx + (82 - nw) / 2, cy + 56, i == cursor ? sel : txt);
+                    // NOTE: tiles live on the TOP screen, which has no touchscreen - navigate with the D-Pad and
+                    // play with A. (A touch hit-test here would false-fire against bottom-screen taps like the
+                    // FREE/PAID buttons, since both screens share one touch coordinate space.)
+                }
+
+                // ---- BOTTOM: description panel (info mode) OR focused game blurb + FREE/PAID toggle ----
+                const FunGame &g = FUN_GAMES[cursor];
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                bot.DrawSysfont(title << g.name, 34, 28, title); bot.DrawRect(28, 48, 264, 1, title, true);
+
+                if (infoMode) {
+                    vector<string> dl = buildDesc(g, 256);
+                    for (size_t k = 0; k < dl.size(); ++k) bot.DrawSysfont(txt << dl[k], 30, 56 + (int)k * 13, txt);
+                    const char *h = "D-Pad browse   X close";
+                    bot.DrawSysfont(txt << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 206, txt);
+                } else {
+                    {   // short blurb (up to 2 lines, 264 px)
+                        string text = g.blurb; vector<string> words, lines; string w;
+                        for (size_t i = 0; i < text.size(); ++i) { if (text[i] == ' ') { if (!w.empty()) { words.push_back(w); w.clear(); } } else w += text[i]; }
+                        if (!w.empty()) words.push_back(w);
+                        string line;
+                        for (size_t k = 0; k < words.size(); ++k) { string cand = line.empty() ? words[k] : line + " " + words[k]; if ((int)OSD::GetTextWidth(true, cand) > 264 && !line.empty()) { lines.push_back(line); line = words[k]; } else line = cand; }
+                        if (!line.empty()) lines.push_back(line);
+                        for (size_t k = 0; k < lines.size() && k < 2; ++k) bot.DrawSysfont(txt << lines[k], 34, 58 + (int)k * 16, txt);
+                    }
+                    if (g.money) {   // games that use Pokedollars: the FREE/PAID toggle
+                        bool paid = (g_funPayMode == 1);
+                        {   // FREE button (active when not paid)
+                            Color f = !paid ? sel : bg2, ft = !paid ? bg : txt;
+                            bot.DrawRect(BTN_X, FREE_Y, BTN_W, BTN_H, f, true); bot.DrawRect(BTN_X, FREE_Y, BTN_W, BTN_H, border, false);
+                            const char *L = "Fun.  FREE TO PLAY";
+                            bot.DrawSysfont(ft << L, BTN_X + (BTN_W - (int)OSD::GetTextWidth(true, L)) / 2, FREE_Y + 9, ft);
+                        }
+                        {   // PAID button (active when paid)
+                            Color f = paid ? sel : bg2, ft = paid ? bg : txt;
+                            bot.DrawRect(BTN_X, PAID_Y, BTN_W, BTN_H, f, true); bot.DrawRect(BTN_X, PAID_Y, BTN_W, BTN_H, border, false);
+                            const char *L = "More fun!  SPEND PokeDollars";
+                            bot.DrawSysfont(ft << L, BTN_X + (BTN_W - (int)OSD::GetTextWidth(true, L)) / 2, PAID_Y + 9, ft);
+                        }
+                        if (paid) {
+                            string m = "Money:  $" + commafy((int)BagMoney());   // plain form, only to center the line
+                            int mx = 20 + (280 - (int)OSD::GetTextWidth(true, m)) / 2;
+                            bot.DrawSysfont(txt << "Money:  " << good << ("$" + commafy((int)BagMoney())), mx, 168, txt);
+                        }
+                        if (hit(BTN_X, FREE_Y, BTN_W, BTN_H)) SetFunPayMode(0);
+                        if (hit(BTN_X, PAID_Y, BTN_W, BTN_H)) SetFunPayMode(1);
+                    } else {        // money-less game (Random Challenge): a single non-toggle "FREE TO PLAY" badge
+                        bot.DrawRect(BTN_X, 124, BTN_W, BTN_H, sel, true); bot.DrawRect(BTN_X, 124, BTN_W, BTN_H, border, false);
+                        const char *L = "FREE TO PLAY";
+                        bot.DrawSysfont(bg << L, BTN_X + (BTN_W - (int)OSD::GetTextWidth(true, L)) / 2, 124 + 9, bg);
+                    }
+                    const char *hint = "X info   A play   B exit";
+                    bot.DrawSysfont(txt << hint, 20 + (280 - (int)OSD::GetTextWidth(true, hint)) / 2, 204, txt);
+                }
+
+                OSD::SwapBuffers();
+            }
+        }
+
+        // ===================== ENEMY HELPER =====================
+        // In-battle "coach card" for the opposing Pokemon. Complements the Display Enemy Stats OSD overlay: it
+        // reads the SAME enemy block (ViewInfoCallback's base + 0x1E4 stride) and EXPLAINS what the enemy's
+        // Nature / Ability / Item / Hidden Power / Moves do, advises which attacking types beat it, and offers a
+        // few PokeMart consumables you can grab with one tap (honoring the PokeMart Anywhere PAY/FREE mode).
+        // Full-screen dual-screen tool; the enemy struct only exists during a battle.
+        void EnemyHelper(MenuEntry *entry) {
+            (void)entry;
+            const Screen &top = OSD::GetTopScreen();
+            const Screen &bot = OSD::GetBottomScreen();
+            const FwkSettings &st = FwkSettings::Get();
+            Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
+            Color sel = st.MenuSelectedItemColor, title = st.WindowTitleColor, border = st.BackgroundBorderColor;
+            // Descriptive body text uses the theme's text color (black on light themes like the user's, light on
+            // dark themes - readable everywhere); titles/labels use theme accents. "good" is a readable green for
+            // tips/flash. move4 = the theme's 4th preview-square color (the swatches in the Change Theme list),
+            // used to accent move-name lines.
+            const Color good(0x1B, 0x7A, 0x3A); Color dim = txt; const Color move4 = ThemeSquareColor(3);
+
+            int slot = 0;      // 0..5 enemy slot
+            int view = 0;      // 0 = details list, 1 = compare (enemy vs my active), 2 = suggested items
+            int scroll = 0;    // detail-list scroll (rows)
+            int focus = 0;     // item row focus
+            string flash; int flashTtl = 0;
+            auto setFlash = [&](const string &s) { flash = s; flashTtl = 110; };
+            auto commafy = [](int v) { string s = to_string(v < 0 ? 0 : v), o; int c = 0; for (int i = (int)s.size() - 1; i >= 0; --i) { o = string(1, s[i]) + o; if (++c % 3 == 0 && i > 0) o = "," + o; } return o; };
+            Image spr; int sprKey = -1;
+            bool wasDown = false, armed = false; UIntVector lastPos = Touch::GetPosition();
+
+            auto drainKeys = [&]() { while (Controller::IsKeyDown(Key::A) || Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } };
+            drainKeys();
+
+            // Greedy word-wrap into a (color,line) list.
+            auto wrapInto = [&](vector<pair<Color, string>> &out, Color c, const string &text, int maxW) {
+                vector<string> words; string w;
+                for (size_t i = 0; i < text.size(); ++i) { char ch = text[i]; if (ch == ' ') { if (!w.empty()) { words.push_back(w); w.clear(); } } else w += ch; }
+                if (!w.empty()) words.push_back(w);
+                string line;
+                for (size_t k = 0; k < words.size(); ++k) {
+                    string cand = line.empty() ? words[k] : line + " " + words[k];
+                    if ((int)OSD::GetTextWidth(true, cand) > maxW && !line.empty()) { out.push_back({c, line}); line = words[k]; }
+                    else line = cand;
+                }
+                if (!line.empty()) out.push_back({c, line});
+            };
+
+            // Confirm + acquire one item, honoring PAY/FREE.
+            auto buy = [&](int id) {
+                if (id <= 0 || id >= 801) return;
+                int payMode = BagPayMode();
+                // Color the confirm so text / item / value read apart: item name in the title accent, the price in
+                // green, everything else the dialog's default text color (\x18 resets to it). CenterAlign / the
+                // MessageBox width both skip color-escape bytes, so this stays correctly centered.
+                const string RST = "\x18";
+                // Clean single colored line (item in title color, price in green). The item's effect is shown in
+                // the Items-tab row instead - the framework MessageBox mangles a multi-line colored body.
+                string q = (payMode == 1 && bagItemBuyable[id])
+                    ? ("Buy " + (string)title + bagItemName[id] + RST + " for " + (string)good + "$" + commafy(bagItemCost[id]) + RST + "?")
+                    : ("Add " + (string)title + bagItemName[id] + RST + " to your bag?");
+                bool yes = MessageBox(CenterAlign(q), DialogType::DialogYesNo, ClearScreen::Both)();
+                if (yes) {
+                    int r = BagBuyOne(id);
+                    static const char *RES[5] = {"Added (free)", "Purchased", "Not sold in PAY mode", "Not enough money", "Bag is full"};
+                    setFlash(string(bagItemName[id]) + ": " + RES[(r >= 0 && r < 5) ? r : 4]);
+                }
+                drainKeys();
+            };
+
+            static const char *hpTypes[16] = {
+                "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel",
+                "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark"
+            };
+            static const char *NSTAT[5] = {"Atk", "Def", "Spe", "SpA", "SpD"};
+            static const char *CN[3] = {"Status", "Phys", "Spec"};
+
+            // Which species I already own in my PC Boxes (scanned ONCE here - boxes are static during a battle).
+            // 31 boxes x 30 slots; used to flag "In Box" / "Not in Box" under the enemy sprite.
+            bool ownedBox[722]; for (int i = 0; i < 722; i++) ownedBox[i] = false;
+            { u32 bxBase = AutoGameSet((u32)0x8C861C8, (u32)0x8C9E134);
+              for (int b = 0; b < 31; b++) for (int s = 0; s < 30; s++) {
+                  PK6 t; if (GetPokemon(bxBase + (u32)b * 6960u + (u32)s * 0xE8u, &t) && t.species >= 1 && t.species <= 721) ownedBox[t.species] = true;
+              } }
+
+            while (true) {
+                Controller::Update();
+                if (System::IsSleeping()) break;
+                if (Controller::IsKeyPressed(Key::Select)) {
+                    while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                    PluginMenu::Close(); break;
+                }
+
+                bool inB = IfInBattle();
+
+                bool down = Touch::IsDown(); UIntVector tp = down ? Touch::GetPosition() : lastPos; if (down) lastPos = tp;
+                bool tap = armed && !down && wasDown; if (!down) armed = true; wasDown = down;
+                auto hit = [&](int x, int y, int w, int h) { return tap && inBox(lastPos, x, y, w, h); };
+
+                // ---- not in battle: wait screen ----
+                if (!inB) {
+                    top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                    top.DrawSysfont(title << "Enemy Helper", 42, 26, title); top.DrawRect(42, 40, 316, 1, title, true);
+                    const char *m1 = "Open this during a battle.";
+                    const char *m2 = "The enemy's data only exists mid-battle.";
+                    top.DrawSysfont(txt << m1, 42 + (316 - (int)OSD::GetTextWidth(true, m1)) / 2, 104, txt);
+                    top.DrawSysfont(txt << m2, 42 + (316 - (int)OSD::GetTextWidth(true, m2)) / 2, 124, txt);
+                    bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                    const char *h = "B / SELECT  exit";
+                    bot.DrawSysfont(txt << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 112, txt);
+                    if (Controller::IsKeyPressed(Key::B)) break;
+                    OSD::SwapBuffers(); continue;
+                }
+
+                // ---- decode the selected enemy slot (same source as Display Enemy Stats) ----
+                u32 ptr = AutoGameSet(0x81FF744, 0x81FEEC8) + (u32)slot * 0x1E4;
+                PK6 pk; bool hasPk = GetPokemon(ptr, &pk) && pk.species >= 1 && pk.species <= 721;
+
+                // ---- derive everything for the card ----
+                int level = 0; bool shiny = false; int gend = 2;
+                string natLine, hpName, abName, abDesc, itName, itDesc;
+                u16 s6[6] = {0, 0, 0, 0, 0, 0};
+                vector<int> superT, superMul, resistT, immuneT;
+                vector<string> hints;
+                vector<u16> items;
+                bool hasStatusMove = false;
+                if (hasPk) {
+                    level = LevelFromExp(pk.species, pk.exp);
+                    shiny = IsShiny(&pk);
+                    gend = (pk.fatefulEncounterGenderForm >> 1) & 0x3; if (gend > 2) gend = 2;
+
+                    int nat = pk.nature;
+                    string natName = (nat >= 0 && nat < (int)natureList.size()) ? natureList[nat] : to_string(nat);
+                    if (nat < 0 || nat > 24) natLine = natName;
+                    else { int bo = nat / 5, lo = nat % 5; natLine = natName + (bo == lo ? " (neutral)" : (string(" (+") + NSTAT[bo] + " / -" + NSTAT[lo] + ")")); }
+
+                    int hpSum = (pk.iv32 & 1) + (((pk.iv32 >> 5) & 1) << 1) + (((pk.iv32 >> 10) & 1) << 2)
+                              + (((pk.iv32 >> 15) & 1) << 3) + (((pk.iv32 >> 20) & 1) << 4) + (((pk.iv32 >> 25) & 1) << 5);
+                    hpName = hpTypes[hpSum * 15 / 63];
+
+                    abName = (pk.ability >= 1 && pk.ability <= 191) ? string(abilityList[pk.ability - 1]) : "?";
+                    if (pk.abilityNumber == 4) abName += " (HA)";
+                    abDesc = (pk.ability >= 1 && pk.ability <= 191) ? string(gAbilityDesc[pk.ability - 1]) : "";
+
+                    itName = (pk.heldItem == 0) ? "None" : (pk.heldItem < 801 ? string(bagItemName[pk.heldItem]) : "?");
+                    itDesc = (pk.heldItem >= 1 && pk.heldItem < 801) ? string(gItemDesc[pk.heldItem]) : "";
+
+                    CalcStats(pk.species, level, pk.nature, pk.iv32, pk.EV, s6);
+                    int ATK = s6[1], DEF = s6[2], SPA = s6[3], SPD = s6[4], SPE = s6[5];
+                    for (int i = 0; i < 4; ++i) { u16 m = pk.move[i]; if (m >= 1 && m <= 621 && gMoveExtra[m - 1][1] == 0) hasStatusMove = true; }
+
+                    bool physBulk = DEF * 4 >= SPD * 5, specBulk = SPD * 4 >= DEF * 5;
+                    bool physAtk  = ATK * 4 >= SPA * 5, specAtk  = SPA * 4 >= ATK * 5;
+                    if (physBulk && !specBulk) hints.push_back("Bulky on defense - prefer SPECIAL attackers.");
+                    else if (specBulk && !physBulk) hints.push_back("Bulky specially - prefer PHYSICAL attackers.");
+                    if (physAtk && !specAtk) hints.push_back("Strong physical attacker - raise your Defense.");
+                    else if (specAtk && !physAtk) hints.push_back("Strong special attacker - raise your Sp. Def.");
+                    if (hasStatusMove) hints.push_back("Carries a status move - bring a status cure.");
+
+                    // type matchup (defensive typing). qv in quarter-units: 16=4x,8=2x,4=1x,2=1/2x,1=1/4x,0=immune.
+                    int d1 = spawnerType1[pk.species], d2 = spawnerType2[pk.species];
+                    if (d1 >= 1) {
+                        int qv[19] = {0};
+                        for (int a = 1; a <= 18; ++a) { int q = TypeFactorQ(a - 1, d1 - 1); if (d2 >= 1 && d2 != d1) q = q * TypeFactorQ(a - 1, d2 - 1) / 4; qv[a] = q; }
+                        for (int a = 1; a <= 18; ++a) if (qv[a] >= 16) { superT.push_back(a); superMul.push_back(4); } // 4x
+                        for (int a = 1; a <= 18; ++a) if (qv[a] == 8)  { superT.push_back(a); superMul.push_back(2); } // 2x
+                        for (int a = 1; a <= 18; ++a) if (qv[a] > 0 && qv[a] < 4) resistT.push_back(a);
+                        for (int a = 1; a <= 18; ++a) if (qv[a] == 0) immuneT.push_back(a);
+                    }
+
+                    // suggested consumables
+                    auto addItem = [&](u16 id) { for (size_t i = 0; i < items.size(); ++i) if (items[i] == id) return; items.push_back(id); };
+                    if (hasStatusMove) addItem(27);                       // Full Heal (cure any status it inflicts)
+                    if (physAtk && !specAtk) addItem(58);                 // X Defense
+                    else if (specAtk && !physAtk) addItem(62);            // X Sp. Def
+                    addItem(25);                                          // Hyper Potion (always - sustain, kept before extras)
+                    if (hasStatusMove) addItem(55);                       // Guard Spec.
+                    if (SPE >= 100) addItem(59);                          // X Speed
+                    if (items.size() > 4) items.resize(4);                // Items tab shows 4 rows; keep focus on-screen
+                }
+                int nItems = (int)items.size();
+                if (focus >= nItems) focus = 0;
+
+                // ============================== INPUT ==============================
+                if (Controller::IsKeyPressed(Key::B)) break;
+                if (Controller::IsKeyPressed(Key::Left)  || Controller::IsKeyPressed(Key::L)) { slot = (slot + 5) % 6; scroll = 0; focus = 0; sprKey = -1; }
+                if (Controller::IsKeyPressed(Key::Right) || Controller::IsKeyPressed(Key::R)) { slot = (slot + 1) % 6; scroll = 0; focus = 0; sprKey = -1; }
+                if (Controller::IsKeyPressed(Key::X)) { view = (view + 1) % 3; scroll = 0; }   // cycle Details -> Compare -> Items
+                if (view == 0) { if (KeyRep(Key::Up)) scroll--; if (KeyRep(Key::Down)) scroll++; }
+                else if (view == 2) { if (nItems > 0 && KeyRep(Key::Up)) focus = (focus + nItems - 1) % nItems; if (nItems > 0 && KeyRep(Key::Down)) focus = (focus + 1) % nItems; if (nItems > 0 && Controller::IsKeyPressed(Key::A)) buy(items[focus]); }
+                // tabs (Details / Compare / Items)
+                if (hit(28, 24, 82, 22))  { view = 0; scroll = 0; }
+                if (hit(116, 24, 82, 22)) { view = 1; scroll = 0; }
+                if (hit(204, 24, 82, 22)) { view = 2; scroll = 0; }
+
+                // ============================== TOP: coach card ==============================
+                top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
+                top.DrawSysfont(title << "Enemy Helper", 42, 26, title);
+                { string h = "Enemy " + to_string(slot + 1) + " / 6"; top.DrawSysfont(txt << h, 358 - (int)OSD::GetTextWidth(true, h), 28, txt); }
+                top.DrawRect(42, 40, 316, 1, title, true);
+
+                if (!hasPk) {
+                    const char *e = "This enemy slot is empty.";
+                    top.DrawSysfont(txt << e, 42 + (316 - (int)OSD::GetTextWidth(true, e)) / 2, 110, txt);
+                } else {
+                    int key = pk.species * 2 + (shiny ? 1 : 0);
+                    if (key != sprKey) { sprKey = key; string p; BoxIconPath(p, pk.species, shiny, "Spawner/"); spr.LoadFromFile(p); }
+                    const int FX = 44, FY = 50; top.DrawRect(FX, FY, 84, 84, Color::White, true); top.DrawRect(FX, FY, 84, 84, border, false);
+                    if (spr.IsLoaded()) { int sw = spr.Width(), sh = spr.Height(); spr.Draw(top, FX + (84 - sw) / 2, FY + (84 - sh) / 2); }
+                    // below the tile: do I already own this species in my PC Boxes?
+                    { bool ob = ownedBox[pk.species]; const char *bl = ob ? "In Box" : "Not in Box"; Color bc = ob ? good : Color::Gray;
+                      top.DrawSysfont(bc << bl, FX + (84 - (int)OSD::GetTextWidth(true, bl)) / 2, FY + 88, bc); }
+
+                    const int IX = 140;
+                    { string nm = title << speciesList[pk.species - 1]; if (shiny) nm = nm << sel << "  \xE2\x98\x85"; top.DrawSysfont(nm, IX, 50, title); }
+                    { const char *G[3] = {"Male", "Female", "-"}; top.DrawSysfont(sel << "Lv " << txt << to_string(level) << sel << "    " << txt << G[gend], IX, 70, txt); }
+                    DrawTypeChips(top, pk.species, IX, 89);
+                    top.DrawSysfont(sel << "Nature " << txt << natLine, IX, 108, txt);
+                    top.DrawSysfont(sel << "Hidden Pwr " << txt << hpName, IX, 126, txt);
+                    top.DrawSysfont(sel << "Ability " << txt << abName, IX, 144, txt);
+                    top.DrawSysfont(sel << "Item " << txt << itName, IX, 162, txt);
+
+                    top.DrawRect(42, 179, 316, 1, border, true);
+                    top.DrawSysfont(sel << "Hit it with:", 44, 184, sel);
+                    const int chipX0 = 44 + (int)OSD::GetTextWidth(true, "Hit it with:") + 8;
+                    int cx = chipX0, cy = 183;
+                    if (superT.empty()) top.DrawSysfont(dim << "no clear weakness", cx, 184, dim);
+                    else for (size_t i = 0; i < superT.size(); ++i) {
+                        const char *ms = superMul[i] == 4 ? "x4" : "x2"; // x4 = double weakness, x2 = single
+                        int chipW = (int)OSD::GetTextWidth(true, g_typeName[superT[i]]) + 12;
+                        int mulW  = (int)OSD::GetTextWidth(true, ms);
+                        if (cx + chipW + 3 + mulW > 356) { cx = chipX0; cy += 18; } // wrap under the first chip, not the label
+                        DrawTypeChip(top, cx, cy, superT[i]);
+                        top.DrawSysfont(txt << ms, cx + chipW + 3, cy + 1, txt);
+                        cx += chipW + 3 + mulW + 8;
+                    }
+                }
+
+                // ============================== BOTTOM ==============================
+                bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
+                auto tab = [&](int x, int w, const string &label, bool active) {
+                    bot.DrawRect(x, 24, w, 22, active ? sel : bg2, true); bot.DrawRect(x, 24, w, 22, active ? title : border, false);
+                    int tw = (int)OSD::GetTextWidth(true, label);
+                    bot.DrawSysfont((active ? bg : txt) << label, x + (w - tw) / 2, 27, txt);
+                };
+                tab(28, 82, "Details", view == 0);
+                tab(116, 82, "Compare", view == 1);
+                tab(204, 82, "Items", view == 2);
+                bot.DrawRect(26, 50, 268, 1, border, true);
+
+                if (view == 0) {
+                    // build the detail list
+                    vector<pair<Color, string>> L;
+                    if (!hasPk) L.push_back({txt, "No enemy in this slot."});
+                    else {
+                        L.push_back({sel, "ABILITY"});
+                        L.push_back({txt, abName});
+                        wrapInto(L, dim, abDesc, 262);
+                        L.push_back({txt, ""});
+                        L.push_back({sel, "HELD ITEM"});
+                        L.push_back({txt, itName});
+                        if (pk.heldItem >= 1) wrapInto(L, dim, itDesc, 262);
+                        L.push_back({txt, ""});
+                        L.push_back({sel, "MOVES"});
+                        for (int i = 0; i < 4; ++i) {
+                            u16 mid = pk.move[i];
+                            if (mid < 1 || mid > 621) { L.push_back({dim, to_string(i + 1) + ".  -"}); continue; }
+                            int mt = gMoveExtra[mid - 1][0], cat = gMoveExtra[mid - 1][1], pwr = gMoveInfo[mid - 1][0];
+                            string head = to_string(i + 1) + ". " + movesList[mid - 1] + "  [" + ((mt >= 1 && mt <= 18) ? g_typeName[mt] : "-") + "] " + CN[(cat >= 0 && cat < 3) ? cat : 0] + (pwr ? (" " + to_string(pwr)) : "");
+                            L.push_back({move4, head});
+                            wrapInto(L, dim, gMoveShortDesc[mid - 1], 262);
+                        }
+                        L.push_back({txt, ""});
+                        L.push_back({sel, "MATCHUP"});
+                        if (!resistT.empty()) { string r = "Resists: "; for (size_t i = 0; i < resistT.size(); ++i) r += string(g_typeName[resistT[i]]) + (i + 1 < resistT.size() ? ", " : ""); wrapInto(L, txt, r, 262); }
+                        if (!immuneT.empty()) { string r = "Immune: "; for (size_t i = 0; i < immuneT.size(); ++i) r += string(g_typeName[immuneT[i]]) + (i + 1 < immuneT.size() ? ", " : ""); wrapInto(L, txt, r, 262); }
+                        if (!hints.empty()) {
+                            L.push_back({txt, ""});
+                            L.push_back({sel, "TIPS  (how to play it)"});
+                            for (size_t i = 0; i < hints.size(); ++i) wrapInto(L, good, hints[i], 262);
+                        }
+                    }
+                    const int VIS = 9, lineH = 15, y0 = 56;
+                    int total = (int)L.size(), maxScroll = total > VIS ? total - VIS : 0;
+                    if (scroll > maxScroll) scroll = maxScroll; if (scroll < 0) scroll = 0;
+                    for (int i = 0; i < VIS; ++i) { int idx = scroll + i; if (idx >= total) break; bot.DrawSysfont(L[idx].first << L[idx].second, 30, y0 + i * lineH, L[idx].first); }
+                    if (scroll > 0) bot.DrawSysfont(sel << "\xE2\x96\xB2", 286, 54, sel);           // up triangle
+                    if (scroll < maxScroll) bot.DrawSysfont(sel << "\xE2\x96\xBC", 286, 190, sel);   // down triangle
+                    const char *h = flashTtl > 0 ? flash.c_str() : "L/R enemy   X tab   B exit";
+                    bot.DrawSysfont((flashTtl > 0 ? good : dim) << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 205, dim);
+                } else if (view == 1) {
+                    // ===== COMPARE: enemy stats (s6) vs my ACTIVE (on-field) Pokemon =====
+                    // Both sides show the FULL computed stat (Base + IV + EV + nature + level). Enemy = s6 (CalcStats).
+                    // Mine: read the active species from the in-battle struct (battleOffset[0] slot 0, off 0xC), find
+                    // that Pokemon in my party and CalcStats its PK6 (Base+IV+EV) - identical method to the enemy.
+                    // Fallback (party not located): the live battle-struct computed stats (maxHP 0xE, 0xF6+k*2).
+                    u16 my6[6] = {0, 0, 0, 0, 0, 0}; u16 mySp = 0; u32 pa = 0;
+                    if (!battleOffset.empty()) { pa = Process::Read32(battleOffset[0]); if (pa) Process::Read16(pa + 0xC, mySp); }
+                    bool haveMine = false;
+                    if (mySp >= 1 && mySp <= 721) {
+                        u32 pbase = FindPartyBase();
+                        if (pbase) for (int i = 0; i < 6; ++i) {
+                            PK6 mp; bool ok = gPartyEncrypted ? GetPokemon(pbase + i * 0x104, &mp) : GetPokemonRaw(pbase + i * 0x104, &mp);
+                            if (ok && mp.species == mySp) { CalcStats(mp.species, LevelFromExp(mp.species, mp.exp), mp.nature, mp.iv32, mp.EV, my6); haveMine = true; break; }
+                        }
+                        if (!haveMine && pa) {   // fallback: live battle-struct computed stats
+                            Process::Read16(pa + 0xE, my6[0]);
+                            for (int k = 0; k < 5; ++k) { u16 v = 0; Process::Read16(pa + 0xF6 + k * 2, v); my6[k + 1] = v; }
+                            haveMine = true;
+                        }
+                    }
+                    static const char *SN[6] = {"HP", "Atk", "Def", "Sp.Atk", "Sp.Def", "Spe"};
+                    if (!hasPk) {
+                        bot.DrawSysfont(txt << "No enemy in this slot.", 30, 100, txt);
+                    } else if (!haveMine) {
+                        bot.DrawSysfont(txt << "No active Pokemon found.", 30, 100, txt);
+                    } else {
+                        int et = 0, mt = 0;
+                        for (int i = 0; i < 6; ++i) { et += s6[i]; mt += my6[i]; }
+                        // header: enemy name  vs  my name
+                        { string en = speciesList[pk.species - 1]; while (en.size() > 1 && (int)OSD::GetTextWidth(true, en) > 108) en.pop_back();
+                          string mn = speciesList[mySp - 1];       while (mn.size() > 1 && (int)OSD::GetTextWidth(true, mn) > 108) mn.pop_back();
+                          bot.DrawSysfont(title << en, 30, 54, title);
+                          const char *vs = "vs"; bot.DrawSysfont(dim << vs, 20 + (280 - (int)OSD::GetTextWidth(true, vs)) / 2, 54, dim);
+                          bot.DrawSysfont(title << mn, 288 - (int)OSD::GetTextWidth(true, mn), 54, title); }
+                        // column heads (the "you win N/6" summary lives on the Total row, to avoid overlap here)
+                        bot.DrawSysfont(dim << "Enemy", 180 - (int)OSD::GetTextWidth(true, "Enemy"), 68, dim);
+                        bot.DrawSysfont(dim << "You",   288 - (int)OSD::GetTextWidth(true, "You"),   68, dim);
+                        // 6 stat rows: higher value green, lower dim, tie neutral
+                        for (int i = 0; i < 6; ++i) {
+                            int y = 86 + i * 16, ev = s6[i], mv = my6[i];
+                            Color ec = (ev > mv) ? good : (ev < mv ? dim : txt);
+                            Color mc = (mv > ev) ? good : (mv < ev ? dim : txt);
+                            bot.DrawSysfont(sel << SN[i], 30, y, sel);
+                            { string s = to_string(ev); bot.DrawSysfont(ec << s, 180 - (int)OSD::GetTextWidth(true, s), y, ec); }
+                            { string s = to_string(mv); bot.DrawSysfont(mc << s, 288 - (int)OSD::GetTextWidth(true, s), y, mc); }
+                        }
+                        // totals row
+                        bot.DrawRect(26, 182, 268, 1, border, true);
+                        bot.DrawSysfont(sel << "Total", 30, 185, sel);
+                        { Color tc = (et > mt) ? good : (et < mt ? dim : txt); string s = to_string(et); bot.DrawSysfont(tc << s, 180 - (int)OSD::GetTextWidth(true, s), 185, tc); }
+                        { Color tc = (mt > et) ? good : (mt < et ? dim : txt); string s = to_string(mt); bot.DrawSysfont(tc << s, 288 - (int)OSD::GetTextWidth(true, s), 185, tc); }
+                    }
+                    const char *h = flashTtl > 0 ? flash.c_str() : "L/R enemy   X tab   B exit";
+                    bot.DrawSysfont((flashTtl > 0 ? good : dim) << h, 20 + (280 - (int)OSD::GetTextWidth(true, h)) / 2, 205, dim);
+                } else {
+                    int payMode = BagPayMode();
+                    // Top strip: transient buy feedback (flash) replaces the mode + on-hand money line while active.
+                    if (flashTtl > 0) {
+                        bot.DrawSysfont(good << flash, 20 + (280 - (int)OSD::GetTextWidth(true, flash.c_str())) / 2, 54, good);
+                    } else {
+                        bot.DrawSysfont(sel << (payMode == 1 ? "PAY mode" : "FREE mode"), 30, 54, sel);
+                        if (payMode == 1) { string mny = "Money  $" + commafy(BagMoney()); bot.DrawSysfont(txt << mny, 288 - (int)OSD::GetTextWidth(true, mny), 54, txt); }
+                    }
+                    // No legend row (A/tap-to-buy is obvious) -> taller rows so the effect text clears the border.
+                    if (nItems == 0) {
+                        bot.DrawSysfont(txt << "No specific items suggested.", 30, 100, txt);
+                    } else for (int i = 0; i < nItems && i < 4; ++i) {
+                        int id = items[i], y = 70 + i * 36; bool cur = (i == focus);
+                        if (cur) bot.DrawRect(26, y, 268, 34, bg2, true);
+                        bot.DrawRect(26, y, 268, 34, cur ? title : border, false);
+                        bot.DrawSysfont((cur ? sel : title) << bagItemName[id], 32, y + 4, cur ? sel : title);
+                        string pr = (payMode == 1) ? (bagItemBuyable[id] ? ("$" + commafy(bagItemCost[id])) : "n/a") : "Free";
+                        bot.DrawSysfont(dim << pr, 288 - (int)OSD::GetTextWidth(true, pr), y + 4, dim);
+                        { string d = ItemBlurb(id); while (d.size() > 1 && (int)OSD::GetTextWidth(true, d) > 256) d.pop_back(); bot.DrawSysfont(dim << d, 32, y + 19, dim); } // clip to the row width
+                        if (hit(26, y, 268, 34)) { focus = i; buy(id); }
+                    }
+                }
+
+                if (flashTtl > 0) --flashTtl;
                 OSD::SwapBuffers();
             }
         }

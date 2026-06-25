@@ -135,6 +135,10 @@
    namespace PKHeX {
       void Position(MenuEntry *entry);
       void ViewPartyInfo(MenuEntry *entry); // read-only party viewer (root menu, after Battle)
+      void BoxBrowserPlus(MenuEntry *entry); // PC Box ++ visual box grid (replaces Position/Clone/Find)
+      void PartyBattleEditor(MenuEntry *entry); // Change Party Stats: visual battle-party editor (in-battle)
+      void EnemyHelper(MenuEntry *entry);       // Enemy Helper: in-battle coach card for the enemy (in-battle)
+      void FunHub(MenuEntry *entry);            // Fun Stuff: mini-games hub (root-menu folder-as-button)
       void SetPartyMode(bool party);        // toggle PC/party target (called from folder OnAction)
       void Shiny(MenuEntry *entry);
       void Species(MenuEntry *entry);
@@ -177,6 +181,24 @@
    void KeepOriginalPokemon(MenuEntry *entry);
    void PCAnywhere(MenuEntry *entry);
    void BoxesUnlocked(MenuEntry *entry);
+
+   // Enemy Helper "get item" bridge (defined in Codes.cpp). Adds one of item `id` to its bag pocket, honoring
+   // the PokeMart Anywhere PAY/FREE mode. Returns: 0 added free, 1 bought (money deducted), 2 not sold in PAY,
+   // 3 not enough money, 4 failed (bag full or bad id). BagPayMode(): 1 = PAY, 0 = FREE.
+   int BagBuyOne(int id);
+   int BagPayMode(void);
+   int BagMoney(void); // current on-hand money (for the Enemy Helper Items tab PAY-mode display)
+   int BagAddMoney(int delta); // add/subtract on-hand money (clamped 0..9,999,999); Fun Stuff PAID games. Returns new balance.
+   int BagGiveItem(int id);    // add one of item id to the bag, always FREE (Fun Stuff Loot Box prize). 0 ok / 4 fail.
+
+   // Force the next wild encounter to a given species/level (reuses the Wild Spawner mechanism; defined in
+   // Codes.cpp). form 0 = default form; updateRadar true on ORAS also refreshes the DexNav table. Used by the
+   // Fun Stuff "Random Challenge" mini-game.
+   void UpdateWildSpawner(int spawn, int form, int level, bool updateRadar);
+
+   // The current theme's Nth preview-square color (defined in Main.cpp). Lets tools accent text with a theme
+   // color the user can see/count in the Change Theme list (sq[] order). i out of range -> window title color.
+   Color ThemeSquareColor(int i);
 }
 
 #endif // PKHEX_HPP

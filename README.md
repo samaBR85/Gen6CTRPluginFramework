@@ -1,163 +1,193 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.3.2
+# Gen6CTRPluginFrameworkOverhauled — v0.3.3
 
-A heavily overhauled 3gx plugin for Pokémon X, Y, Omega Ruby, and Alpha Sapphire on the Nintendo 3DS.
+**English** · [Português](README.pt-BR.md)
 
-**New to modding? This whole thing was built for you.** Gen6CTRPluginFrameworkOverhauled is a fork of
-[biometrix76/Gen6CTRPluginFramework](https://github.com/biometrix76/Gen6CTRPluginFramework) that keeps every
-feature and wraps it in a friendly, guided experience — so you don't need to be an expert to enjoy it. The
-original is itself a continuation of the abandoned
-[Multi-Pokémon Framework](https://github.com/semaj14/Multi-PokemonFramework) and the Alolan
-CTRPluginFramework; all of that work is gratefully preserved (see Credits).
+A friendly box of superpowers for **Pokémon X, Y, Omega Ruby and Alpha Sapphire** on the Nintendo 3DS.
 
-> 🎯 **This release focuses on Pokémon Alpha Sapphire.** Tailored content for **Pokémon X**, **Y**
-> and **Omega Ruby** is already in the works — stay tuned!
+## What is this?
 
-![Gen6CTRPluginFrameworkOverhauled — the main menu on Pokémon Alpha Sapphire](Screenshots/AS/export/home_v030.png)
+It's a `.3gx` plugin you drop onto your 3DS that adds a menu over your Pokémon game — spawn any Pokémon, shop
+anywhere, edit your team, read your rival mid-battle, play a few mini-games, and a hundred small comforts in between.
 
-## 🆕 New in v0.3.1 — bring your own Poké Mart
+The twist: **it was built to be understood.** Every feature is named in plain language, every option has an info
+button that explains it, and there's a 22-page guide *inside* the plugin that walks you through it all. If you love
+these games but have never touched homebrew, you're exactly who this is for.
 
-**PokéMart Anywhere** turns the item-adder into a real shop: every row shows its icon, how many you own and its
-**price**. Press **START** to pick a mode — **FREE** adds anything, any amount, at no cost, while **PAY** narrows
-the list to items you can actually buy in-game and charges your **Money**. Buy on the spot, or build a **cart**
-and review it all at **Checkout** before you pay (you can never overspend). And **sort** the whole list by name,
-price, type or how many you own.
+You open everything with **SELECT**, and the menu appears over your game:
 
 <p align="center">
-  <img src="Screenshots/AS/export/pokemart_02.png" width="250" alt="PokéMart Anywhere — prices, filters and Sort in PAY mode" />
-  <img src="Screenshots/AS/export/pokemart_01.png" width="250" alt="PokéMart Anywhere — choose FREE or PAY" />
-  <img src="Screenshots/AS/export/pokemart_05.png" width="250" alt="PokéMart Anywhere — review the cart and check out" />
+  <img src="Screenshots/v0.3.3/export/01_menu.png" width="330" alt="The plugin menu over Pokémon Alpha Sapphire — feature list on top, buttons below" />
 </p>
 
-**Also new in v0.3.1**
+> 🎯 **Heads up — this release only has content for Pokémon Alpha Sapphire** (Title ID `000400000011C500`). The
+> framework is built for X, Y, Omega Ruby and Alpha Sapphire, but so far only **Alpha Sapphire** has been developed.
+> **X, Y and Omega Ruby are already in the works!**
 
-- 🔃 **Sort the bag** — order the list by name, price, type or how many you own, ascending or descending.
-- 🌙 **Sleep-safe full-screen tools.** Closing the lid while the Spawner, PokéMart, Party Summary or any other
-  full-screen view is open no longer leaves a black screen on wake.
-- 🖼️ **Screenshots can keep your overlays** — capture the HUD, enemy stats and notifications too (Tools ›
-  Screenshot › *Include overlays*).
+## Made by a curious player, with Claude
 
-## 🔎 The dual-screen finders
+I'll be upfront: **I'm not a programmer.** I'm a curious player — someone who's good at testing, poking at things,
+and thinking hard about a problem and how it might be solved. Every feature here was built in back-and-forth
+("bate-bola") with Claude, and I'm not the least bit shy about saying so: that collaboration is exactly what let me
+*materialize* the things I kept wishing existed while I played.
 
-Two more built-in **finders** turn "I wish I could just *get* that Pokémon" into a few taps — no internet, no
-typing long names, no wikis.
+Because that's where all of this came from — **real needs, discovered while playing.** I'd be deep in a run, hit
+some friction, and think "there should be a way to…", and then we'd go build it. Bit by bit I poured a little of my
+own personality into each feature as it took shape. **Parabéns aos criadores** of everything this stands on —
+standing on the shoulders of giants is no exaggeration here (see [Credits](#-credits)).
 
-### 🔎 Wild Pokémon Spawner
+## A guided tour
 
-Browse **every** wild Pokémon on a live, filtered list — narrow by **name / Dex #**, **generation**, **type**
-(1st *and* 2nd), **traits** (evo stage, category, Mega) or what you already **own**. Open any result for a full
-sheet — sprite, types, abilities (incl. the Hidden one), base stats and the **four moves it knows at your
-level** — then set form, level and **Normal / Shiny** and tap **SPAWN ON THE WILD**. Step into grass, water or
-a cave, and there it is.
+Here's the plugin roughly in the order you'd meet it. Nothing below is required reading — it's just a friendly
+walk through the rooms.
+
+### It starts with one button
+
+Press **SELECT** and the menu opens over your game. Move with the **D-Pad**, choose with **A**, go back with **B**.
+The bottom touch screen holds the big buttons — **Favorites**, **Search**, the **Game Guide** and **App Guide**,
+**ActionReplay** and **Tools**. Highlight anything and press **X** for its info note, or **Y** to pin it to
+Favorites. That's the whole language of the menu.
+
+### Spawn and catch any Pokémon
+
+The **Wild Pokémon Spawner** is a live, filtered list of every species. The top screen shows the matches; the
+bottom screen is a filter hub — narrow by name, Dex number, generation, type or what you already own.
 
 <p align="center">
-  <img src="Screenshots/AS/export/pokemonspawner_01.png" width="250" alt="Spawner — faceted finder with live filters" />
-  <img src="Screenshots/AS/export/pokemonspawner_02.png" width="250" alt="Spawner — detail sheet with stats, moves and spawn settings" />
-  <img src="Screenshots/AS/export/pokemonspawner_03.png" width="250" alt="Spawner — a wild Pokémon appeared" />
+  <img src="Screenshots/v0.3.3/export/02_spawner_finder.png" width="330" alt="Wild Pokémon Spawner — results on top, filters on the bottom" />
+  <img src="Screenshots/v0.3.3/export/03_spawner_filtered.png" width="330" alt="Spawner filtered down to Fire-types from Gen 6" />
 </p>
 
-### ✨ Respawn Legendary
-
-Knocked one out or watched it flee? Respawn Legendary lists every legendary in your game with its own character
-sheet and **real location** — pick it and send it back to where you found it.
+Open any result for a full sheet — sprite, types, abilities (including the Hidden one), base stats and the four
+moves it knows at your level — then set form, level and Normal/Shiny and spawn it into the grass.
 
 <p align="center">
-  <img src="Screenshots/AS/export/respawnlegendary.png" width="250" alt="Respawn Legendary — pick a legendary and send it back to its location" />
+  <img src="Screenshots/v0.3.3/export/04_spawner_detail.png" width="330" alt="Pyroar's sheet with stats and spawn settings" />
+  <img src="Screenshots/v0.3.3/export/05_respawn_legendary.png" width="330" alt="Respawn Legendary — pick a legendary and send it back to its location" />
 </p>
 
-> Plus a **completely re-organised menu**, **save-first guard-rails** on the risky cheats, a **theme-aware
-> keyboard**, and lots of polish — see the full changelog in the [release notes](https://github.com/samaBR85/Gen6CTRPluginFramework/releases/latest).
+Knocked out a legendary, or watched one flee? **Respawn Legendary** lists them all with their real locations and
+sends the one you pick back where you found it.
 
-## 🌱 Made by a curious player, with Claude
+### Carry a Poké Mart in your bag
 
-I'll be upfront: **I'm not a programmer.** I'm a curious player — someone who's good at testing, poking at
-things, and thinking hard about problems and how they might be solved. Every feature in this overhaul was
-built in back-and-forth ("bate-bola") with Claude Desktop, and I'm not the least bit shy about saying so:
-that collaboration is exactly what let me *materialize* the things I kept wishing existed while I played.
+**PokéMart Anywhere** turns the item-adder into a real shop. Choose a mode: **FREE** adds anything, any amount, for
+nothing — or **PAY**, a real Poké Mart where the list narrows to what you can actually buy and each item costs your
+money.
 
-Because that's where all of this came from — **real needs, discovered while playing.** I'd be deep in a run,
-hit some friction, and think "there should be a way to…", and then we'd go build it. Bit by bit I poured a
-little of my own personality into each feature as it took shape. Some of the things I'm proudest of started
-as a passing "wouldn't it be cool if…" and turned out to be genuinely possible — like sorting your party by
-a stat right inside a card view. I honestly thought that one wouldn't be doable, and the framework turned out
-to be robust enough to pull it off. **Parabéns aos criadores** — standing on the shoulders of giants is no
-exaggeration here (see Credits).
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/06_pokemart_modes.png" width="330" alt="PokéMart Anywhere — choosing FREE or PAY" />
+  <img src="Screenshots/v0.3.3/export/07_pokemart_pay.png" width="330" alt="PAY mode showing items with prices" />
+</p>
 
-If you're new to homebrew but you love these games: that's who this is for. Welcome.
+Buy on the spot, or build a **cart** and review it all at **Checkout** before you pay — you can never overspend.
+And sort the whole list by name, price, type or how many you own.
 
-## ✨ Features born from real needs
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/08_pokemart_checkout.png" width="330" alt="The cart and checkout, with the running total against your money" />
+</p>
 
-Everything below exists because it solved an actual annoyance — not because a checklist said so.
+### Build and rebuild in your boxes
 
-- 📖 **A built-in App Guide.** 21 short, friendly pages that teach you the plugin *from inside the plugin*,
-  sequenced to your real journey through the game — what to do first, what each feature is for, and when it'll
-  actually help you. It reads like a guided adventure, not a manual.
-- ℹ️ **An INFO (i) note on every single function.** Highlight anything and press the info **(i)** button (or
-  **X**) for a plain, beginner-friendly explanation of what it does and how to use it. No guessing, no wikis.
-- 🔎 **Dual-screen finders for Pokémon and items.** The **Wild Pokémon Spawner**, **PokéMart Anywhere** and
-  **Respawn Legendary** — browse, filter and grab exactly what you want. *(See the highlights above.)*
-- 📊 **View Party Summary — sortable stat cards.** See your team's real hidden numbers (stats, IVs, EVs,
-  Nature, Ability, item, moves) as cards. Move a selector over a stat with **Up/Down**, press **A** to jump
-  to the teammate with the **HIGHER** (or **LOWER**) value, flip the mode with **L**, and read ▲/▼ markers
-  that flag your team's best and worst. A battle-decision companion that started as a "this can't be possible"
-  idea.
+**PC Box ++** is your storage shown as a grid of sprites, just like the in-game PC. Move around with the D-Pad,
+change box with L/R, and **move (X)**, **clone (Y)** or **search (START)** right on the grid.
 
-  <img src="Screenshots/AS/export/partysummary_card.png" width="250" alt="View Party Summary — sortable stat card with HIGHER/LOWER markers" />
-- ⭐ **Favorites that actually work for you.** A two-column Favorites list (more on screen, less scrolling),
-  **reorder with L + D-Pad** (hold L, tap a direction — because chronological order made re-organizing a pain), and short
-  **aliases** shown only in Favorites so the list stays clean and readable.
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/09_pcbox_grid.png" width="330" alt="PC Box ++ visual grid with a selected Pokémon's card below" />
+  <img src="Screenshots/v0.3.3/export/10_pcbox_editor.png" width="330" alt="The tabbed editor — Main, Stats, Moves, Origins, Misc" />
+</p>
 
-  <img src="Screenshots/AS/export/favorites.png" width="250" alt="Favorites — two-column grid with tidy aliases" />
-- 🗂️ **Two-column menus** for the toggle-heavy screens, so you scroll a whole lot less.
-- 📟 **An on-screen HUD.** Show what matters while you play — Money, Clock, Battle Points, Pokémiles, party
-  count, map coordinates, Repel steps, your lead's battle status — in a tidy translucent panel you can
-  position and fade to taste.
+Press **A** to open the editor, where the details split into tabs — Main, Stats, Moves, Origins, Misc. Every field
+(species, IVs/EVs, moves, ability, held item, ball and more) is picked from a tidy on-screen list — no typing, no
+keyboard.
 
-  <img src="Screenshots/AS/export/config_hud.png" width="250" alt="Config HUD — pick what shows on screen" />
-- 🔍 **A "See Enemy Pokémon Stats" overlay.** Reads the foe at a glance — gender, shininess, Nature, Ability
-  (including Hidden Abilities), Hidden Power, held item, max HP — plus colour-coded IVs and EVs. Pick exactly
-  which fields show, and flip pages mid-battle with **ZR**.
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/11_pcbox_movepicker.png" width="330" alt="Choosing a move from a searchable, type-filtered list" />
+</p>
 
-  <img src="Screenshots/AS/export/stats_page01.png" width="250" alt="Enemy Stats overlay — Basic & Moves page" />
-  <img src="Screenshots/AS/export/stats_page02.png" width="250" alt="Enemy Stats overlay — IVs & EVs page" />
-  <img src="Screenshots/AS/export/display_enemy_stats.png" width="250" alt="Choose exactly which enemy stats appear" />
-- 🔔 **Friendly on-screen notifications.** A small toast pops up when you turn a cheat on or off, so you always
-  know what's active.
-- ⚠️ **Gentle guard-rails.** The few cheats that can spoil a beginner's save (Unlock Full Dex, Full Fly Map,
-  all TMs/HMs + Key Items) are flagged in a warning colour, and their info opens with a clear **BEWARE / save
-  first** note.
-- 🎯 **Shortcuts that make sense — and are yours to change.** SELECT opens the menu; **Y** favorites an item,
-  **X** shows its info, **START** opens its editor; tap the gamepad icon to rebind any feature's hotkey — all
-  customizable in **Tools > Hotkeys**.
+### Know your team at a glance
 
-  <img src="Screenshots/AS/export/tools_menu.png" width="250" alt="Tools menu — hotkeys, themes, settings and more" />
-- 🎨 **25 colour themes.** Make it yours — Trainer Navy, Poké Ball, Game Boy, Zelda BotW, Cyberpunk, Synthwave,
-  Persona 5, Hoenn Dreams, Item Bag, Alpha Sapphire and many more. Switches instantly, remembers your choice,
-  and previews its colours right next to each name. (An idea I carried over from another app I made.)
-- 🧭 **Every menu rewritten and reordered** around clearly named sections — most-used first, each with its own
-  short summary — so you always know where to look.
-- 🎮 **A built-in Game Guide.** A complete, beginner-friendly Professor Oak Challenge walkthrough for Omega
-  Ruby / Alpha Sapphire (by Mewlax — see Credits), bundled to read comfortably on the 3DS screen.
-- 🔤 **Proper accents everywhere.** "Pokémon", "Pokédex", "Poké Ball" — written correctly throughout the menus,
-  descriptions and guides.
+**View Party Summary** lays your team out as cards with the real, hidden numbers — stats, IVs, EVs, nature,
+ability, item and moves. Slide a selector over a stat and press **A** to jump to the teammate with the highest (or
+lowest) value; little ▲/▼ marks flag your team's best and worst.
 
-## 🎨 25 colour themes — pick your style
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/12_party_card.png" width="330" alt="A party member card with stats, nature, ability and moves" />
+</p>
 
-With **25** colour schemes, the whole interface — menus, buttons, even the in-game keyboard — is yours to
-restyle. Your choice is remembered, and each theme previews its colours right next to its name. Just a taste
-of the range:
+### Win the battle
 
-<table>
-  <tr>
-    <td align="center"><img src="Screenshots/AS/export/theme_TrainerNavy_default_.png" width="230"><br><b>Trainer Navy</b> <i>(default)</i></td>
-    <td align="center"><img src="Screenshots/AS/export/theme_GameBoyClassic.png" width="230"><br><b>Game Boy</b></td>
-    <td align="center"><img src="Screenshots/AS/export/theme_AlphaSapphire.png" width="230"><br><b>Alpha Sapphire</b></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="Screenshots/AS/export/theme_WildWest.png" width="230"><br><b>Wild West</b></td>
-    <td align="center"><img src="Screenshots/AS/export/theme_PopArt.png" width="230"><br><b>Pop Art</b></td>
-    <td align="center"><img src="Screenshots/AS/export/theme_ArtDeco.png" width="230"><br><b>Art Deco</b></td>
-  </tr>
-</table>
+The **In-Battle Tools** are the things you reach for mid-fight. **Enemy Helper** is a coach card for the foe — it
+explains its ability, item and moves, lists the types that beat it, and compares its six stats against your active
+Pokémon (and even tells you whether you already own the species).
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/14_enemy_details.png" width="330" alt="Enemy Helper — the foe's details and held item" />
+  <img src="Screenshots/v0.3.3/export/15_enemy_compare.png" width="330" alt="Enemy Helper — Compare tab, the foe's stats vs yours" />
+</p>
+
+**Change Party Stats** is a visual editor for your own team, right in the middle of a fight — heal, fix HP/PP,
+status, item, moves, or multiply EXP without ever leaving the battle. And **Display Enemy Stats** overlays the
+opponent's hidden data on the top screen.
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/13_party_stats.png" width="330" alt="Change Party Stats — editing your team mid-battle" />
+  <img src="Screenshots/v0.3.3/export/16_enemy_overlay.png" width="420" alt="Display Enemy Stats overlay reading the foe during a battle" />
+</p>
+
+### Take a break — the Mini Game Corner
+
+When you want to just play, there's a little arcade of seven games. Pick one from the grid; the bottom screen has a
+**FREE / PAY** switch (FREE keeps what you win, your money never changes; PAY puts real Pokédollars on the line).
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/17_mini_hub.png" width="330" alt="The Mini Game Corner hub with seven game tiles" />
+  <img src="Screenshots/v0.3.3/export/18_mini_toptrumps.png" width="330" alt="Top Trumps — a stat duel, won" />
+</p>
+
+Open loot boxes, spin a prize wheel, pull the slots, bet on a stat duel, guess higher-or-lower, roll a wild
+challenger into your next encounter, or generate a whole random team into an empty box.
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/19_mini_lootbox.png" width="250" alt="Loot Box reward reveal" />
+  <img src="Screenshots/v0.3.3/export/20_mini_wheel.png" width="250" alt="Spin the Wheel landing a big multiplier" />
+  <img src="Screenshots/v0.3.3/export/22_mini_teamgen.png" width="250" alt="Team Generator previewing six random Pokémon" />
+</p>
+
+### Smooth the long journey
+
+The **Overworld & Quality of Life** tools take the ache out of a long run — fast text, fast walk, teleport, walk
+through walls, instant eggs and more. And a small, configurable **HUD** can keep your money, clock, map position
+and lead's status right on screen while you play.
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/24_qol_movement.png" width="330" alt="Movement & Travel options" />
+  <img src="Screenshots/v0.3.3/export/25_hud_ingame.png" width="330" alt="The HUD overlaid on the overworld" />
+</p>
+
+### Make it yours
+
+Twenty-five color **themes** restyle the whole interface — menus, buttons, even the in-game keyboard — with a
+preview swatch beside each name and your choice remembered between sessions. Pin your most-used features to
+**Favorites** (two columns, drag to reorder), and rebind the menu keys in **Tools › Hotkeys**.
+
+<p align="center">
+  <img src="Screenshots/v0.3.3/export/26_themes.png" width="330" alt="The theme picker with color swatches" />
+  <img src="Screenshots/v0.3.3/export/27_appguide.png" width="330" alt="The built-in App Guide reader" />
+</p>
+
+And if you ever feel lost, the **App Guide** (22 pages, written like a guided adventure rather than a manual) and an
+**info (i) note on every single function** are always one button away.
+
+## 📜 How it grew
+
+A short history, newest last — no detail, just the shape of it:
+
+- **v0.2.x** — the big UX overhaul: re-organised menus, Favorites, toasts, the HUD, and the first themes.
+- **v0.3.0** — the dual-screen finders (Wild Pokémon Spawner, Respawn Legendary) and the App Guide.
+- **v0.3.1** — **PokéMart Anywhere** (a real in-bag shop with prices, cart and checkout) + bag sorting.
+- **v0.3.2** — capture the plugin's own UI in screenshots; favorites/cheats/hotkeys survive a plugin update.
+- **v0.3.3** — **In-Battle Tools** (Enemy Helper, Change Party Stats), the visual **PC Box ++** editor, and the
+  **Mini Game Corner**.
 
 ## 📥 Installing
 1. Update to the latest [Luma3DS](https://github.com/LumaTeam/Luma3DS/releases/latest).
@@ -184,8 +214,7 @@ of the range:
 ## 🙏 Credits
 
 This project stands on a long line of volunteer work — from the very first ancestor to this fork — and
-**every bit of it deserves recognition.** Without this community's freely given effort, none of this would
-exist.
+**every bit of it deserves recognition.** Without this community's freely given effort, none of this would exist.
 
 **The plugin lineage**
 - **Based on** [Gen 6 CTRPluginFramework](https://github.com/biometrix76/Gen6CTRPluginFramework) by
@@ -221,7 +250,7 @@ exist.
 - **Dynamite** — for the O-Power order info; **Likemeon** — for the Granite Cave chaining tip.
 
 **This fork**
-- Fork, overhaul and v0.3.0 / v0.3.1 / v0.3.2 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
+- Fork, overhaul and v0.3.0 → v0.3.3 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
   with **Claude** (Anthropic).
 
 ## License

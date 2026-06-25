@@ -6,6 +6,32 @@ namespace CTRPluginFramework {
     bool g_entryToggleNotif = false;     // see OSD.hpp
     void *g_entryToggleNotifSrc = nullptr; // see OSD.hpp
     u32 g_cardStatHotkey = static_cast<u32>(Key::L); // see OSD.hpp (synced from Preferences::CardStatHotkeys)
+    u32 g_bagPayMode = 0;                            // see OSD.hpp (synced from Data.bin reserved[4]); 0 = FREE
+
+    void SetBagPayMode(u32 mode) {
+        if (g_bagPayMode == mode)
+            return;
+        g_bagPayMode = mode;
+        Preferences::MarkDirty(); // so WriteSettings persists reserved[4] when the menu closes
+    }
+
+    u32 g_funPayMode = 0;                            // see OSD.hpp (synced from Data.bin reserved[5]); 0 = FREE
+
+    void SetFunPayMode(u32 mode) {
+        if (g_funPayMode == mode)
+            return;
+        g_funPayMode = mode;
+        Preferences::MarkDirty(); // so WriteSettings persists reserved[5] when the menu closes
+    }
+
+    u32 g_hiLoBest = 0;                              // see OSD.hpp (synced from Data.bin reserved[6])
+
+    void SetHiLoBest(u32 value) {
+        if (g_hiLoBest == value)
+            return;
+        g_hiLoBest = value;
+        Preferences::MarkDirty(); // so WriteSettings persists reserved[6] when the menu closes
+    }
 
     u8 *Screen::GetFramebuffer(u32 posX, u32 posY, bool useRightFb) const {
         if (useRightFb && (!IsTop || !Is3DEnabled))

@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gen6CTRPluginFramework — Nintendo 3DS Plugin for Pokémon Gen 6</title>
+  <meta name="description" content="A heavily overhauled 3gx plugin for Pokémon X, Y, Omega Ruby, and Alpha Sapphire on Nintendo 3DS. Features party summary, HUD overlay, 25 themes, and more." />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+  <!-- Open Graph / WhatsApp / Social preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://samabr85.github.io/Gen6CTRPluginFramework/" />
+  <meta property="og:title" content="Gen6CTRPluginFramework — Pokémon Gen 6 Plugin for Nintendo 3DS" />
+  <meta property="og:description" content="A heavily overhauled 3gx cheat plugin for Pokémon X, Y, Omega Ruby &amp; Alpha Sapphire. Party summary cards, HUD overlay, enemy stats, 25 themes, and a built-in 20-page guide." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/home_v030.png" />
+  <meta property="og:image:width" content="400" />
+  <meta property="og:image:height" content="240" />
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Gen6CTRPluginFramework — Pokémon Gen 6 Plugin for Nintendo 3DS" />
+  <meta name="twitter:description" content="A heavily overhauled 3gx cheat plugin for Pokémon X, Y, Omega Ruby &amp; Alpha Sapphire. Party summary, HUD overlay, 25 themes, and more." />
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/home_v030.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0b0d14;
+      --bg2:       #111520;
+      --bg3:       #181d2e;
+      --surface:   #1e2438;
+      --border:    #2a3150;
+      --accent:    #5b8def;
+      --accent2:   #7c5be5;
+      --red:       #e05c6b;
+      --green:     #4ecb71;
+      --yellow:    #f5c842;
+      --text:      #e8ecf4;
+      --muted:     #8a93b0;
+      --radius:    12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(11,13,20,.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 700;
+      font-size: .95rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .875rem;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 600;
+      padding: .25rem .65rem;
+      border-radius: 20px;
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+    .nav-badge:hover { opacity: .85; }
+
+    /* ── HERO ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(91,141,239,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,91,229,.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: rgba(91,141,239,.12);
+      border: 1px solid rgba(91,141,239,.35);
+      color: var(--accent);
+      font-size: .8rem;
+      font-weight: 600;
+      padding: .35rem 1rem;
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+      letter-spacing: .04em;
+    }
+    .hero-badge::before {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      margin-bottom: 1rem;
+    }
+    .hero h1 .hl { color: var(--accent); }
+    .hero h1 .hl2 { color: var(--accent2); }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 2rem;
+    }
+    .hero-games {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 2.5rem;
+    }
+    .game-tag {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 500;
+      padding: .3rem .75rem;
+      border-radius: 6px;
+    }
+    .hero-cta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: .85rem 2rem;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: transform .2s, box-shadow .2s, opacity .2s;
+      box-shadow: 0 4px 24px rgba(91,141,239,.35);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(91,141,239,.5); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: transparent;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1rem;
+      padding: .85rem 1.75rem;
+      border-radius: var(--radius);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: border-color .2s, background .2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); background: rgba(91,141,239,.07); }
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .stat-num.loading { color: var(--muted); }
+    .stat-label { font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+
+    /* ── SECTIONS ─────────────────────────────────────── */
+    section { padding: 5rem 2rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-header { text-align: center; margin-bottom: 3rem; }
+    .section-tag {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .75rem;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+    .section-sub {
+      color: var(--muted);
+      margin-top: .75rem;
+      font-size: 1rem;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── FEATURES ─────────────────────────────────────── */
+    #features { background: var(--bg2); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+    }
+    .feature-card p { font-size: .875rem; color: var(--muted); }
+
+    /* ── HERO SHOT ────────────────────────────────────── */
+    .hero-shot {
+      margin-top: 2.75rem;
+      max-width: 300px;
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 48px rgba(0,0,0,.45);
+      display: block;
+    }
+
+    /* ── ABOUT / TOUR ─────────────────────────────────── */
+    #about, #tour { background: var(--bg); }
+    .wn-badge {
+      display: inline-block;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: rgba(78,203,113,.12);
+      border: 1px solid rgba(78,203,113,.3);
+      padding: .2rem .6rem;
+      border-radius: 5px;
+      margin-bottom: .6rem;
+    }
+    .wn-feature { margin-bottom: 3.5rem; }
+    .wn-feature:last-child { margin-bottom: 0; }
+    .wn-feature h3 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -.01em;
+      margin-bottom: .5rem;
+    }
+    .wn-feature > p { color: var(--muted); max-width: 760px; margin-bottom: 1.4rem; font-size: .95rem; }
+    .wn-shots {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1rem;
+    }
+    .wn-shots img {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      transition: transform .2s, border-color .2s;
+    }
+    .wn-shots img:hover { transform: scale(1.02); border-color: var(--accent); }
+
+    /* ── SCREENSHOTS ──────────────────────────────────── */
+    #screenshots { background: var(--bg); }
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .screenshot-item {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform .2s, border-color .2s;
+      background: var(--surface);
+      aspect-ratio: 4/3;
+    }
+    .screenshot-item:hover { transform: scale(1.03); border-color: var(--accent); }
+    .screenshot-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity .3s;
+    }
+    .screenshot-caption {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.8));
+      padding: 1.5rem .75rem .6rem;
+      font-size: .78rem;
+      color: #ccc;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .screenshot-item:hover .screenshot-caption { opacity: 1; }
+
+    /* lightbox */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,.92);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 80vw;
+      max-height: 82vh;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      object-fit: contain;
+      transition: opacity .12s ease;
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 1.2rem; right: 1.5rem;
+      font-size: 2rem;
+      color: #fff;
+      cursor: pointer;
+      background: none;
+      border: none;
+      line-height: 1;
+    }
+    #lightbox-prev, #lightbox-next {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      font-size: 2rem;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 50%;
+      width: 52px; height: 52px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, opacity .2s;
+      z-index: 10;
+    }
+    #lightbox-prev { left: 1.5rem; }
+    #lightbox-next { right: 1.5rem; }
+    #lightbox-prev:hover, #lightbox-next:hover { background: rgba(255,255,255,.18); }
+    #lightbox-counter {
+      position: absolute;
+      bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+      font-size: .8rem;
+      color: rgba(255,255,255,.5);
+      letter-spacing: .05em;
+      pointer-events: none;
+    }
+
+    /* ── THEMES ───────────────────────────────────────── */
+    #themes { background: var(--bg2); }
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .theme-card {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: transform .2s, border-color .2s;
+      cursor: pointer;
+    }
+    .theme-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .theme-card img { width: 100%; height: 140px; object-fit: cover; display: block; }
+    .theme-name {
+      padding: .6rem .75rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── DOWNLOAD ─────────────────────────────────────── */
+    #download { background: var(--bg3); }
+    .download-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: center;
+    }
+    @media (max-width: 640px) {
+      .download-card { grid-template-columns: 1fr; }
+    }
+    .dl-version {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      background: rgba(91,141,239,.12);
+      border: 1px solid rgba(91,141,239,.3);
+      color: var(--accent);
+      padding: .3rem .75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .dl-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .5rem; }
+    .dl-meta { font-size: .875rem; color: var(--muted); }
+    .dl-meta span { color: var(--text); font-weight: 500; }
+    .dl-counter {
+      text-align: center;
+      padding: 1.5rem 2rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-width: 160px;
+    }
+    .dl-count-num {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .dl-count-label { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+    .dl-buttons { margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    /* releases list */
+    .releases-list { margin-top: 2rem; display: flex; flex-direction: column; gap: .75rem; }
+    .release-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .release-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+      font-weight: 600;
+      background: rgba(91,141,239,.12);
+      color: var(--accent);
+      padding: .25rem .6rem;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .release-date { font-size: .8rem; color: var(--muted); flex: 1; }
+    .release-downloads { font-size: .85rem; color: var(--green); font-weight: 600; }
+    .release-link {
+      font-size: .8rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .release-link:hover { text-decoration: underline; }
+
+    /* ── COMPAT ───────────────────────────────────────── */
+    #compat { background: var(--bg); }
+    .compat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .compat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      transition: border-color .2s;
+    }
+    .compat-card:hover { border-color: var(--accent2); }
+    .compat-icon { font-size: 2.4rem; margin-bottom: .75rem; display: block; }
+    .compat-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .compat-card p { font-size: .8rem; color: var(--muted); }
+    .compat-badge {
+      display: inline-block;
+      margin-top: .6rem;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: .2rem .55rem;
+      border-radius: 4px;
+    }
+    .badge-yes { background: rgba(78,203,113,.15); color: var(--green); border: 1px solid rgba(78,203,113,.3); }
+
+    /* ── INSTALL ──────────────────────────────────────── */
+    #install { background: var(--bg2); }
+    .steps { display: flex; flex-direction: column; gap: 1rem; }
+    .step {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-content h4 { font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+    .step-content p { font-size: .875rem; color: var(--muted); }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(91,141,239,.12);
+      color: var(--accent);
+      padding: .15rem .4rem;
+      border-radius: 4px;
+      font-size: .85em;
+    }
+
+    /* ── FOOTER ───────────────────────────────────────── */
+    footer {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+    .footer-inner { max-width: 600px; margin: 0 auto; }
+    .footer-logo { font-weight: 800; font-size: 1.1rem; margin-bottom: .75rem; }
+    .footer-logo span { color: var(--accent); }
+    .footer-desc { font-size: .85rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .footer-links { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .footer-links a { font-size: .85rem; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-copy { font-size: .78rem; color: var(--border); }
+
+    /* ── RESPONSIVE ───────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 0 1rem; }
+      .nav-links { display: none; }
+      .hero-stats { gap: 1.5rem; }
+      section { padding: 3.5rem 1.25rem; }
+    }
+
+    /* ── ANIMATIONS ───────────────────────────────────── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── LANGUAGE SWITCH ──────────────────────────────── */
+    .lang-switch { display: inline-flex; gap: 2px; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+    .lang-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: inherit; font-size: .72rem; font-weight: 700; letter-spacing: .03em;
+      color: var(--muted); padding: .28rem .55rem; transition: background .15s, color .15s;
+    }
+    .lang-btn:hover { color: var(--text); }
+    .lang-btn.active { background: var(--accent); color: #fff; }
+    @media (max-width: 768px) { .lang-switch { position: fixed; top: .6rem; right: .7rem; z-index: 60; background: var(--bg); } }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="10" stroke="#5b8def" stroke-width="1.5"/>
+      <path d="M6 11h10M11 6v10" stroke="#5b8def" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="3" fill="#5b8def"/>
+    </svg>
+    Gen6<span>CTR</span>Plugin
+  </a>
+  <ul class="nav-links">
+    <li><a href="#about" data-i18n="nav_about">About</a></li>
+    <li><a href="#tour" data-i18n="nav_tour">Tour</a></li>
+    <li><a href="#features" data-i18n="nav_features">Features</a></li>
+    <li><a href="#screenshots" data-i18n="nav_shots">Screenshots</a></li>
+    <li><a href="#themes" data-i18n="nav_themes">Themes</a></li>
+    <li><a href="#download" data-i18n="nav_download">Download</a></li>
+    <li><a class="nav-badge" href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">GitHub ↗</a></li>
+    <li class="lang-switch">
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="pt" onclick="setLang('pt')">PT</button>
+    </li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.3.3</div>
+  <h1>
+    <span class="hl">Gen6</span> CTRPlugin<br/>
+    <span class="hl2">Framework</span> Overhauled
+  </h1>
+  <p class="hero-sub" data-i18n="hero_sub">
+    A friendly box of superpowers for <strong>Pokémon X, Y, Omega Ruby and Alpha Sapphire</strong> — built for players, not programmers. Spawn any Pokémon, carry a Poké Mart in your bag, edit your team, read your rival mid-battle, and a hundred small comforts in between. And it's <strong>built to be understood</strong>: plain-language menus, an info button on everything, and a guide right inside the plugin.
+  </p>
+  <div class="hero-games">
+    <span class="game-tag">⚔️ Pokémon X</span>
+    <span class="game-tag">🌿 Pokémon Y</span>
+    <span class="game-tag">🔴 Omega Ruby</span>
+    <span class="game-tag">🔵 Alpha Sapphire</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">
+      ⬇ Download Latest
+    </a>
+    <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+  <img class="hero-shot" src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/01_menu.png" alt="The plugin menu over Pokémon Alpha Sapphire — feature list on top, buttons below" loading="eager" style="max-width:340px;" />
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-num" id="total-downloads">–</div>
+      <div class="stat-label" data-i18n="stat_dl">Total Downloads</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">v0.3.3</div>
+      <div class="stat-label" data-i18n="stat_version">Latest Version</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">25</div>
+      <div class="stat-label" data-i18n="stat_themes">Color Themes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">4</div>
+      <div class="stat-label" data-i18n="stat_games">Games Supported</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="about_tag">A curious player's project</div>
+      <h2 class="section-title" data-i18n="about_title">Made by a curious player, with Claude</h2>
+    </div>
+    <div class="fade-in" style="max-width:720px;margin:0 auto;color:var(--muted);line-height:1.75;font-size:.97rem;">
+      <p style="margin-bottom:1rem;" data-i18n="about_p1">I'll be upfront: I'm not a programmer. I'm a curious player — someone who's good at testing, poking at things, and thinking hard about a problem and how it might be solved. Every feature here was built in back-and-forth with Claude, and that collaboration is exactly what let me <em>materialize</em> the things I kept wishing existed while I played.</p>
+      <p data-i18n="about_p2">Because that's where all of this came from — real needs, discovered while playing. I'd hit some friction and think "there should be a way to…", and then we'd go build it. If you love these games but have never touched homebrew, you're exactly who this is for.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- TOUR -->
+<section id="tour">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="tour_tag">A guided tour</div>
+      <h2 class="section-title" data-i18n="tour_title">A walk through the rooms</h2>
+      <p class="section-sub" data-i18n="tour_sub">Here's the plugin roughly in the order you'd meet it. Nothing below is required reading — just a friendly look at what's inside.</p>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🎛️ The menu</span>
+      <h3 data-i18n="t_menu_h">It starts with one button</h3>
+      <p data-i18n="t_menu_p">Press SELECT and the menu opens over your game. Move with the D-Pad, choose with A, go back with B. Highlight anything and press X for its info note, or Y to pin it to Favorites — and the bottom touch screen holds the big buttons (Favorites, Search, the two guides, ActionReplay, Tools). That's the whole language of it.</p>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🔎 Spawn &amp; catch</span>
+      <h3 data-i18n="t_spawn_h">Find, then meet, any Pokémon</h3>
+      <p data-i18n="t_spawn_p">The Wild Pokémon Spawner is a live, filtered list of every species — results on the top screen, filters on the bottom. Narrow by name, Dex number, generation, type or what you already own; open a result for its full sheet, set form, level and Normal/Shiny, and spawn it into the grass. Lost a legendary? Respawn Legendary sends it back to its real location.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/02_spawner_finder.png" alt="Wild Pokémon Spawner — results on top, filters below" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/03_spawner_filtered.png" alt="Filtered to Fire-types from Gen 6" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/04_spawner_detail.png" alt="A Pokémon's sheet with stats and spawn settings" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/05_respawn_legendary.png" alt="Respawn Legendary — send a legendary back to its location" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🛒 Shop anywhere</span>
+      <h3 data-i18n="t_mart_h">Carry a Poké Mart in your bag</h3>
+      <p data-i18n="t_mart_p">PokéMart Anywhere turns the item-adder into a real shop. FREE adds anything, any amount, for nothing; PAY narrows the list to what you can actually buy and charges your money. Buy on the spot, or build a cart and review it all at Checkout before you pay — and sort the whole list by name, price, type or how many you own.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/06_pokemart_modes.png" alt="PokéMart Anywhere — choosing FREE or PAY" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/07_pokemart_pay.png" alt="PAY mode with prices" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/08_pokemart_checkout.png" alt="The cart and checkout against your money" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🗃️ Build in your boxes</span>
+      <h3 data-i18n="t_box_h">PC Box ++ — a visual editor for your storage</h3>
+      <p data-i18n="t_box_p">Your boxes shown as a grid of sprites, just like the in-game PC. Move, swap (X), clone (Y) and search (START) right on the grid, then press A for a tabbed editor — Main, Stats, Moves, Origins, Misc — where every field (species, IVs/EVs, moves, ability, held item, ball and more) is picked from a tidy on-screen list. No typing, no keyboard.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/09_pcbox_grid.png" alt="PC Box ++ visual grid with the selected Pokémon's card" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/10_pcbox_editor.png" alt="The tabbed editor — Main, Stats, Moves, Origins, Misc" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/11_pcbox_movepicker.png" alt="Choosing a move from a searchable, type-filtered list" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🃏 Know your team</span>
+      <h3 data-i18n="t_party_h">Your party, as sortable stat cards</h3>
+      <p data-i18n="t_party_p">View Party Summary lays your team out as cards with the real, hidden numbers — stats, IVs, EVs, nature, ability, item and moves. Slide a selector over a stat and press A to jump to the teammate with the highest (or lowest) value; little ▲/▼ marks flag your team's best and worst.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/12_party_card.png" alt="A party member card with stats, nature, ability and moves" loading="lazy" onclick="openLightbox(this)" style="max-width:360px;margin:0 auto;" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">⚔️ Win the battle</span>
+      <h3 data-i18n="t_battle_h">Read your rival, and edit your team, mid-fight</h3>
+      <p data-i18n="t_battle_p">Enemy Helper is a coach card for the foe — it explains its ability, item and moves, lists the types that beat it, and compares its six stats against your active Pokémon (and even tells you whether you already own the species). Change Party Stats heals and edits your own team without leaving the battle, and Display Enemy Stats overlays the opponent's hidden data on the top screen.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/14_enemy_details.png" alt="Enemy Helper — the foe's details and held item" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/15_enemy_compare.png" alt="Enemy Helper — Compare tab, the foe's stats vs yours" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/13_party_stats.png" alt="Change Party Stats — editing your team mid-battle" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🎰 Take a break</span>
+      <h3 data-i18n="t_mini_h">The Mini Game Corner — seven games</h3>
+      <p data-i18n="t_mini_p">When you just want to play, there's a little arcade of seven games — loot boxes, slots, a prize wheel, a stat duel, higher-or-lower, a wild-encounter roll, and a random-team generator. A FREE / PAY switch decides the stakes: FREE keeps what you win and your money never changes; PAY puts real Pokédollars on the line.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/17_mini_hub.png" alt="The Mini Game Corner hub with seven game tiles" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/18_mini_toptrumps.png" alt="Top Trumps — a stat duel, won" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/19_mini_lootbox.png" alt="Loot Box reward reveal" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/20_mini_wheel.png" alt="Spin the Wheel landing a big multiplier" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/22_mini_teamgen.png" alt="Team Generator previewing six random Pokémon" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/23_mini_hilo.png" alt="Higher or Lower — a correct guess" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🧭 Smooth the journey</span>
+      <h3 data-i18n="t_qol_h">Quality of life, and an at-a-glance HUD</h3>
+      <p data-i18n="t_qol_p">The Overworld &amp; Quality of Life tools take the ache out of a long run — fast text, fast walk, teleport, walk through walls, instant eggs and more. And a small, configurable HUD can keep your money, clock, map position and lead's status right on screen while you play.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/24_qol_movement.png" alt="Movement &amp; Travel options" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/25_hud_ingame.png" alt="The HUD overlaid on the overworld" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
+      <span class="wn-badge">🎨 Make it yours</span>
+      <h3 data-i18n="t_mine_h">Themes, Favorites, and a guide for everything</h3>
+      <p data-i18n="t_mine_p">Twenty-five color themes restyle the whole interface, with your choice remembered between sessions. Pin your most-used features to Favorites and rebind the menu keys in Tools › Hotkeys. And if you ever feel lost, a 22-page App Guide (written like a guided adventure) and an info note on every single function are always one button away.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/26_themes.png" alt="The theme picker with color swatches" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/27_appguide.png" alt="The built-in App Guide reader" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_features_tag">Everything at a glance</div>
+      <h2 class="section-title" data-i18n="sec_features_title">The rest, in plain language</h2>
+      <p class="section-sub" data-i18n="sec_features_sub">A quick index of what else is in here — the small comforts and the safety nets, each named for what it actually does.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <span class="feature-icon">📖</span>
+        <h3 data-i18n="f_guide_h">22-Page App Guide</h3>
+        <p data-i18n="f_guide_p">Built-in instruction guide that walks you through every feature, sequenced to match your game progress.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">ℹ️</span>
+        <h3 data-i18n="f_info_h">Info Button on Everything</h3>
+        <p data-i18n="f_info_p">Every cheat and option has a friendly (i) button with a plain-English explanation of what it does.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🃏</span>
+        <h3 data-i18n="f_party_h">Party Summary Cards</h3>
+        <p data-i18n="f_party_p">View your team's IVs, EVs, Nature, Ability, item, and moves as sortable stat cards with ▲/▼ indicators.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🔎</span>
+        <h3 data-i18n="f_finders_h">Pokémon &amp; Item Finders</h3>
+        <p data-i18n="f_finders_p">Browse and filter every species in a dual-screen Wild Pokémon Spawner — by name, type, generation or traits — then spawn it. Same picker for your whole bag, plus a tidy Legendary respawn list.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⭐</span>
+        <h3 data-i18n="f_fav_h">Smart Favorites</h3>
+        <p data-i18n="f_fav_p">Two-column favorites list with drag-to-reorder, custom aliases, and instant access to your most-used cheats.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🖥️</span>
+        <h3 data-i18n="f_hud_h">On-Screen HUD</h3>
+        <p data-i18n="f_hud_p">Translucent overlay showing money, clock, Battle Points, Pokémiles, coordinates, and Pokémon status — all configurable.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⚔️</span>
+        <h3 data-i18n="f_battle_h">In-Battle Tools</h3>
+        <p data-i18n="f_battle_p">Read the foe with Display Enemy Stats, get coached by Enemy Helper (matchup + stat compare), and heal or edit your own team with Change Party Stats — all mid-battle.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🗃️</span>
+        <h3 data-i18n="f_box_h">PC Box ++ Editor</h3>
+        <p data-i18n="f_box_p">A visual grid of your boxes: move, swap, clone and search on the grid, then edit species, IVs/EVs, moves, ability, item and more from on-screen lists — no keyboard.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🎰</span>
+        <h3 data-i18n="f_mini_h">Mini Game Corner</h3>
+        <p data-i18n="f_mini_p">A seven-game arcade — loot boxes, slots, a prize wheel, stat duels and more — playable for free, or for real Pokédollars if you want to wager.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🔔</span>
+        <h3 data-i18n="f_notif_h">Friendly Notifications</h3>
+        <p data-i18n="f_notif_p">On-screen toasts confirm when cheats activate or deactivate — no more guessing if something worked.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🛡️</span>
+        <h3 data-i18n="f_safety_h">Safety Guardrails</h3>
+        <p data-i18n="f_safety_p">Visual warnings for risky cheats (Key Items, TMs/HMs) protect your save file from accidental corruption.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">⌨️</span>
+        <h3 data-i18n="f_hotkeys_h">Custom Hotkeys</h3>
+        <p data-i18n="f_hotkeys_p">Map your favourite cheats to button combos via Tools → Hotkeys for one-press activation.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🎨</span>
+        <h3 data-i18n="f_themes_h">25 Color Themes</h3>
+        <p data-i18n="f_themes_p">Instant preview of every theme: Game Boy, Persona 5, Cyberpunk, Pop Art, Wild West, and many more.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🗺️</span>
+        <h3 data-i18n="f_gameguide_h">Game Guide Included</h3>
+        <p data-i18n="f_gameguide_p">Step-by-step Professor Oak Challenge walkthrough for ORAS baked right into the plugin.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <span class="feature-icon">🌐</span>
+        <h3 data-i18n="f_lang_h">Languages</h3>
+        <p>🇺🇸 <strong>English</strong> — available now.<br/>
+        🇫🇷 French &bull; 🇩🇪 German &bull; 🇮🇹 Italian &bull; 🇯🇵 Japanese &bull; 🇪🇸 Spanish — <em>more coming!</em></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- SCREENSHOTS -->
+<section id="screenshots">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_shots_tag">In Action</div>
+      <h2 class="section-title" data-i18n="sec_shots_title">Screenshots</h2>
+      <p class="section-sub" data-i18n="sec_shots_sub">Click any image to view full size.</p>
+    </div>
+    <div class="screenshots-grid">
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/01_menu.png"
+             alt="The main menu over the game" loading="lazy" />
+        <div class="screenshot-caption">The main menu</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/04_spawner_detail.png"
+             alt="Wild Pokémon Spawner — a sheet and spawn settings" loading="lazy" />
+        <div class="screenshot-caption">Wild Pokémon Spawner</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/08_pokemart_checkout.png"
+             alt="PokéMart Anywhere — the cart and checkout" loading="lazy" />
+        <div class="screenshot-caption">PokéMart Anywhere</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/09_pcbox_grid.png"
+             alt="PC Box ++ visual grid and card" loading="lazy" />
+        <div class="screenshot-caption">PC Box ++</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/12_party_card.png"
+             alt="View Party Summary stat card" loading="lazy" />
+        <div class="screenshot-caption">Party Summary card</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/15_enemy_compare.png"
+             alt="Enemy Helper — Compare tab" loading="lazy" />
+        <div class="screenshot-caption">Enemy Helper — Compare</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/17_mini_hub.png"
+             alt="The Mini Game Corner hub" loading="lazy" />
+        <div class="screenshot-caption">Mini Game Corner</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/21_mini_challenge.png"
+             alt="Random Challenge — a rolled wild encounter" loading="lazy" />
+        <div class="screenshot-caption">Random Challenge</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/v0.3.3/export/26_themes.png"
+             alt="The theme picker with color swatches" loading="lazy" />
+        <div class="screenshot-caption">25 color themes</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" role="dialog" aria-modal="true">
+  <button id="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+  <button id="lightbox-prev" onclick="lightboxPrev()" aria-label="Previous">&#8592;</button>
+  <img id="lightbox-img" src="" alt="" />
+  <button id="lightbox-next" onclick="lightboxNext()" aria-label="Next">&#8594;</button>
+  <div id="lightbox-counter"></div>
+</div>
+
+<hr class="divider" />
+
+<!-- THEMES -->
+<section id="themes">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_themes_tag">25 Built-in Themes</div>
+      <h2 class="section-title" data-i18n="sec_themes_title">Make It Yours</h2>
+      <p class="section-sub" data-i18n="sec_themes_sub">Instant preview — the plugin remembers your choice between sessions.</p>
+    </div>
+    <div class="themes-grid">
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_GameBoyClassic.png"
+             alt="Game Boy Classic" loading="lazy" />
+        <div class="theme-name">Game Boy Classic</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_AlphaSapphire.png"
+             alt="Alpha Sapphire" loading="lazy" />
+        <div class="theme-name">Alpha Sapphire</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_WildWest.png"
+             alt="Wild West" loading="lazy" />
+        <div class="theme-name">Wild West</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_PopArt.png"
+             alt="Pop Art" loading="lazy" />
+        <div class="theme-name">Pop Art</div>
+      </div>
+      <div class="theme-card fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPluginFramework/main/Screenshots/AS/export/theme_ArtDeco.png"
+             alt="Art Deco" loading="lazy" />
+        <div class="theme-name">Art Deco</div>
+      </div>
+      <div class="theme-card fade-in" style="display:flex;align-items:center;justify-content:center;min-height:140px;background:var(--bg3);border:1px dashed var(--border);">
+        <div style="text-align:center;color:var(--muted);font-size:.85rem;padding:1rem;">
+          +20 more themes<br/>inside the plugin
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- HISTORY -->
+<section id="history">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_history_tag">A short history</div>
+      <h2 class="section-title" data-i18n="sec_history_title">How it grew</h2>
+    </div>
+    <ul class="history-list fade-in" style="max-width:680px;margin:0 auto;list-style:none;padding:0;">
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;flex:0 0 56px;">v0.3.3</span>
+        <span style="color:var(--text);" data-i18n="hist_033">In-Battle Tools (Enemy Helper, Change Party Stats), the visual PC Box ++ editor, and the Mini Game Corner.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.2</span>
+        <span style="color:var(--muted);" data-i18n="hist_032">Screenshot the plugin's own UI; favorites, cheats and hotkeys survive a plugin update.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.1</span>
+        <span style="color:var(--muted);" data-i18n="hist_031">PokéMart Anywhere — a real in-bag shop with prices, a cart and checkout — plus bag sorting.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.0</span>
+        <span style="color:var(--muted);" data-i18n="hist_030">The dual-screen finders (Wild Pokémon Spawner, Respawn Legendary) and the App Guide.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.2.x</span>
+        <span style="color:var(--muted);" data-i18n="hist_02">The big UX overhaul — re-organised menus, Favorites, toasts, the HUD, and the first themes.</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- COMPAT -->
+<section id="compat">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_compat_tag">Compatibility</div>
+      <h2 class="section-title" data-i18n="sec_compat_title">Games &amp; status</h2>
+      <p class="section-sub" data-i18n="sec_compat_sub">The framework targets all four Generation 6 titles — but this release only has tailored content for <strong>Pokémon Alpha Sapphire</strong> (Title ID <code>000400000011C500</code>). X, Y and Omega Ruby are already in the works.</p>
+    </div>
+    <div class="compat-grid">
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🔵</span>
+        <h3>Alpha Sapphire</h3>
+        <p>Nintendo 3DS &bull; 000400000011C500</p>
+        <span class="compat-badge badge-yes" data-i18n="compat_ready">Content ready</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">⚔️</span>
+        <h3>Pokémon X</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🌿</span>
+        <h3>Pokémon Y</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+      </div>
+      <div class="compat-card fade-in">
+        <span class="compat-icon">🔴</span>
+        <h3>Omega Ruby</h3>
+        <p>Nintendo 3DS</p>
+        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_download_tag">Ready when you are</div>
+      <h2 class="section-title" data-i18n="sec_download_title">Download</h2>
+    </div>
+    <div class="download-card fade-in">
+      <div>
+        <div class="dl-version">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
+          Latest Release
+        </div>
+        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.3.3</div>
+        <div class="dl-meta">
+          Released <span>June 24, 2026</span> &bull;
+          Platform <span>Nintendo 3DS (3gx)</span> &bull;
+          License <span>GNU GPL-3.0</span>
+        </div>
+        <div class="dl-buttons">
+          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.3.3/Gen6CTRPluginFramework-v0.3.3.zip" target="_blank" rel="noopener">
+            ⬇ Download v0.3.3 (.zip)
+          </a>
+          <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">
+            All Releases
+          </a>
+        </div>
+      </div>
+      <div class="dl-counter">
+        <div class="dl-count-num" id="download-count">–</div>
+        <div class="dl-count-label">Total Downloads</div>
+      </div>
+    </div>
+
+    <div class="releases-list fade-in">
+      <div class="release-row">
+        <span class="release-tag">v0.3.3</span>
+        <span class="release-date">Jun 24, 2026</span>
+        <span class="release-downloads" id="dl-v033">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.3.3/Gen6CTRPluginFramework-v0.3.3.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.3.2</span>
+        <span class="release-date">Jun 21, 2026</span>
+        <span class="release-downloads" id="dl-v032">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.3.2/Gen6CTRPluginFramework-v0.3.2.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.3.1</span>
+        <span class="release-date">Jun 21, 2026</span>
+        <span class="release-downloads" id="dl-v031">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.3.1/Gen6CTRPluginFramework-v0.3.1.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.3.0</span>
+        <span class="release-date">Jun 20, 2026</span>
+        <span class="release-downloads" id="dl-v030">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.3.0/Gen6CTRPluginFramework-v0.3.0.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.2.1</span>
+        <span class="release-date">Jun 20, 2026</span>
+        <span class="release-downloads" id="dl-v021">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.2.1/Gen6CTRPluginFramework-v0.2.1.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+      <div class="release-row">
+        <span class="release-tag">v0.2.0</span>
+        <span class="release-date">Jun 18, 2026</span>
+        <span class="release-downloads" id="dl-v020">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases/download/v0.2.0/Gen6CTRPluginFramework-v0.2.0.zip" target="_blank" rel="noopener">Download</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="section-tag" data-i18n="sec_install_tag">Setup</div>
+      <h2 class="section-title" data-i18n="sec_install_title">How to Install</h2>
+      <p class="section-sub" data-i18n="sec_install_sub">Requires a Nintendo 3DS with Luma3DS CFW and the Rosalina menu plugin loader.</p>
+    </div>
+    <div class="steps">
+      <div class="step fade-in">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4 data-i18n="step1_h">Download the latest release</h4>
+          <p data-i18n="step1_p">Grab the <code>.zip</code> from the <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener" style="color:var(--accent)">Releases page</a> and extract its contents.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4 data-i18n="step2_h">Copy the .3gx file to your SD card</h4>
+          <p data-i18n="step2_p">Place the plugin file in <code>/luma/plugins/</code> folder on your 3DS SD card. Create the folder if it doesn't exist.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4 data-i18n="step3_h">Launch your Pokémon game</h4>
+          <p data-i18n="step3_p">Boot your Gen 6 game normally. Luma3DS will automatically load the plugin on startup.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4 data-i18n="step4_h">Open the plugin menu</h4>
+          <p data-i18n="step4_p">Press the button combo configured in Rosalina (usually <code>L+Down+Select</code>) to open the plugin menu in-game.</p>
+        </div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4 data-i18n="step5_h">Read the built-in guide</h4>
+          <p data-i18n="step5_p">Head to <strong>App Guide</strong> inside the plugin — 22 pages of beginner-friendly instructions are waiting for you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">Gen6<span>CTR</span>PluginFramework</div>
+    <p class="footer-desc" data-i18n="footer_desc">
+      An open-source 3gx plugin overhauling the Gen 6 Pokémon experience on Nintendo 3DS.<br/>
+      Built with C++ &amp; C. Licensed under GNU GPL-3.0.
+    </p>
+    <div class="footer-links">
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/issues" target="_blank" rel="noopener">Report Bug</a>
+      <a href="https://github.com/samaBR85/Gen6CTRPluginFramework/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </div>
+    <div class="footer-copy" data-i18n="footer_copy">
+      &copy; 2026 samaBR85. Not affiliated with Nintendo or The Pokémon Company.
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ── Download counter from GitHub API ────────────── */
+  async function loadDownloads() {
+    try {
+      const res = await fetch('https://api.github.com/repos/samaBR85/Gen6CTRPluginFramework/releases');
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      let total = 0;
+      data.forEach(release => {
+        release.assets.forEach(asset => { total += asset.download_count; });
+      });
+
+      const v033 = data.find(r => r.tag_name === 'v0.3.3');
+      const v032 = data.find(r => r.tag_name === 'v0.3.2');
+      const v031 = data.find(r => r.tag_name === 'v0.3.1');
+      const v030 = data.find(r => r.tag_name === 'v0.3.0');
+      const v021 = data.find(r => r.tag_name === 'v0.2.1');
+      const v020 = data.find(r => r.tag_name === 'v0.2.0');
+
+      const count033 = v033 ? v033.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count032 = v032 ? v032.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count031 = v031 ? v031.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count030 = v030 ? v030.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count021 = v021 ? v021.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count020 = v020 ? v020.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+
+      animateCount('total-downloads', total);
+      animateCount('download-count', total);
+
+      const el033 = document.getElementById('dl-v033');
+      const el032 = document.getElementById('dl-v032');
+      const el031 = document.getElementById('dl-v031');
+      const el030 = document.getElementById('dl-v030');
+      const el021 = document.getElementById('dl-v021');
+      const el020 = document.getElementById('dl-v020');
+      if (el033) el033.textContent = count033 + ' downloads';
+      if (el032) el032.textContent = count032 + ' downloads';
+      if (el031) el031.textContent = count031 + ' downloads';
+      if (el030) el030.textContent = count030 + ' downloads';
+      if (el021) el021.textContent = count021 + ' downloads';
+      if (el020) el020.textContent = count020 + ' downloads';
+    } catch (e) {
+      const els = ['total-downloads','download-count','dl-v033','dl-v032','dl-v031','dl-v030','dl-v021','dl-v020'];
+      els.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '–';
+      });
+    }
+  }
+
+  function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let start = 0;
+    const duration = 1200;
+    const step = (timestamp) => {
+      if (!step.startTime) step.startTime = timestamp;
+      const progress = Math.min((timestamp - step.startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.floor(ease * target).toLocaleString();
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = target.toLocaleString();
+    };
+    requestAnimationFrame(step);
+  }
+
+  loadDownloads();
+
+  /* ── Scroll fade-in ──────────────────────────────── */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  /* ── Lightbox ────────────────────────────────────── */
+  let lightboxItems = [];
+  let lightboxIndex = 0;
+
+  function buildLightboxList() {
+    lightboxItems = Array.from(document.querySelectorAll('.wn-shots img, .screenshot-item, .theme-card'));
+  }
+
+  function openLightbox(card) {
+    buildLightboxList();
+    lightboxIndex = lightboxItems.indexOf(card);
+    showLightboxAt(lightboxIndex);
+    document.getElementById('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    updateNavButtons();
+  }
+
+  function showLightboxAt(index) {
+    const node = lightboxItems[index];
+    const img = node.tagName === 'IMG' ? node : node.querySelector('img');
+    const lb = document.getElementById('lightbox-img');
+    lb.style.opacity = '0';
+    setTimeout(() => {
+      lb.src = img.src;
+      lb.alt = img.alt;
+      lb.style.opacity = '1';
+    }, 120);
+    document.getElementById('lightbox-counter').textContent = (index + 1) + ' / ' + lightboxItems.length;
+    updateNavButtons();
+  }
+
+  function lightboxPrev() {
+    if (lightboxIndex > 0) { lightboxIndex--; showLightboxAt(lightboxIndex); }
+  }
+  function lightboxNext() {
+    if (lightboxIndex < lightboxItems.length - 1) { lightboxIndex++; showLightboxAt(lightboxIndex); }
+  }
+
+  function updateNavButtons() {
+    document.getElementById('lightbox-prev').style.opacity = lightboxIndex > 0 ? '1' : '0.2';
+    document.getElementById('lightbox-next').style.opacity = lightboxIndex < lightboxItems.length - 1 ? '1' : '0.2';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) closeLightbox();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('lightbox').classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') lightboxPrev();
+    if (e.key === 'ArrowRight') lightboxNext();
+  });
+
+  /* ── i18n (EN default in the markup, PT overrides below) ───────────── */
+  const I18N_PT = {
+    // nav
+    nav_new: "Novidades", nav_features: "Recursos", nav_shots: "Capturas", nav_themes: "Temas", nav_download: "Download", nav_install: "Instalar",
+    // hero
+    hero_sub: "Uma caixinha de superpoderes para <strong>Pokémon X, Y, Omega Ruby e Alpha Sapphire</strong> — feita para jogadores, não programadores. Gere qualquer Pokémon, carregue um Poké Mart na bag, edite seu time, leia o rival no meio da batalha, e cem pequenas conveniências no meio do caminho. E é <strong>feita pra ser entendida</strong>: menus em linguagem simples, um botão de info em tudo, e um guia dentro do plugin.",
+    // about + tour + history (reescrita intro-first v0.3.3)
+    nav_about: "Sobre", nav_tour: "Tour",
+    about_tag: "O projeto de um jogador curioso", about_title: "Feito por um jogador curioso, com o Claude",
+    about_p1: "Vou ser franco: não sou programador. Sou um jogador curioso — alguém bom em testar, cutucar as coisas e pensar bastante num problema e em como resolvê-lo. Cada recurso aqui foi construído em bate-bola com o Claude, e foi exatamente essa colaboração que me deixou <em>materializar</em> as coisas que eu vivia desejando que existissem enquanto jogava.",
+    about_p2: "Porque é daí que tudo veio — necessidades reais, descobertas jogando. Eu batia numa fricção e pensava \"tinha que ter um jeito de…\", e aí a gente ia construir. Se você ama esses jogos mas nunca mexeu com homebrew, é exatamente pra você.",
+    tour_tag: "Um passeio guiado", tour_title: "Um passeio pelos cômodos",
+    tour_sub: "Aqui vai o plugin mais ou menos na ordem em que você o encontraria. Nada abaixo é leitura obrigatória — só um olhar amigável pelo que tem dentro.",
+    t_menu_h: "Tudo começa com um botão",
+    t_menu_p: "Aperte SELECT e o menu abre por cima do jogo. Mova com o D-Pad, escolha com A, volte com B. Destaque qualquer coisa e aperte X pra ver a nota de info, ou Y pra fixar nos Favoritos — e a tela de toque de baixo tem os botões grandes (Favoritos, Busca, os dois guias, ActionReplay, Tools). Essa é a língua inteira dele.",
+    t_spawn_h: "Encontre, e então conheça, qualquer Pokémon",
+    t_spawn_p: "O Wild Pokémon Spawner é uma lista filtrada ao vivo de todas as espécies — resultados na tela de cima, filtros na de baixo. Refine por nome, número da Dex, geração, tipo ou pelo que você já tem; abra um resultado pra ver a ficha, defina forma, nível e Normal/Shiny, e gere-o na grama. Perdeu um lendário? O Respawn Legendary manda de volta pro lugar real dele.",
+    t_mart_h: "Carregue um Poké Mart na bag",
+    t_mart_p: "O PokéMart Anywhere transforma o adicionar-item numa loja de verdade. FREE adiciona qualquer coisa, qualquer quantidade, de graça; PAY filtra a lista pro que você realmente compra e cobra o seu dinheiro. Compre na hora, ou monte um carrinho e revise tudo no Checkout antes de pagar — e ordene a lista por nome, preço, tipo ou quantos você tem.",
+    t_box_h: "PC Box ++ — um editor visual do seu armazenamento",
+    t_box_p: "Suas boxes mostradas como uma grade de sprites, igual ao PC do jogo. Mova, troque (X), clone (Y) e busque (START) direto na grade, então aperte A pra um editor por abas — Main, Stats, Moves, Origins, Misc — onde cada campo (espécie, IVs/EVs, golpes, habilidade, item, Poké Ball e mais) é escolhido numa lista na tela. Sem digitar, sem teclado.",
+    t_party_h: "Seu time, como cartas de stats ordenáveis",
+    t_party_p: "O View Party Summary dispõe seu time como cartas com os números reais e ocultos — stats, IVs, EVs, nature, habilidade, item e golpes. Deslize um seletor sobre um stat e aperte A pra pular pro companheiro com o valor mais alto (ou mais baixo); marquinhas ▲/▼ sinalizam o melhor e o pior do seu time.",
+    t_battle_h: "Leia seu rival, e edite seu time, no meio da luta",
+    t_battle_p: "O Enemy Helper é uma carta de treinador pro inimigo — explica a habilidade, o item e os golpes dele, lista os tipos que o vencem, e compara os seis stats dele com o seu Pokémon ativo (e até diz se você já tem a espécie). O Change Party Stats cura e edita o seu time sem sair da batalha, e o Display Enemy Stats sobrepõe os dados ocultos do oponente na tela de cima.",
+    t_mini_h: "O Mini Game Corner — sete jogos",
+    t_mini_p: "Quando você só quer jogar, tem um fliperama de sete jogos — loot boxes, slots, roleta de prêmios, um duelo de stats, maior-ou-menor, uma rolagem de encontro selvagem e um gerador de time aleatório. Um interruptor FREE / PAY decide a aposta: FREE você fica com o que ganha e seu dinheiro nunca muda; PAY coloca Pokédólares de verdade em jogo.",
+    t_qol_h: "Qualidade de vida, e um HUD num relance",
+    t_qol_p: "As ferramentas de Overworld &amp; Quality of Life tiram a dor de uma run longa — texto rápido, andar rápido, teletransporte, atravessar paredes, ovos instantâneos e mais. E um HUD pequeno e configurável mantém seu dinheiro, relógio, posição no mapa e o status do líder na tela enquanto você joga.",
+    t_mine_h: "Temas, Favoritos, e um guia pra tudo",
+    t_mine_p: "Vinte e cinco temas de cor repaginam a interface inteira, com sua escolha lembrada entre as sessões. Fixe os recursos que mais usa nos Favoritos e remapeie as teclas do menu em Tools › Hotkeys. E se você se sentir perdido, um App Guide de 22 páginas (escrito como uma aventura guiada) e uma nota de info em cada função estão sempre a um botão de distância.",
+    sec_history_tag: "Uma breve história", sec_history_title: "Como cresceu", sec_history_sub: "Sem detalhe — só o formato dela, do mais antigo primeiro.",
+    hist_02: "A grande repaginada de UX — menus reorganizados, Favoritos, avisos, o HUD e os primeiros temas.",
+    hist_030: "Os localizadores de tela dupla (Wild Pokémon Spawner, Respawn Legendary) e o App Guide.",
+    hist_031: "PokéMart Anywhere — uma loja real na bag com preços, carrinho e checkout — mais ordenar a bag.",
+    hist_032: "Capturar a própria UI do plugin; favoritos, cheats e hotkeys sobrevivem a uma atualização.",
+    hist_033: "In-Battle Tools (Enemy Helper, Change Party Stats), o editor visual PC Box ++, e o Mini Game Corner.",
+    stat_version: "Versão atual", stat_dl: "Downloads totais", stat_themes: "Temas de cor", stat_games: "Jogos suportados",
+    // what's new
+    wn_tag: "Novidades na v0.3.3", wn_title: "Batalha Esperta, Editor de Boxes &amp; um Fliperama",
+    wn_sub: "Três grandes adições: uma casa para as ferramentas que você usa no meio da luta, um editor visual para suas boxes do PC, e um fliperama inteiro de mini-jogos. (O PokéMart Anywhere e os localizadores de tela dupla, mais abaixo, continuam aqui também.)",
+    wn_battle_badge: "⚔️ Ferramentas de Batalha", wn_battle_h: "Leia o inimigo, planeje o confronto, edite seu time — no meio da luta",
+    wn_battle_p: "O Display Enemy Stats revela os dados ocultos do oponente na tela de cima. O Enemy Helper é uma carta de treinador que explica a Habilidade, o item e os golpes dele, lista os tipos que o vencem, e até compara os seis stats dele com o seu Pokémon ativo (e diz se você já tem a espécie). O Change Party Stats é um editor visual que cura e edita o seu próprio time — stats, HP/PP, status, item, golpes e um multiplicador de EXP — sem nunca sair da batalha.",
+    wn_box_badge: "🗃️ PC Box ++", wn_box_h: "Um editor visual para suas boxes",
+    wn_box_p: "Seu armazenamento mostrado como uma grade de sprites, igual ao PC do jogo. Mova, troque (X), clone (Y) e busque (START) direto na grade, e abra um editor por abas — Main, Stats, Moves, Origins, Misc — onde cada campo (espécie, IVs/EVs, golpes, habilidade, item, Poké Ball e mais) é escolhido em listas visuais. Sem digitar, sem teclado.",
+    wn_mini_badge: "🎰 O Mini Game Corner", wn_mini_h: "Um fliperama de sete jogos, por diversão ou por Pokédólares",
+    wn_mini_p: "Um fliperama inteiro de sete mini-jogos — Random Challenge, Loot Box, Top Trumps, Spin the Wheel, Slot Machine, Higher or Lower e Team Generator — jogáveis de graça (você fica com o que ganha, seu dinheiro nunca muda) ou por Pokédólares de verdade, se quiser apostar.",
+    wn_mart_h: "Adicione qualquer item — de graça, ou pagando como numa loja real",
+    wn_mart_p: "O \"adicionar item\" da bag agora é uma loja de verdade. Cada linha mostra o ícone, quantos você tem e o preço. Aperte START para trocar de modo: FREE adiciona qualquer coisa, qualquer quantidade, sem custo; PAY filtra a lista pros itens que você realmente compra no jogo e cobra do seu Dinheiro — compre na hora, ou monte um carrinho e revise tudo no Checkout antes de pagar (nunca dá pra gastar a mais). E ordene a lista por nome, preço, tipo ou quantos você já tem.",
+    wn_spawner_h: "Navegue, filtre e gere qualquer espécie",
+    wn_spawner_p: "A tela de cima é uma lista de resultados ao vivo e contada; a de baixo é um hub de filtros — refine por nome / nº da Pokédex Nacional, geração, tipo (1º <em>e</em> 2º), traços (estágio evolutivo, categoria, Mega), ou só pelo que você já tem. Abra qualquer resultado para a ficha completa — sprite, tipos, habilidades (incluindo a Oculta), stats base e os quatro golpes que ele sabe no nível escolhido — então defina forma, nível e Normal/Shiny e gere-o no mundo.",
+    wn_respawn_h: "Mande um lendário de volta pra toca",
+    wn_respawn_p: "Derrubou um ou viu fugir? O Respawn Legendary lista todos os lendários do seu jogo com a própria ficha e a localização real — escolha um e mande-o de volta pro lugar onde você o encontrou.",
+    // section headers
+    sec_features_tag: "Tudo num relance", sec_features_title: "O resto, em linguagem simples", sec_features_sub: "Um índice rápido do que mais tem aqui — as pequenas conveniências e as redes de segurança, cada uma nomeada pelo que de fato faz.",
+    sec_shots_tag: "Em ação", sec_shots_title: "Capturas de Tela", sec_shots_sub: "Clique em qualquer imagem pra ver em tamanho real.",
+    sec_themes_tag: "25 temas embutidos", sec_themes_title: "Deixe do Seu Jeito", sec_themes_sub: "Pré-visualização instantânea — o plugin lembra sua escolha entre as sessões.",
+    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "O framework é feito para os quatro títulos da 6ª geração — mas esta versão só tem conteúdo dedicado para <strong>Pokémon Alpha Sapphire</strong> (Title ID <code>000400000011C500</code>). X, Y e Omega Ruby já estão a caminho.",
+    compat_ready: "Conteúdo pronto", compat_wip: "A caminho",
+    sec_download_tag: "Quando você quiser", sec_download_title: "Download",
+    sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Requer um Nintendo 3DS com o CFW Luma3DS e o carregador de plugins do menu Rosalina.",
+    // feature cards
+    f_guide_h: "App Guide de 22 páginas", f_guide_p: "Guia de instruções embutido que te conduz por cada recurso, sequenciado pra acompanhar seu progresso no jogo.",
+    f_battle_h: "Ferramentas de Batalha", f_battle_p: "Leia o inimigo com o Display Enemy Stats, seja orientado pelo Enemy Helper (confronto + comparação de stats), e cure ou edite seu próprio time com o Change Party Stats — tudo no meio da batalha.",
+    f_box_h: "Editor PC Box ++", f_box_p: "Uma grade visual das suas boxes: mova, troque, clone e busque na grade, então edite espécie, IVs/EVs, golpes, habilidade, item e mais em listas na tela — sem teclado.",
+    f_mini_h: "Mini Game Corner", f_mini_p: "Um fliperama de sete jogos — loot boxes, slots, roleta de prêmios, duelos de stats e mais — jogáveis de graça, ou por Pokédólares de verdade se quiser apostar.",
+    f_info_h: "Botão de Info em Tudo", f_info_p: "Cada cheat e opção tem um botão (i) amigável com uma explicação em linguagem simples do que ele faz.",
+    f_party_h: "Cartas de Resumo do Time", f_party_p: "Veja os IVs, EVs, Nature, Habilidade, item e golpes do seu time como cartas de stats ordenáveis com indicadores ▲/▼.",
+    f_finders_h: "Localizadores de Pokémon &amp; Itens", f_finders_p: "Navegue e filtre todas as espécies num Wild Pokémon Spawner de tela dupla — por nome, tipo, geração ou traços — e gere. O mesmo seletor pra sua bag inteira, mais uma lista organizada de respawn de lendários.",
+    f_fav_h: "Favoritos Inteligentes", f_fav_p: "Lista de favoritos em duas colunas com reordenar arrastando, apelidos personalizados e acesso instantâneo aos cheats que você mais usa.",
+    f_hud_h: "HUD na Tela", f_hud_p: "Overlay translúcido mostrando dinheiro, relógio, Battle Points, Pokémiles, coordenadas e status do Pokémon — tudo configurável.",
+    f_notif_h: "Notificações Amigáveis", f_notif_p: "Avisos na tela confirmam quando os cheats ligam ou desligam — sem mais adivinhar se algo funcionou.",
+    f_safety_h: "Proteções de Segurança", f_safety_p: "Avisos visuais nos cheats arriscados (Key Items, TMs/HMs) protegem seu save de corrupção acidental.",
+    f_hotkeys_h: "Atalhos Personalizados", f_hotkeys_p: "Mapeie seus cheats favoritos para combos de botões via Tools → Hotkeys, pra ativar com um toque.",
+    f_themes_h: "25 Temas de Cor", f_themes_p: "Pré-visualização instantânea de cada tema: Game Boy, Persona 5, Cyberpunk, Pop Art, Wild West e muitos mais.",
+    f_gameguide_h: "Game Guide Incluído", f_gameguide_p: "Guia passo a passo do Professor Oak Challenge para ORAS, embutido direto no plugin.",
+    f_lang_h: "Idiomas",
+    // install steps
+    step1_h: "Baixe a versão mais recente", step1_p: "Pegue o <code>.zip</code> na <a href=\"https://github.com/samaBR85/Gen6CTRPluginFramework/releases\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--accent)\">página de Releases</a> e extraia o conteúdo.",
+    step2_h: "Copie o arquivo .3gx pro cartão SD", step2_p: "Coloque o arquivo do plugin na pasta <code>/luma/plugins/</code> do SD do seu 3DS. Crie a pasta se ela não existir.",
+    step3_h: "Inicie seu jogo Pokémon", step3_p: "Abra seu jogo Gen 6 normalmente. O Luma3DS carrega o plugin automaticamente na inicialização.",
+    step4_h: "Abra o menu do plugin", step4_p: "Pressione o combo de botões configurado no Rosalina (geralmente <code>L+Down+Select</code>) pra abrir o menu do plugin no jogo.",
+    step5_h: "Leia o guia embutido", step5_p: "Vá até o <strong>App Guide</strong> dentro do plugin — 22 páginas de instruções amigáveis pra iniciantes esperam por você.",
+    // footer
+    footer_desc: "Um plugin 3gx de código aberto que repagina a experiência Pokémon Gen 6 no Nintendo 3DS.<br/>Feito com C++ &amp; C. Licenciado sob GNU GPL-3.0.",
+    footer_copy: "&copy; 2026 samaBR85. Não afiliado à Nintendo ou à The Pokémon Company."
+  };
+
+  function setLang(lang) {
+    try { localStorage.setItem('lang', lang); } catch (e) {}
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      if (el.dataset.en == null) el.dataset.en = el.innerHTML;            // capture EN once
+      const k = el.getAttribute('data-i18n');
+      el.innerHTML = (lang === 'pt' && I18N_PT[k] != null) ? I18N_PT[k] : el.dataset.en;
+    });
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  }
+
+  (function initLang() {
+    let saved = null;
+    try { saved = localStorage.getItem('lang'); } catch (e) {}
+    const lang = saved || ((navigator.language || 'en').toLowerCase().startsWith('pt') ? 'pt' : 'en');
+    setLang(lang);
+  })();
+</script>
+</body>
+</html>

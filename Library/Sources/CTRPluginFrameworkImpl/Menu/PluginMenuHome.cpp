@@ -721,12 +721,21 @@ namespace CTRPluginFramework {
         for (; i < max; i++) {
             MenuItem *item = folder->_items[i];
             const char *name = item->name.c_str();
-            const Color &fg = i == _selector ? selected : unselected;
+            Color fg = i == _selector ? selected : unselected;
             float offset = i == _selector ? _scrollOffset : 0.f;
 
-            // Draw cursor
-            if (drawSelector && i == _selector)
-                Renderer::MenuSelector(posX - 5, posY - 3, 330, 20);
+            // Draw cursor. The "★ Mini Game Corner ★" entry CAN get a SOLID bar in the theme's 4th square color
+            // (with auto-contrast text) instead of the default fade. Feature kept but DISABLED: flip
+            // kHighlightMiniGameCorner to true to re-enable; while false every entry keeps the default MenuSelector.
+            static const bool kHighlightMiniGameCorner = false;
+            if (drawSelector && i == _selector) {
+                if (kHighlightMiniGameCorner && item->name == "\xE2\x98\x85 Mini Game Corner \xE2\x98\x85") {
+                    const Color &alt = Preferences::Settings.MenuSelectedAltColor;
+                    Renderer::DrawRect(posX - 5, posY - 3, 330, 20, alt, true);
+                    fg = ((alt.r * 30 + alt.g * 59 + alt.b * 11) / 100 > 150) ? Color::Black : Color::White;
+                } else
+                    Renderer::MenuSelector(posX - 5, posY - 3, 330, 20);
+            }
 
             // Draw entry
             if (item->_type == MenuType::Entry) {

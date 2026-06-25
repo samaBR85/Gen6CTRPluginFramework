@@ -50,6 +50,8 @@ namespace CTRPluginFramework {
             Color ActionReplay;
             Color Tools;
         } HomeButtons;
+        // Solid highlight color for the special "★ Mini Game Corner ★" root entry (its 4th theme square color).
+        Color MenuSelectedAltColor;
 
         // Keyboard colors
         struct {

@@ -19,6 +19,28 @@ namespace CTRPluginFramework {
     // of the selected stat. Default L.
     extern u32 g_cardStatHotkey;
 
+    // The user's PokeMart "PAY/FREE" choice (0 = FREE, add at no cost; 1 = PAY, items cost Money).
+    // Persisted in Data.bin (header.reserved[4]) so it survives game sessions, and mirrored here so
+    // PLUGIN code — which cannot include the impl-only Preferences.hpp — can both read it every frame
+    // (Codes.cpp BagHub) and change it. The plugin MUST flip it through SetBagPayMode() (not a raw
+    // assignment) so Preferences is marked dirty and the new value is written on menu close. Default 0.
+    extern u32 g_bagPayMode;
+    void SetBagPayMode(u32 mode);
+
+    // The Fun Stuff mini-games "FREE/PAID" choice (0 = FREE: you still get items/mons/spawns, but your money
+    // never changes; 1 = PAID: real Pokedollars are at stake — entry fees deducted, payouts credited). Persisted
+    // in Data.bin (header.reserved[5]) and mirrored here exactly like g_bagPayMode so PLUGIN code (PKHeX.cpp
+    // FunHub) can read it every frame and flip it through SetFunPayMode() (which marks Preferences dirty).
+    // Default 0 (FREE).
+    extern u32 g_funPayMode;
+    void SetFunPayMode(u32 mode);
+
+    // Fun Stuff "Higher or Lower" best (longest) streak. Persisted in Data.bin (header.reserved[6]) and mirrored
+    // here like the toggles so PLUGIN code (PKHeX.cpp FunHighLow) can read the saved record on entry and update it
+    // through SetHiLoBest() when a new record is set. Default 0.
+    extern u32 g_hiLoBest;
+    void SetHiLoBest(u32 value);
+
     // The MenuEntry* of that very "Show ON/OFF notifications" checkbox (stored as void* to avoid a
     // Menu header dependency). _TriggerEntry uses it to (a) update g_entryToggleNotif the instant
     // the checkbox is toggled and (b) give the checkbox a single "Notifications: ON/OFF" toast
