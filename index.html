@@ -683,7 +683,7 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.3.3</div>
+  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.4.2</div>
   <h1>
     <span class="hl">Gen6</span> CTRPlugin<br/>
     <span class="hl2">Framework</span> Overhauled
@@ -713,7 +713,7 @@
       <div class="stat-label" data-i18n="stat_dl">Total Downloads</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">v0.3.3</div>
+      <div class="stat-num">v0.4.2</div>
       <div class="stat-label" data-i18n="stat_version">Latest Version</div>
     </div>
     <div class="stat-item">
@@ -839,9 +839,21 @@
     </div>
 
     <div class="wn-feature fade-in">
+      <span class="wn-badge">🧭 Travel anywhere</span>
+      <h3 data-i18n="t_tele_h">Teleport anywhere, your way</h3>
+      <p data-i18n="t_tele_p">Teleportation drops you at any town, route or landmark in Hoenn. Pick a destination and HOLD L into any door to warp there — every place is sorted into tabs (All, Towns, Other, Routes 101–134, and a walkable Map). Press Y in the Map for a single picture-grid of every place, laid out roughly like Hoenn and filtered by tappable chips. X jumps the selection to where you're standing; Start saves your exact landing spot (and makes a route teleportable); ZL teaches it the hidden sub-maps it doesn't recognise yet. Everything you save lands in a hand-editable MyTeleport.txt that survives updates.</p>
+      <div class="wn-shots">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_grid.png" alt="Teleportation — the location grid with tabs and the button legend below" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_routes.png" alt="The Routes tab — Route 101 with its picture, ready to save a warp point" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_map.png" alt="The Map tab — Mauville City centred, its connecting routes shown as tiles" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_overview.png" alt="The Map tab's Y overview — a picture-grid of every place with filter chips below" loading="lazy" onclick="openLightbox(this)" />
+      </div>
+    </div>
+
+    <div class="wn-feature fade-in">
       <span class="wn-badge">🎨 Make it yours</span>
       <h3 data-i18n="t_mine_h">Themes, Favorites, and a guide for everything</h3>
-      <p data-i18n="t_mine_p">Twenty-five color themes restyle the whole interface, with your choice remembered between sessions. Pin your most-used features to Favorites and rebind the menu keys in Tools › Hotkeys. And if you ever feel lost, a 22-page App Guide (written like a guided adventure) and an info note on every single function are always one button away.</p>
+      <p data-i18n="t_mine_p">Twenty-five color themes restyle the whole interface, with your choice remembered between sessions. Pin your most-used features to Favorites and rebind the menu keys in Tools › Hotkeys. And if you ever feel lost, a 23-page App Guide (written like a guided adventure) and an info note on every single function are always one button away.</p>
       <div class="wn-shots">
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.3.3/export/26_themes.png" alt="The theme picker with color swatches" loading="lazy" onclick="openLightbox(this)" />
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.3.3/export/27_appguide.png" alt="The built-in App Guide reader" loading="lazy" onclick="openLightbox(this)" />
@@ -863,7 +875,7 @@
     <div class="features-grid">
       <div class="feature-card fade-in">
         <span class="feature-icon">📖</span>
-        <h3 data-i18n="f_guide_h">22-Page App Guide</h3>
+        <h3 data-i18n="f_guide_h">23-Page App Guide</h3>
         <p data-i18n="f_guide_p">Built-in instruction guide that walks you through every feature, sequenced to match your game progress.</p>
       </div>
       <div class="feature-card fade-in">
@@ -997,6 +1009,16 @@
              alt="The theme picker with color swatches" loading="lazy" />
         <div class="screenshot-caption">25 color themes</div>
       </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_map.png"
+             alt="Teleportation — the walkable Map tab with route tiles" loading="lazy" />
+        <div class="screenshot-caption">Teleportation — Map</div>
+      </div>
+      <div class="screenshot-item fade-in" onclick="openLightbox(this)">
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_overview.png"
+             alt="Teleportation — the Map's Y overview grid of every place, with filter chips" loading="lazy" />
+        <div class="screenshot-caption">Teleportation — Overview</div>
+      </div>
     </div>
   </div>
 </section>
@@ -1066,8 +1088,12 @@
     </div>
     <ul class="history-list fade-in" style="max-width:680px;margin:0 auto;list-style:none;padding:0;">
       <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
-        <span style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;flex:0 0 56px;">v0.3.3</span>
-        <span style="color:var(--text);" data-i18n="hist_033">In-Battle Tools (Enemy Helper, Change Party Stats), the visual PC Box ++ editor, and the Mini Game Corner.</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;flex:0 0 56px;">v0.4.2</span>
+        <span style="color:var(--text);" data-i18n="hist_042">Teleportation reborn — a two-screen place picker with a navigable Map and a full picture-grid overview, your own saved warp points (MyTeleport.txt), and tidier plugin folders under Assets/.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.3</span>
+        <span style="color:var(--muted);" data-i18n="hist_033">In-Battle Tools (Enemy Helper, Change Party Stats), the visual PC Box ++ editor, and the Mini Game Corner.</span>
       </li>
       <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
         <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.2</span>
@@ -1143,15 +1169,15 @@
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
           Latest Release
         </div>
-        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.3.3</div>
+        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.4.2</div>
         <div class="dl-meta">
-          Released <span>June 24, 2026</span> &bull;
+          Released <span>June 26, 2026</span> &bull;
           Platform <span>Nintendo 3DS (3gx)</span> &bull;
           License <span>GNU GPL-3.0</span>
         </div>
         <div class="dl-buttons">
-          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.3.3/Gen6CTRPluginFramework-v0.3.3.zip" target="_blank" rel="noopener">
-            ⬇ Download v0.3.3 (.zip)
+          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.4.2/Gen6CTRPluginFramework-v0.4.2.zip" target="_blank" rel="noopener">
+            ⬇ Download v0.4.2 (.zip)
           </a>
           <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases" target="_blank" rel="noopener">
             All Releases
@@ -1165,6 +1191,12 @@
     </div>
 
     <div class="releases-list fade-in">
+      <div class="release-row">
+        <span class="release-tag">v0.4.2</span>
+        <span class="release-date">Jun 26, 2026</span>
+        <span class="release-downloads" id="dl-v042">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.4.2/Gen6CTRPluginFramework-v0.4.2.zip" target="_blank" rel="noopener">Download</a>
+      </div>
       <div class="release-row">
         <span class="release-tag">v0.3.3</span>
         <span class="release-date">Jun 24, 2026</span>
@@ -1248,7 +1280,7 @@
         <div class="step-num">5</div>
         <div class="step-content">
           <h4 data-i18n="step5_h">Read the built-in guide</h4>
-          <p data-i18n="step5_p">Head to <strong>App Guide</strong> inside the plugin — 22 pages of beginner-friendly instructions are waiting for you.</p>
+          <p data-i18n="step5_p">Head to <strong>App Guide</strong> inside the plugin — 23 pages of beginner-friendly instructions are waiting for you.</p>
         </div>
       </div>
     </div>
@@ -1287,6 +1319,7 @@
         release.assets.forEach(asset => { total += asset.download_count; });
       });
 
+      const v042 = data.find(r => r.tag_name === 'v0.4.2');
       const v033 = data.find(r => r.tag_name === 'v0.3.3');
       const v032 = data.find(r => r.tag_name === 'v0.3.2');
       const v031 = data.find(r => r.tag_name === 'v0.3.1');
@@ -1294,6 +1327,7 @@
       const v021 = data.find(r => r.tag_name === 'v0.2.1');
       const v020 = data.find(r => r.tag_name === 'v0.2.0');
 
+      const count042 = v042 ? v042.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count033 = v033 ? v033.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count032 = v032 ? v032.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count031 = v031 ? v031.assets.reduce((s, a) => s + a.download_count, 0) : 0;
@@ -1304,12 +1338,14 @@
       animateCount('total-downloads', total);
       animateCount('download-count', total);
 
+      const el042 = document.getElementById('dl-v042');
       const el033 = document.getElementById('dl-v033');
       const el032 = document.getElementById('dl-v032');
       const el031 = document.getElementById('dl-v031');
       const el030 = document.getElementById('dl-v030');
       const el021 = document.getElementById('dl-v021');
       const el020 = document.getElementById('dl-v020');
+      if (el042) el042.textContent = count042 + ' downloads';
       if (el033) el033.textContent = count033 + ' downloads';
       if (el032) el032.textContent = count032 + ' downloads';
       if (el031) el031.textContent = count031 + ' downloads';
@@ -1317,7 +1353,7 @@
       if (el021) el021.textContent = count021 + ' downloads';
       if (el020) el020.textContent = count020 + ' downloads';
     } catch (e) {
-      const els = ['total-downloads','download-count','dl-v033','dl-v032','dl-v031','dl-v030','dl-v021','dl-v020'];
+      const els = ['total-downloads','download-count','dl-v042','dl-v033','dl-v032','dl-v031','dl-v030','dl-v021','dl-v020'];
       els.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '–';
@@ -1440,13 +1476,16 @@
     t_mini_p: "Quando você só quer jogar, tem um fliperama de sete jogos — loot boxes, slots, roleta de prêmios, um duelo de stats, maior-ou-menor, uma rolagem de encontro selvagem e um gerador de time aleatório. Um interruptor FREE / PAY decide a aposta: FREE você fica com o que ganha e seu dinheiro nunca muda; PAY coloca Pokédólares de verdade em jogo.",
     t_qol_h: "Qualidade de vida, e um HUD num relance",
     t_qol_p: "As ferramentas de Overworld &amp; Quality of Life tiram a dor de uma run longa — texto rápido, andar rápido, teletransporte, atravessar paredes, ovos instantâneos e mais. E um HUD pequeno e configurável mantém seu dinheiro, relógio, posição no mapa e o status do líder na tela enquanto você joga.",
+    t_tele_h: "Teletransporte pra qualquer lugar, do seu jeito",
+    t_tele_p: "O Teletransporte te leva a qualquer cidade, rota ou ponto de Hoenn. Escolha um destino e SEGURE L em qualquer porta pra warpar — cada lugar fica em abas (All, Towns, Other, Routes 101–134 e um Map navegável). Aperte Y no Map pra um grid com a imagem de todos os lugares, organizado mais ou menos como Hoenn e filtrado por chips tocáveis. X pula a seleção pra onde você está; Start salva sua tile de pouso exata (e torna uma rota teleportável); ZL ensina os sub-mapas escondidos que ele ainda não reconhece. Tudo que você salva vai pra um MyTeleport.txt editável à mão que sobrevive aos updates.",
     t_mine_h: "Temas, Favoritos, e um guia pra tudo",
-    t_mine_p: "Vinte e cinco temas de cor repaginam a interface inteira, com sua escolha lembrada entre as sessões. Fixe os recursos que mais usa nos Favoritos e remapeie as teclas do menu em Tools › Hotkeys. E se você se sentir perdido, um App Guide de 22 páginas (escrito como uma aventura guiada) e uma nota de info em cada função estão sempre a um botão de distância.",
+    t_mine_p: "Vinte e cinco temas de cor repaginam a interface inteira, com sua escolha lembrada entre as sessões. Fixe os recursos que mais usa nos Favoritos e remapeie as teclas do menu em Tools › Hotkeys. E se você se sentir perdido, um App Guide de 23 páginas (escrito como uma aventura guiada) e uma nota de info em cada função estão sempre a um botão de distância.",
     sec_history_tag: "Uma breve história", sec_history_title: "Como cresceu", sec_history_sub: "Sem detalhe — só o formato dela, do mais antigo primeiro.",
     hist_02: "A grande repaginada de UX — menus reorganizados, Favoritos, avisos, o HUD e os primeiros temas.",
     hist_030: "Os localizadores de tela dupla (Wild Pokémon Spawner, Respawn Legendary) e o App Guide.",
     hist_031: "PokéMart Anywhere — uma loja real na bag com preços, carrinho e checkout — mais ordenar a bag.",
     hist_032: "Capturar a própria UI do plugin; favoritos, cheats e hotkeys sobrevivem a uma atualização.",
+    hist_042: "O Teletransporte renasceu — um seletor de lugares em duas telas com um Map navegável e um grid-overview de todos os lugares, seus próprios warp points salvos (MyTeleport.txt), e as pastas do plugin organizadas em Assets/.",
     hist_033: "In-Battle Tools (Enemy Helper, Change Party Stats), o editor visual PC Box ++, e o Mini Game Corner.",
     stat_version: "Versão atual", stat_dl: "Downloads totais", stat_themes: "Temas de cor", stat_games: "Jogos suportados",
     // what's new
@@ -1473,7 +1512,7 @@
     sec_download_tag: "Quando você quiser", sec_download_title: "Download",
     sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Requer um Nintendo 3DS com o CFW Luma3DS e o carregador de plugins do menu Rosalina.",
     // feature cards
-    f_guide_h: "App Guide de 22 páginas", f_guide_p: "Guia de instruções embutido que te conduz por cada recurso, sequenciado pra acompanhar seu progresso no jogo.",
+    f_guide_h: "App Guide de 23 páginas", f_guide_p: "Guia de instruções embutido que te conduz por cada recurso, sequenciado pra acompanhar seu progresso no jogo.",
     f_battle_h: "Ferramentas de Batalha", f_battle_p: "Leia o inimigo com o Display Enemy Stats, seja orientado pelo Enemy Helper (confronto + comparação de stats), e cure ou edite seu próprio time com o Change Party Stats — tudo no meio da batalha.",
     f_box_h: "Editor PC Box ++", f_box_p: "Uma grade visual das suas boxes: mova, troque, clone e busque na grade, então edite espécie, IVs/EVs, golpes, habilidade, item e mais em listas na tela — sem teclado.",
     f_mini_h: "Mini Game Corner", f_mini_p: "Um fliperama de sete jogos — loot boxes, slots, roleta de prêmios, duelos de stats e mais — jogáveis de graça, ou por Pokédólares de verdade se quiser apostar.",
@@ -1493,7 +1532,7 @@
     step2_h: "Extraia tudo na raiz do cartão SD", step2_p: "Descompacte na <strong>raiz</strong> do seu cartão SD. Ele adiciona <strong>duas</strong> pastas: <code>luma/plugins/000400000011C500/</code> (o plugin <code>.3gx</code>) <strong>e</strong> <code>Gen6CTRPluginFramework/</code> (os arquivos de idioma &amp; dados). As duas ficam na <strong>raiz</strong> do SD — a pasta <code>Gen6CTRPluginFramework/</code> <strong>não</strong> vai dentro de <code>luma/</code>, e o plugin precisa dela pra carregar o idioma.",
     step3_h: "Inicie seu jogo Pokémon", step3_p: "Abra seu jogo Gen 6 normalmente. O Luma3DS carrega o plugin automaticamente na inicialização.",
     step4_h: "Abra o menu do plugin", step4_p: "Pressione o combo de botões configurado no Rosalina (geralmente <code>L+Down+Select</code>) pra abrir o menu do plugin no jogo.",
-    step5_h: "Leia o guia embutido", step5_p: "Vá até o <strong>App Guide</strong> dentro do plugin — 22 páginas de instruções amigáveis pra iniciantes esperam por você.",
+    step5_h: "Leia o guia embutido", step5_p: "Vá até o <strong>App Guide</strong> dentro do plugin — 23 páginas de instruções amigáveis pra iniciantes esperam por você.",
     // footer
     footer_desc: "Um plugin 3gx de código aberto que repagina a experiência Pokémon Gen 6 no Nintendo 3DS.<br/>Feito com C++ &amp; C. Licenciado sob GNU GPL-3.0.",
     footer_copy: "&copy; 2026 samaBR85. Não afiliado à Nintendo ou à The Pokémon Company."
