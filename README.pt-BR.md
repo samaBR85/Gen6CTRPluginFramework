@@ -223,6 +223,9 @@ Uma breve história, do mais antigo ao mais novo — sem detalhe, só o formato 
 - **v0.5.0** — **multi-jogo**: conteúdo dedicado para os quatro títulos Gen 6 (X, Y, Omega Ruby, Alpha Sapphire), um mapa de teleporte completo de Kalos, e a UI em **7 idiomas**.
 
 ## 📥 Instalando
+
+> 💻 **Também funciona no emulador Citra** — veja a seção [No Citra](#no-citra) abaixo.
+
 1. Atualize para o [Luma3DS](https://github.com/LumaTeam/Luma3DS/releases/latest) mais recente.
 2. Baixe a [versão](https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/latest) mais recente.
 3. Extraia o `.zip` na **raiz do seu cartão SD**, mantendo a estrutura de pastas. Ele adiciona duas pastas:
@@ -235,6 +238,15 @@ Uma breve história, do mais antigo ao mais novo — sem detalhe, só o formato 
 > **Nota:** O pacote de idioma precisa ficar dentro da pasta `Gen6CTRPluginFramework` na **raiz do SD**. Garanta que o caminho seja exatamente:
 > `SD:/Gen6CTRPluginFramework/Language/<Idioma>.txt`
 > (por exemplo `SD:/Gen6CTRPluginFramework/Language/English.txt`).
+
+### No Citra
+
+O Citra suporta nativamente plugins 3GX usando a mesma estrutura de pastas do Luma3DS. Os passos 1–2 são idênticos (baixar e extrair). Depois:
+
+1. Abra o Citra e vá em **File → Open Citra Folder** para localizar o diretório do usuário.
+2. Copie as pastas `luma/` e `Gen6CTRPluginFramework/` extraídas para dentro da subpasta `sdmc/` desse diretório.
+3. No Citra: **Emulation → Configure → System → Enable 3GX plugin loader**.
+4. Inicie seu jogo Gen 6 — sem precisar do Rosalina, o plugin carrega automaticamente. Pressione **Select** para abrir o menu.
 
 ## 🔧 Compilando
 1. Requer o `devkitPro`.

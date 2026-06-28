@@ -222,6 +222,9 @@ A short history, newest last — no detail, just the shape of it:
 - **v0.5.0** — **multi-game**: tailored content for all four Gen 6 titles (X, Y, Omega Ruby, Alpha Sapphire), a full Kalos teleport map, and the UI in **7 languages**.
 
 ## 📥 Installing
+
+> 💻 **Also works on Citra emulator** — see the [On Citra](#on-citra) section below.
+
 1. Update to the latest [Luma3DS](https://github.com/LumaTeam/Luma3DS/releases/latest).
 2. Download the latest [release](https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/latest).
 3. Extract the `.zip` to the **root of your SD card**, keeping its folder layout. It adds two folders:
@@ -234,6 +237,15 @@ A short history, newest last — no detail, just the shape of it:
 > **Note:** The language pack must sit inside the `Gen6CTRPluginFramework` folder at the **root of your SD card**. Make sure the path is exactly:
 > `SD:/Gen6CTRPluginFramework/Language/<Language>.txt`
 > (for example `SD:/Gen6CTRPluginFramework/Language/English.txt`).
+
+### On Citra
+
+Citra natively supports 3GX plugins using the same folder structure as Luma3DS. Steps 1–2 are identical (download & extract). Then:
+
+1. Open Citra and go to **File → Open Citra Folder** to find the User Directory.
+2. Copy the extracted `luma/` and `Gen6CTRPluginFramework/` folders into the `sdmc/` subfolder inside that directory.
+3. In Citra: **Emulation → Configure → System → Enable 3GX plugin loader**.
+4. Launch your Gen 6 game — no Rosalina needed, the plugin loads automatically. Press **Select** to open the menu.
 
 ## 🔧 Building
 1. Requires `devkitPro`.
