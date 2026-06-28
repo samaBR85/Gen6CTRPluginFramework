@@ -2,6 +2,8 @@
 
 [English](README.md) · **Português**
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E5N7227AO5)
+
 Uma caixinha de superpoderes para **Pokémon X, Y, Omega Ruby e Alpha Sapphire** no Nintendo 3DS.
 
 ## O que é isto?

@@ -2,6 +2,8 @@
 
 **English** · [Português](README.pt-BR.md)
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E5N7227AO5)
+
 A friendly box of superpowers for **Pokémon X, Y, Omega Ruby and Alpha Sapphire** on the Nintendo 3DS.
 
 ## What is this?
