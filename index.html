@@ -635,6 +635,19 @@
     .footer-links a:hover { color: var(--accent); }
     .footer-copy { font-size: .78rem; color: var(--border); }
 
+    /* ── CITRA NOTE ───────────────────────────────────── */
+    .citra-note {
+      margin-top: 1.5rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg2);
+      border: 1px solid rgba(91,141,239,.35);
+      border-radius: var(--radius);
+      font-size: .875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .citra-note strong { color: var(--text); }
+
     /* ── RESPONSIVE ───────────────────────────────────── */
     @media (max-width: 768px) {
       nav { padding: 0 1rem; }
@@ -698,7 +711,7 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.5.0</div>
+  <div class="hero-badge">Nintendo 3DS &amp; Citra &bull; v0.5.0</div>
   <h1>
     <span class="hl">Gen6</span> CTRPlugin<br/>
     <span class="hl2">Framework</span> Overhauled
@@ -1142,7 +1155,7 @@
     <div class="section-header fade-in">
       <div class="section-tag" data-i18n="sec_compat_tag">Compatibility</div>
       <h2 class="section-title" data-i18n="sec_compat_title">Games &amp; status</h2>
-      <p class="section-sub" data-i18n="sec_compat_sub">All four Generation 6 titles are supported now — <strong>X, Y, Omega Ruby and Alpha Sapphire</strong> — each with tailored content in its own Title-ID folder. One <code>.3gx</code> auto-detects the game.</p>
+      <p class="section-sub" data-i18n="sec_compat_sub">All four Generation 6 titles are supported — <strong>X, Y, Omega Ruby and Alpha Sapphire</strong> — on real hardware and on <strong>Citra emulator</strong>. One <code>.3gx</code> auto-detects which game you're running.</p>
     </div>
     <div class="compat-grid">
       <div class="compat-card fade-in">
@@ -1169,6 +1182,9 @@
         <p>Nintendo 3DS &bull; 000400000011C500</p>
         <span class="compat-badge badge-yes" data-i18n="compat_ready">Content ready</span>
       </div>
+    </div>
+    <div class="citra-note fade-in">
+      💻 <strong>Also works on Citra emulator</strong> — Citra natively supports 3GX plugins using the same folder structure as Luma3DS. Place the extracted <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into Citra's User Directory under <code>sdmc/</code>, then enable <strong>3GX plugin loader</strong> in Citra's System settings. See the install section below for details.
     </div>
   </div>
 </section>
@@ -1264,7 +1280,7 @@
     <div class="section-header fade-in">
       <div class="section-tag" data-i18n="sec_install_tag">Setup</div>
       <h2 class="section-title" data-i18n="sec_install_title">How to Install</h2>
-      <p class="section-sub" data-i18n="sec_install_sub">Requires a Nintendo 3DS with Luma3DS CFW and the Rosalina menu plugin loader.</p>
+      <p class="section-sub" data-i18n="sec_install_sub">For Nintendo 3DS with Luma3DS CFW, or on Citra emulator — see the note at the bottom.</p>
     </div>
     <div class="steps">
       <div class="step fade-in">
@@ -1309,6 +1325,15 @@
           <p data-i18n="step6_p">Head to <strong>App Guide</strong> inside the plugin — 23 pages of beginner-friendly instructions are waiting for you.</p>
         </div>
       </div>
+    </div>
+    <div class="citra-note fade-in">
+      💻 <strong>On Citra emulator</strong> — Citra natively supports 3GX plugins. Steps 1–2 are the same (download &amp; extract). Then:
+      <ol style="margin:.6rem 0 0 1.25rem; display:flex; flex-direction:column; gap:.3rem;">
+        <li>Locate Citra's <strong>User Directory</strong> (in Citra: File → Open Citra Folder).</li>
+        <li>Copy the extracted <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into the <code>sdmc/</code> subfolder there.</li>
+        <li>In Citra: <strong>Emulation → Configure → System → Enable 3GX plugin loader</strong>.</li>
+        <li>Launch your game — no Rosalina needed, the plugin loads automatically.</li>
+      </ol>
     </div>
   </div>
 </section>
@@ -1540,10 +1565,10 @@
     sec_features_tag: "Tudo num relance", sec_features_title: "O resto, em linguagem simples", sec_features_sub: "Um índice rápido do que mais tem aqui — as pequenas conveniências e as redes de segurança, cada uma nomeada pelo que de fato faz.",
     sec_shots_tag: "Em ação", sec_shots_title: "Capturas de Tela", sec_shots_sub: "Clique em qualquer imagem pra ver em tamanho real.",
     sec_themes_tag: "25 temas embutidos", sec_themes_title: "Deixe do Seu Jeito", sec_themes_sub: "Pré-visualização instantânea — o plugin lembra sua escolha entre as sessões.",
-    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "Os quatro títulos da 6ª geração são suportados agora — <strong>X, Y, Omega Ruby e Alpha Sapphire</strong> — cada um com conteúdo dedicado na sua própria pasta de Title ID. Um <code>.3gx</code> detecta o jogo automaticamente.",
+    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "Os quatro títulos da 6ª geração são suportados — <strong>X, Y, Omega Ruby e Alpha Sapphire</strong> — no hardware real e no <strong>emulador Citra</strong>. Um <code>.3gx</code> detecta qual jogo está rodando.",
     compat_ready: "Conteúdo pronto", compat_wip: "A caminho",
     sec_download_tag: "Quando você quiser", sec_download_title: "Download",
-    sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Requer um Nintendo 3DS com o CFW Luma3DS e o carregador de plugins do menu Rosalina.",
+    sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Para Nintendo 3DS com Luma3DS CFW, ou no emulador Citra — veja a nota ao final.",
     // feature cards
     f_guide_h: "App Guide de 23 páginas", f_guide_p: "Guia de instruções embutido que te conduz por cada recurso, sequenciado pra acompanhar seu progresso no jogo.",
     f_battle_h: "Ferramentas de Batalha", f_battle_p: "Leia o inimigo com o Display Enemy Stats, seja orientado pelo Enemy Helper (confronto + comparação de stats), e cure ou edite seu próprio time com o Change Party Stats — tudo no meio da batalha.",
