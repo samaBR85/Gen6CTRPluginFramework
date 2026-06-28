@@ -5,10 +5,8 @@
     "description": "Pokemon X/Y/OR/AS plugin - spawner, PokeMart anywhere, PC Box++, in-battle tools, teleport, mini-games, 25 themes, 7 languages.",
     "url": "https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/unistore/gen6ctrpf.unistore",
     "file": "gen6ctrpf.unistore",
-    "sheet": "gen6ctrpf.t3x",
-    "sheetURL": "https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/unistore/gen6ctrpf.t3x",
     "version": 3,
-    "revision": 1
+    "revision": 2
   },
   "storeContent": [
     {
@@ -19,7 +17,6 @@
         "version": "0.5.0",
         "category": ["Cheats"],
         "console": ["3DS"],
-        "icon_index": 0,
         "title_ids": [
           "0004000000055D00",
           "0004000000055E00",
