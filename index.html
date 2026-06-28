@@ -711,7 +711,7 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Nintendo 3DS &amp; Citra &bull; v0.5.0</div>
+  <div class="hero-badge">Nintendo 3DS &amp; Azahar &bull; v0.5.0</div>
   <h1>
     <span class="hl">Gen6</span> CTRPlugin<br/>
     <span class="hl2">Framework</span> Overhauled
@@ -1155,7 +1155,7 @@
     <div class="section-header fade-in">
       <div class="section-tag" data-i18n="sec_compat_tag">Compatibility</div>
       <h2 class="section-title" data-i18n="sec_compat_title">Games &amp; status</h2>
-      <p class="section-sub" data-i18n="sec_compat_sub">All four Generation 6 titles are supported — <strong>X, Y, Omega Ruby and Alpha Sapphire</strong> — on real hardware and on <strong>Citra emulator</strong>. One <code>.3gx</code> auto-detects which game you're running.</p>
+      <p class="section-sub" data-i18n="sec_compat_sub">All four Generation 6 titles are supported — <strong>X, Y, Omega Ruby and Alpha Sapphire</strong> — on real hardware and on the <strong>Azahar emulator</strong> (Citra's successor, desktop &amp; Android). One <code>.3gx</code> auto-detects which game you're running.</p>
     </div>
     <div class="compat-grid">
       <div class="compat-card fade-in">
@@ -1184,7 +1184,7 @@
       </div>
     </div>
     <div class="citra-note fade-in">
-      💻 <strong>Also works on Citra emulator</strong> — Citra natively supports 3GX plugins using the same folder structure as Luma3DS. Place the extracted <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into Citra's User Directory under <code>sdmc/</code>, then enable <strong>3GX plugin loader</strong> in Citra's System settings. See the install section below for details.
+      💻 <strong>Also works on the Azahar emulator</strong> (Citra's actively-maintained successor — desktop &amp; Android). It supports 3GX plugins using the same folder structure as Luma3DS. Place the extracted <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into Azahar's User Directory under <code>sdmc/</code>, then enable <strong>3GX plugin loader</strong> in Azahar's System settings. See the install section below for details.
     </div>
   </div>
 </section>
@@ -1280,7 +1280,7 @@
     <div class="section-header fade-in">
       <div class="section-tag" data-i18n="sec_install_tag">Setup</div>
       <h2 class="section-title" data-i18n="sec_install_title">How to Install</h2>
-      <p class="section-sub" data-i18n="sec_install_sub">For Nintendo 3DS with Luma3DS CFW, or on Citra emulator — see the note at the bottom.</p>
+      <p class="section-sub" data-i18n="sec_install_sub">For Nintendo 3DS with Luma3DS CFW, or on the Azahar emulator (desktop &amp; Android) — see the note at the bottom.</p>
     </div>
 
     <div class="citra-note fade-in" style="display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap;margin-top:0;margin-bottom:2rem;border-color:rgba(78,203,113,.4);">
@@ -1336,13 +1336,20 @@
       </div>
     </div>
     <div class="citra-note fade-in">
-      💻 <strong>On Citra emulator</strong> — Citra natively supports 3GX plugins. Steps 1–2 are the same (download &amp; extract). Then:
-      <ol style="margin:.6rem 0 0 1.25rem; display:flex; flex-direction:column; gap:.3rem;">
-        <li>Locate Citra's <strong>User Directory</strong> (in Citra: File → Open Citra Folder).</li>
+      💻 <strong>On the Azahar emulator</strong> (Citra's actively-maintained successor) — it supports 3GX plugins. Steps 1–2 are the same (download &amp; extract). Then:
+      <p style="margin:.6rem 0 .2rem;"><strong>Desktop (Windows / macOS / Linux):</strong></p>
+      <ol style="margin:0 0 0 1.25rem; display:flex; flex-direction:column; gap:.3rem;">
+        <li>Open <strong>File → Open Azahar Folder</strong> to find the user directory.</li>
         <li>Copy the extracted <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into the <code>sdmc/</code> subfolder there.</li>
-        <li>In Citra: <strong>Emulation → Configure → System → Enable 3GX plugin loader</strong>.</li>
-        <li>Launch your game — no Rosalina needed, the plugin loads automatically.</li>
+        <li><strong>Emulation → Configure → System → Enable 3GX plugin loader</strong>, then launch your game.</li>
       </ol>
+      <p style="margin:.7rem 0 .2rem;"><strong>Android:</strong></p>
+      <ol style="margin:0 0 0 1.25rem; display:flex; flex-direction:column; gap:.3rem;">
+        <li>Open the <code>sdmc</code> folder — <strong>Settings → Storage → Open</strong> next to <em>SDMC Directory</em> (<code>/storage/emulated/0/Azahar/sdmc/</code>).</li>
+        <li>Copy the <code>luma/</code> and <code>Gen6CTRPluginFramework/</code> folders into it.</li>
+        <li>Enable the <strong>3GX plugin loader</strong> in Azahar's System settings, then launch your game.</li>
+      </ol>
+      <p style="margin:.6rem 0 0;">✅ Community-confirmed on Azahar (Android) for <strong>OR/AS</strong> and <strong>X/Y</strong>.</p>
     </div>
   </div>
 </section>
@@ -1574,10 +1581,10 @@
     sec_features_tag: "Tudo num relance", sec_features_title: "O resto, em linguagem simples", sec_features_sub: "Um índice rápido do que mais tem aqui — as pequenas conveniências e as redes de segurança, cada uma nomeada pelo que de fato faz.",
     sec_shots_tag: "Em ação", sec_shots_title: "Capturas de Tela", sec_shots_sub: "Clique em qualquer imagem pra ver em tamanho real.",
     sec_themes_tag: "25 temas embutidos", sec_themes_title: "Deixe do Seu Jeito", sec_themes_sub: "Pré-visualização instantânea — o plugin lembra sua escolha entre as sessões.",
-    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "Os quatro títulos da 6ª geração são suportados — <strong>X, Y, Omega Ruby e Alpha Sapphire</strong> — no hardware real e no <strong>emulador Citra</strong>. Um <code>.3gx</code> detecta qual jogo está rodando.",
+    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "Os quatro títulos da 6ª geração são suportados — <strong>X, Y, Omega Ruby e Alpha Sapphire</strong> — no hardware real e no <strong>emulador Azahar</strong> (sucessor do Citra, desktop &amp; Android). Um <code>.3gx</code> detecta qual jogo está rodando.",
     compat_ready: "Conteúdo pronto", compat_wip: "A caminho",
     sec_download_tag: "Quando você quiser", sec_download_title: "Download",
-    sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Para Nintendo 3DS com Luma3DS CFW, ou no emulador Citra — veja a nota ao final.",
+    sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Para Nintendo 3DS com Luma3DS CFW, ou no emulador Azahar (desktop &amp; Android) — veja a nota ao final.",
     uu_title: "⚡ Mais fácil: instalar e atualizar pelo Universal-Updater",
     uu_body: "Tem o <a href=\"https://github.com/Universal-Team/Universal-Updater\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--accent)\">Universal-Updater</a> no seu 3DS? Escaneie este QR em <strong>Configurações → Select UniStore → + → Escanear QR Code</strong> e rode <strong>Download (latest)</strong>. Ele pega o release mais novo e instala tudo no seu cartão SD — sem PC. <em>(Só hardware 3DS.)</em>",
     // feature cards
