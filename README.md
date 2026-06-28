@@ -223,7 +223,7 @@ A short history, newest last — no detail, just the shape of it:
 
 ## 📥 Installing
 
-> 💻 **Also works on Citra emulator** — see the [On Citra](#on-citra) section below.
+> 💻 **Also works on the Azahar emulator** (the actively-maintained Citra successor) — desktop **and** Android. See the [On Azahar](#on-azahar-emulators) section below.
 
 ### ⚡ Easiest: install & update via Universal-Updater (QR code)
 
@@ -238,7 +238,7 @@ If you have [Universal-Updater](https://github.com/Universal-Team/Universal-Upda
 2. Open the **Gen6 CTRPF Overhauled** entry → run **Download (latest)**.
 3. It downloads the latest release (~90 MB) and extracts everything to your SD card root automatically — all four games + the language pack. Done.
 
-Re-run **Download (latest)** anytime to grab the newest version. *(3DS hardware only — Universal-Updater isn't available on Citra; use the manual steps below for Citra.)*
+Re-run **Download (latest)** anytime to grab the newest version. *(3DS hardware only — Universal-Updater isn't available on emulators; use the manual steps below for Azahar.)*
 
 ### Manual install
 
@@ -255,14 +255,26 @@ Re-run **Download (latest)** anytime to grab the newest version. *(3DS hardware 
 > `SD:/Gen6CTRPluginFramework/Language/<Language>.txt`
 > (for example `SD:/Gen6CTRPluginFramework/Language/English.txt`).
 
-### On Citra
+### On Azahar (emulators)
 
-Citra natively supports 3GX plugins using the same folder structure as Luma3DS. Steps 1–2 are identical (download & extract). Then:
+[Azahar](https://azahar-emu.org/) is the actively-maintained successor to Citra (which was discontinued in 2024), available on Windows, macOS, Linux **and Android**. It inherits Citra's 3GX plugin support, so the same plugin runs on it using the same folder structure as Luma3DS. Steps 1–2 are identical (download & extract). Then:
 
-1. Open Citra and go to **File → Open Citra Folder** to find the User Directory.
+**Desktop (Windows / macOS / Linux):**
+
+1. Open Azahar and go to **File → Open Azahar Folder** to find the user directory.
 2. Copy the extracted `luma/` and `Gen6CTRPluginFramework/` folders into the `sdmc/` subfolder inside that directory.
-3. In Citra: **Emulation → Configure → System → Enable 3GX plugin loader**.
+3. In Azahar: **Emulation → Configure → System → Enable 3GX plugin loader**.
 4. Launch your Gen 6 game — no Rosalina needed, the plugin loads automatically. Press **Select** to open the menu.
+
+**Android:**
+
+1. Install Azahar from the Play Store (or the GitHub APK) and open it once so it creates its folders.
+2. Open the `sdmc` folder — in the app: **Settings → Storage → Open** next to *SDMC Directory* (it lives at `/storage/emulated/0/Azahar/sdmc/`).
+3. Copy the extracted `luma/` and `Gen6CTRPluginFramework/` folders into that `sdmc/` folder.
+4. Enable the **3GX plugin loader** in Azahar's **System** settings.
+5. Launch your Gen 6 game and press **Select** to open the menu.
+
+> ✅ Community-confirmed working on Azahar (Android) for both **Omega Ruby / Alpha Sapphire** and **X / Y**. If a game won't boot with the loader enabled, update Azahar to the latest build or toggle the loader off and on. (Older Citra builds use the same menu paths.)
 
 ## 🔧 Building
 1. Requires `devkitPro`.
