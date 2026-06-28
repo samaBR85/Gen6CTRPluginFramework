@@ -354,6 +354,226 @@ namespace CTRPluginFramework {
         MessageBox(CenterAlign((getLanguage->Get("NOTE_UNLOCK_O_POWERs"))), DialogType::DialogOk, ClearScreen::Both)();
     }
 
+    // ===================== O-Power Center (visual panel) =====================
+    // A visual grid of the 18 Gen-6 O-Powers + the 10-charge gauge, edited live.
+    // Clones the OSD-panel pattern (theme colors, sleep barrier, SwapBuffers).
+    // The 63-entry live block layout (which index = which power, and what value
+    // is the S/MAX level) is not publicly documented; kOPower[].idx is a best
+    // guess (in-game order) and the "Raw" mode (Y) is the HW-tuning tool.
+    static const int OPC_MAXLVL = 3;             // 0=locked, 1..3 = level (S/MAX TBD via Raw)
+
+    static Color OPowerCatColor(int cat) {
+        static const u32 c[5] = { 0xC0392B, 0x4FB06E, 0x7E57C2, 0xE0A81E, 0x3F86C9 };
+        if (cat < 0 || cat > 4) cat = 0;
+        u32 v = c[cat];
+        return Color((u8)((v >> 16) & 0xFF), (u8)((v >> 8) & 0xFF), (u8)(v & 0xFF));
+    }
+
+    // Contrast/"inverse" rule: white text on dark fills, black on light fills (gold, light bg2).
+    // One rule shared by the top tiles and the bottom buttons.
+    static Color OPowerInk(Color fill) {
+        int lum = (fill.r * 299 + fill.g * 587 + fill.b * 114) / 1000;
+        return lum < 140 ? Color::White : Color::Black;
+    }
+
+    struct OPowerDef { u8 cat; u8 idx; const char *abbr; };
+    static const OPowerDef kOPower[18] = {
+        { 0,  0, "ATK" }, { 0,  1, "DEF" }, { 0,  2, "SPA" }, { 0,  3, "SPD" },
+        { 0,  4, "SPE" }, { 0,  5, "ACC" }, { 0,  6, "CRT" }, { 1,  7, "HP"  },
+        { 1,  8, "PP"  }, { 2,  9, "ENC" }, { 2, 10, "STL" }, { 3, 11, "EXP" },
+        { 3, 12, "MNY" }, { 3, 13, "CAP" }, { 3, 14, "EGG" }, { 3, 15, "BUY" },
+        { 3, 16, "FRN" }, { 4, 17, "FUL" }
+    };
+
+    // Persistent "no recharge wait": pins the 10-charge gauge full every frame, so the
+    // game's recharge timer + pedometer-step refill become irrelevant (you never run dry).
+    // Toggled by the "Keep" button in the panel; runs as the entry's gameFunc.
+    static bool g_opcKeepFull = false;
+
+    void OPowerKeepGaugeFull(MenuEntry *entry) {
+        (void)entry;
+        if (!g_opcKeepFull)
+            return;
+        static const u32 gauge = AutoGameSet(0x8C7BB64, 0x8C83D94);
+        Process::Write8(gauge, 10);
+    }
+
+    void OPowerCenter(MenuEntry *entry) {
+        entry->SetGameFunc(OPowerKeepGaugeFull); // arm the persistent gauge-pin (gated by g_opcKeepFull)
+
+        const Screen &top = OSD::GetTopScreen();
+        const Screen &bot = OSD::GetBottomScreen();
+        const FwkSettings &st = FwkSettings::Get();
+        Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
+        Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor, bg2 = st.BackgroundSecondaryColor;
+
+        static const u32 block = AutoGameSet(0x8C7BB01, 0x8C83D31); // 63-entry level block
+        static const u32 gauge = AutoGameSet(0x8C7BB64, 0x8C83D94); // 10-charge gauge byte
+
+        auto rdLvl  = [&](int i) -> int { u8 v = 0; Nibble::Read8(block + i, v, true); return v; };
+        auto wrLvl  = [&](int i, u8 v) { Nibble::Write8(block + i, v, true); };
+
+        // grid geometry (normal: 18 tiles in 6 cols; raw: 63 cells in 16 cols)
+        const int GX0 = 40, GY0 = 72, TW = 50, TH = 30, GAP = 5, COLS = 6;
+        const int RX0 = 38, RY0 = 70, RW = 20, RH = 18, RCOLS = 16;
+
+        int  cursor = 0;
+        bool raw = false;
+
+        // bottom-screen global-action buttons (release-over-tap, like HudSetPosition)
+        // 5 action buttons in 2 rows (wider so labels fit): row0 = Max All / Unlock / Lock, row1 = Fill / Keep
+        const int BBH = 36;
+        const int bX[5] = {  30, 120, 210,  30, 165 };
+        const int bY[5] = { 124, 124, 124, 170, 170 };
+        const int bW[5] = {  82,  82,  82, 125, 125 };
+        int  lastHover = -1; bool wasDown = false, armed = false;
+
+        // swallow the input that opened the panel
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+
+        while (true) {
+            Controller::Update();
+            if (System::IsSleeping()) break;                 // bail so the menu can release the game + handle sleep
+
+            if (Controller::IsKeyPressed(Key::Select)) {
+                while (Controller::IsKeyDown(Key::Select)) { Controller::Update(); OSD::SwapBuffers(); }
+                PluginMenu::Close();
+                break;
+            }
+            if (Controller::IsKeyPressed(Key::B)) break;
+            if (Controller::IsKeyPressed(Key::Y)) { raw = !raw; cursor = 0; }
+
+            const int count = raw ? 63 : 18;
+            const int cols  = raw ? RCOLS : COLS;
+
+            // ---- D-Pad navigation over the active grid ----
+            if (Controller::IsKeyPressed(Key::Right) && cursor + 1 < count) cursor++;
+            if (Controller::IsKeyPressed(Key::Left)  && cursor > 0)         cursor--;
+            if (Controller::IsKeyPressed(Key::Down)  && cursor + cols < count) cursor += cols;
+            if (Controller::IsKeyPressed(Key::Up)    && cursor - cols >= 0)    cursor -= cols;
+
+            // ---- L / R change the selected entry's value ----
+            int hi = raw ? 15 : OPC_MAXLVL;
+            int dst = raw ? cursor : kOPower[cursor].idx;
+            if (Controller::IsKeyPressed(Key::R)) { int v = rdLvl(dst); if (v < hi) wrLvl(dst, (u8)(v + 1)); }
+            if (Controller::IsKeyPressed(Key::L)) { int v = rdLvl(dst); if (v > 0)  wrLvl(dst, (u8)(v - 1)); }
+            if (Controller::IsKeyPressed(Key::A)) { int v = rdLvl(dst); wrLvl(dst, (u8)(v >= hi ? 0 : v + 1)); } // cycle
+
+            // ---- bottom-screen global buttons (run on touch-release over a button) ----
+            bool down = Touch::IsDown();
+            int hover = -1;
+            if (down) {
+                UIntVector tp = Touch::GetPosition();
+                for (int i = 0; i < 5; i++)
+                    if ((int)tp.x >= bX[i] && (int)tp.x < bX[i] + bW[i] &&
+                        (int)tp.y >= bY[i] && (int)tp.y < bY[i] + BBH) { hover = i; break; }
+            }
+            if (armed && !down && wasDown && lastHover >= 0) {
+                switch (lastHover) {
+                    case 0: for (int i = 0; i < 18; i++) wrLvl(kOPower[i].idx, (u8)OPC_MAXLVL); break; // Max All
+                    case 1: for (int i = 0; i < 63; i++) wrLvl(i, 1); break;                          // Unlock All
+                    case 2: for (int i = 0; i < 63; i++) wrLvl(i, 0); break;                          // Lock All
+                    case 3: Process::Write8(gauge, 10); break;                                        // Fill Gauge (one-shot)
+                    case 4: g_opcKeepFull = !g_opcKeepFull; if (g_opcKeepFull) Process::Write8(gauge, 10); break; // Keep Full toggle (no recharge wait)
+                }
+                lastHover = -1;
+            }
+            if (!down) armed = true;
+            if (down)  lastHover = hover;
+            wasDown = down;
+
+            // ============================ TOP SCREEN ============================
+            top.DrawRect(30, 20, 340, 200, bg, true);
+            top.DrawRect(30, 20, 340, 200, border, false);
+            top.DrawSysfont(title << getLanguage->Get("OPC_TITLE"), 44, 26, title);
+
+            // gauge meter: 10 segments, filled = current charge
+            int charge = (int)Process::Read8(gauge); if (charge > 10) charge = 10; if (charge < 0) charge = 0;
+            top.DrawSysfont(txt << getLanguage->Get("OPC_GAUGE"), 40, 46, txt);
+            for (int s = 0; s < 10; s++) {
+                int sx = 120 + s * 22;
+                top.DrawRect(sx, 47, 18, 12, s < charge ? OPowerCatColor(1) : bg2, true);
+                top.DrawRect(sx, 47, 18, 12, border, false);
+            }
+
+            if (!raw) {
+                // 18 O-Power tiles, colored by category, dimmed when locked
+                for (int i = 0; i < 18; i++) {
+                    int col = i % COLS, row = i / COLS;
+                    int x = GX0 + col * (TW + GAP), y = GY0 + row * (TH + GAP);
+                    int lvl = rdLvl(kOPower[i].idx);
+                    Color fill = lvl > 0 ? OPowerCatColor(kOPower[i].cat) : bg2;
+                    Color tcol = OPowerInk(fill);                  // white on colored tiles, dark on light/locked (contrast rule)
+                    top.DrawRect(x, y, TW, TH, fill, true);
+                    top.DrawRect(x, y, TW, TH, border, false);
+                    top.DrawSysfont(tcol << kOPower[i].abbr, x + 5, y + 3, tcol);
+                    string lt = lvl > 0 ? ("Lv" + to_string(lvl)) : getLanguage->Get("OPC_LOCKED");
+                    top.DrawSysfont(tcol << lt, x + 5, y + 16, tcol);
+                    if (i == cursor) {
+                        top.DrawRect(x - 2, y - 2, TW + 4, TH + 4, sel, false);
+                        top.DrawRect(x - 3, y - 3, TW + 6, TH + 6, sel, false);
+                    }
+                }
+                // detail line: selected power's full name + level
+                int lvl = rdLvl(kOPower[cursor].idx);
+                string nm = getLanguage->Get("OPC_NAMES", (u32)cursor);
+                string dl = nm + "  -  " + (lvl > 0 ? ("Lv " + to_string(lvl)) : getLanguage->Get("OPC_LOCKED"));
+                top.DrawSysfont(title << dl, 40, 192, title);
+            }
+            else {
+                // raw mode: 63 nibble values in a dense grid (position = block index)
+                top.DrawSysfont(txt << getLanguage->Get("OPC_RAW_HDR"), 40, 64, txt);
+                for (int i = 0; i < 63; i++) {
+                    int col = i % RCOLS, row = i / RCOLS;
+                    int x = RX0 + col * RW, y = RY0 + 14 + row * RH;
+                    int v = rdLvl(i);
+                    Color rfill = v > 0 ? OPowerCatColor(3) : bg2;
+                    top.DrawRect(x, y, RW - 2, RH - 2, rfill, true);
+                    top.DrawRect(x, y, RW - 2, RH - 2, border, false);
+                    Color rtc = OPowerInk(rfill);
+                    top.DrawSysfont(rtc << to_string(v), x + 5, y + 2, rtc);
+                    if (i == cursor) {
+                        top.DrawRect(x - 2, y - 2, RW + 2, RH + 2, sel, false);
+                        top.DrawRect(x - 3, y - 3, RW + 4, RH + 4, sel, false);
+                    }
+                }
+                top.DrawSysfont(title << (getLanguage->Get("OPC_RAW_IDX") + " " + to_string(cursor) + " = " + to_string(rdLvl(cursor))), 40, 192, title);
+            }
+
+            // ============================ BOTTOM SCREEN ============================
+            bot.DrawRect(20, 20, 280, 200, bg, true);
+            bot.DrawRect(20, 20, 280, 200, border, false);
+            bot.DrawSysfont(title << getLanguage->Get("OPC_HINT_NAV"), 34, 40, txt);
+            bot.DrawSysfont(txt   << getLanguage->Get("OPC_HINT_LVL"), 34, 60, txt);
+            bot.DrawSysfont(txt   << getLanguage->Get("OPC_HINT_RAW"), 34, 80, txt);
+            bot.DrawSysfont(txt   << getLanguage->Get("OPC_HINT_KEEP"), 34, 100, txt);
+
+            // colored action buttons: Max All=red, Unlock=blue, Lock=gold, Fill=green (matches gauge), Keep=red
+            const char *blbl[5] = { "OPC_BTN_MAXALL", "OPC_BTN_UNLOCKALL", "OPC_BTN_LOCKALL", "OPC_BTN_FILLGAUGE", "OPC_BTN_KEEPFULL" };
+            const int   bcat[5] = { 2, 4, 3, 1, 0 };                 // Max All=purple, Unlock=blue, Lock=gold, Refill=green, (Keep handled below)
+            for (int i = 0; i < 5; i++) {
+                bool hot = (hover == i);
+                bool keepOn = (i == 4 && g_opcKeepFull);
+                Color bfill = (i == 4) ? (keepOn ? OPowerCatColor(0) : Color::Silver)  // Keep: OFF=gray, ON=red
+                                       : OPowerCatColor(bcat[i]);
+                bot.DrawRect(bX[i], bY[i], bW[i], BBH, bfill, true);
+                bot.DrawRect(bX[i], bY[i], bW[i], BBH, (hot || keepOn) ? sel : border, false);
+                if (hot || keepOn) bot.DrawRect(bX[i] - 1, bY[i] - 1, bW[i] + 2, BBH + 2, sel, false); // ring on touch / Keep-on
+                Color tc = OPowerInk(bfill);                          // same contrast rule as the tiles
+                string bl = getLanguage->Get(blbl[i]);
+                if (keepOn) bl += " ON";
+                int bw = (int)OSD::GetTextWidth(true, bl);
+                bot.DrawSysfont(tc << bl, bX[i] + (bW[i] - bw) / 2, bY[i] + BBH / 2 - 7, tc);
+            }
+
+            OSD::SwapBuffers();
+        }
+
+        // drain input before returning to the menu
+        while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
+    }
+    // =================== end O-Power Center ===================
+
     static int selectedClearOption;
     static int canClear[2];
 

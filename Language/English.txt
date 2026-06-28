@@ -387,3 +387,22 @@ SEARCH_SPECIES :: Species:
 SET_COLOR :: Colored?
 SPAWNER_INVALID :: Invalid species selected
 SPAWNER_SPAWNING :: Spawning:
+
+# --- O-Power Center (visual panel) ---
+PSS_O_POWER_CENTER :: O-Power Center
+NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
+OPC_TITLE :: O-Power Center
+OPC_GAUGE :: Gauge:
+OPC_LOCKED :: --
+OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
+OPC_RAW_HDR :: Raw block (position = index):
+OPC_RAW_IDX :: Index
+OPC_HINT_NAV :: D-Pad: select    Y: raw view
+OPC_HINT_LVL :: L / R: change level    A: cycle
+OPC_HINT_RAW :: B: back    SELECT: close plugin
+OPC_BTN_MAXALL :: Max All
+OPC_BTN_UNLOCKALL :: Unlock
+OPC_BTN_LOCKALL :: Lock
+OPC_BTN_FILLGAUGE :: Refill
+OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
+OPC_BTN_KEEPFULL :: Keep

@@ -532,6 +532,7 @@ namespace CTRPluginFramework {
         ApplyTheme(LoadTheme());
 
         MenuFolder *pss = new MenuFolder(getLanguage->Get("MENU_ONLINE_FEATURES"), getLanguage->Get("NOTE_ONLINE_FEATURES"), {
+            Fav(new MenuEntry(getLanguage->Get("PSS_O_POWER_CENTER"), nullptr, OPowerCenter, getLanguage->Get("NOTE_PSS_O_POWER_CENTER")), "FAV_PSS_O_POWER_CENTER"), // visual O-Power grid + gauge panel (first entry)
             Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_PROFILE"), nullptr, PlayerSearchSystem, getLanguage->Get("NOTE_PSS_PROFILE")), "FAV_PSS_PROFILE"), // <W, tested: O3DS/O2DS - Y/OR
             Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_SHOUT_OUT"), nullptr, ShoutOut, getLanguage->Get("NOTE_PSS_SHOUT_OUT")), "FAV_PSS_SHOUT_OUT"), // <W, tested: O3DS/O2DS - Y/OR
             Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_O_POWER_GAUGE"), nullptr, Gauge, getLanguage->Get("NOTE_PSS_GAUGE")), "FAV_PSS_GAUGE"), // <W, tested: O3DS/O2DS - Y/OR
@@ -776,7 +777,7 @@ namespace CTRPluginFramework {
         // Tools menu, which read their labels via SetFrameworkText/FwText. SetLanguage() pushes those
         // translations, so it must run BEFORE the menu is constructed (InitMenu later reuses the parsed instance).
         SetLanguage(false);
-        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 5, 0, getLanguage->Get("FW_ABOUT_BODY"));
+        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 6, 0, getLanguage->Get("FW_ABOUT_BODY"));
         // Enable menu synchronization with the game's frame rate
         menu->SynchronizeWithFrame(true);
         // Pause the execution for 100 milliseconds to ensure the menu is properly initialized

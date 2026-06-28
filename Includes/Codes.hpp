@@ -19,6 +19,8 @@ namespace CTRPluginFramework {
     void UpdateGauge(MenuEntry *entry);
     void Gauge(MenuEntry *entry);
     void UnlockEveryOPower(MenuEntry *entry);
+    void OPowerCenter(MenuEntry *entry);
+    void OPowerKeepGaugeFull(MenuEntry *entry);
     void UpdateUsers(MenuEntry *entry);
     void ClearUsersList(MenuEntry *entry);
 
