@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://samabr85.github.io/Gen6CTRPFrameworkOverhauled/" />
   <meta property="og:title" content="Gen6 CTRPluginFramework Overhauled — Pokémon X/Y/ORAS Plugin for 3DS" />
   <meta property="og:description" content="A friendly box of superpowers for Pokémon X, Y, Omega Ruby &amp; Alpha Sapphire — built for players, not programmers. Spawn any Pokémon, carry a Poké Mart, edit your boxes, read your rival mid-battle, play mini-games, pick from 25 themes — with a guide built right in." />
-  <meta property="og:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.2/export/og_card.png" />
+  <meta property="og:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.5.0/export/og_card.png" />
   <meta property="og:image:width" content="502" />
   <meta property="og:image:height" content="300" />
 
@@ -22,7 +22,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Gen6 CTRPluginFramework Overhauled — Pokémon X/Y/ORAS Plugin for 3DS" />
   <meta name="twitter:description" content="A friendly box of superpowers for Pokémon X, Y, Omega Ruby &amp; Alpha Sapphire — spawner, Poké Mart anywhere, visual box editor, in-battle tools, mini-games, 25 themes, and a built-in guide." />
-  <meta name="twitter:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.2/export/og_card.png" />
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.5.0/export/og_card.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
@@ -181,6 +181,18 @@
       padding: .3rem .75rem;
       border-radius: 6px;
     }
+    .hero-langs {
+      max-width: 620px;
+      margin: -1rem auto 2.5rem;
+      padding: .55rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.7;
+    }
+    .hero-langs strong { color: var(--text); }
     .hero-cta {
       display: flex;
       align-items: center;
@@ -683,7 +695,7 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.4.2</div>
+  <div class="hero-badge">Nintendo 3DS Plugin &bull; v0.5.0</div>
   <h1>
     <span class="hl">Gen6</span> CTRPlugin<br/>
     <span class="hl2">Framework</span> Overhauled
@@ -697,6 +709,7 @@
     <span class="game-tag">🔴 Omega Ruby</span>
     <span class="game-tag">🔵 Alpha Sapphire</span>
   </div>
+  <p class="hero-langs" data-i18n="hero_langs">🌐 <strong>7 languages</strong>, switchable in-plugin: 🇺🇸 English · 🇫🇷 Français · 🇩🇪 Deutsch · 🇮🇹 Italiano · 🇯🇵 日本語 · 🇧🇷 Português (BR) · 🇪🇸 Español</p>
   <div class="hero-cta">
     <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases" target="_blank" rel="noopener">
       ⬇ Download Latest
@@ -713,7 +726,7 @@
       <div class="stat-label" data-i18n="stat_dl">Total Downloads</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">v0.4.2</div>
+      <div class="stat-num">v0.5.0</div>
       <div class="stat-label" data-i18n="stat_version">Latest Version</div>
     </div>
     <div class="stat-item">
@@ -845,7 +858,7 @@
       <div class="wn-shots">
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_grid.png" alt="Teleportation — the location grid with tabs and the button legend below" loading="lazy" onclick="openLightbox(this)" />
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_routes.png" alt="The Routes tab — Route 101 with its picture, ready to save a warp point" loading="lazy" onclick="openLightbox(this)" />
-        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_map.png" alt="The Map tab — Mauville City centred, its connecting routes shown as tiles" loading="lazy" onclick="openLightbox(this)" />
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_map.png" alt="The Map tab — Oldale Town centred, its connecting routes shown as tiles" loading="lazy" onclick="openLightbox(this)" />
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.4.1/export/teleport_overview.png" alt="The Map tab's Y overview — a picture-grid of every place with filter chips below" loading="lazy" onclick="openLightbox(this)" />
       </div>
     </div>
@@ -946,8 +959,7 @@
       <div class="feature-card fade-in">
         <span class="feature-icon">🌐</span>
         <h3 data-i18n="f_lang_h">Languages</h3>
-        <p>🇺🇸 <strong>English</strong> — available now.<br/>
-        🇫🇷 French &bull; 🇩🇪 German &bull; 🇮🇹 Italian &bull; 🇯🇵 Japanese &bull; 🇪🇸 Spanish — <em>more coming!</em></p>
+        <p data-i18n="f_lang_p">🇺🇸 English &bull; 🇫🇷 French &bull; 🇩🇪 German &bull; 🇮🇹 Italian &bull; 🇯🇵 Japanese &bull; 🇧🇷 Portuguese (Brazil) &bull; 🇪🇸 Spanish<br/><strong>7 languages</strong>, switchable in-plugin.</p>
       </div>
     </div>
   </div>
@@ -1088,8 +1100,12 @@
     </div>
     <ul class="history-list fade-in" style="max-width:680px;margin:0 auto;list-style:none;padding:0;">
       <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
-        <span style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;flex:0 0 56px;">v0.4.2</span>
-        <span style="color:var(--text);" data-i18n="hist_042">Teleportation reborn — a two-screen place picker with a navigable Map and a full picture-grid overview, your own saved warp points (MyTeleport.txt), and tidier plugin folders under Assets/.</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;flex:0 0 56px;">v0.5.0</span>
+        <span style="color:var(--text);" data-i18n="hist_050">Multi-game release — tailored content (guides + assets) for all four Gen 6 titles (X, Y, Omega Ruby, Alpha Sapphire), a full Kalos teleport map, and the whole UI in 7 languages.</span>
+      </li>
+      <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.4.2</span>
+        <span style="color:var(--muted);" data-i18n="hist_042">Teleportation reborn — a two-screen place picker with a navigable Map and a full picture-grid overview, your own saved warp points (MyTeleport.txt), and tidier plugin folders under Assets/.</span>
       </li>
       <li style="display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);">
         <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;flex:0 0 56px;">v0.3.3</span>
@@ -1123,7 +1139,7 @@
     <div class="section-header fade-in">
       <div class="section-tag" data-i18n="sec_compat_tag">Compatibility</div>
       <h2 class="section-title" data-i18n="sec_compat_title">Games &amp; status</h2>
-      <p class="section-sub" data-i18n="sec_compat_sub">The framework targets all four Generation 6 titles — but this release only has tailored content for <strong>Pokémon Alpha Sapphire</strong> (Title ID <code>000400000011C500</code>). X, Y and Omega Ruby are already in the works.</p>
+      <p class="section-sub" data-i18n="sec_compat_sub">All four Generation 6 titles are supported now — <strong>X, Y, Omega Ruby and Alpha Sapphire</strong> — each with tailored content in its own Title-ID folder. One <code>.3gx</code> auto-detects the game.</p>
     </div>
     <div class="compat-grid">
       <div class="compat-card fade-in">
@@ -1135,20 +1151,20 @@
       <div class="compat-card fade-in">
         <span class="compat-icon">⚔️</span>
         <h3>Pokémon X</h3>
-        <p>Nintendo 3DS</p>
-        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+        <p>Nintendo 3DS &bull; 0004000000055D00</p>
+        <span class="compat-badge badge-yes" data-i18n="compat_ready">Content ready</span>
       </div>
       <div class="compat-card fade-in">
         <span class="compat-icon">🌿</span>
         <h3>Pokémon Y</h3>
-        <p>Nintendo 3DS</p>
-        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+        <p>Nintendo 3DS &bull; 0004000000055E00</p>
+        <span class="compat-badge badge-yes" data-i18n="compat_ready">Content ready</span>
       </div>
       <div class="compat-card fade-in">
         <span class="compat-icon">🔴</span>
         <h3>Omega Ruby</h3>
-        <p>Nintendo 3DS</p>
-        <span class="compat-badge" data-i18n="compat_wip" style="background:rgba(245,200,66,.12);color:#f5c842;border:1px solid rgba(245,200,66,.3);">In the works</span>
+        <p>Nintendo 3DS &bull; 000400000011C400</p>
+        <span class="compat-badge badge-yes" data-i18n="compat_ready">Content ready</span>
       </div>
     </div>
   </div>
@@ -1169,15 +1185,15 @@
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
           Latest Release
         </div>
-        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.4.2</div>
+        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.5.0</div>
         <div class="dl-meta">
           Released <span>June 26, 2026</span> &bull;
           Platform <span>Nintendo 3DS (3gx)</span> &bull;
           License <span>GNU GPL-3.0</span>
         </div>
         <div class="dl-buttons">
-          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.4.2/Gen6CTRPluginFramework-v0.4.2.zip" target="_blank" rel="noopener">
-            ⬇ Download v0.4.2 (.zip)
+          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.5.0/Gen6CTRPluginFramework-v0.5.0.zip" target="_blank" rel="noopener">
+            ⬇ Download v0.5.0 (.zip)
           </a>
           <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases" target="_blank" rel="noopener">
             All Releases
@@ -1192,10 +1208,10 @@
 
     <div class="releases-list fade-in">
       <div class="release-row">
-        <span class="release-tag">v0.4.2</span>
+        <span class="release-tag">v0.5.0</span>
         <span class="release-date">Jun 26, 2026</span>
-        <span class="release-downloads" id="dl-v042">Loading…</span>
-        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.4.2/Gen6CTRPluginFramework-v0.4.2.zip" target="_blank" rel="noopener">Download</a>
+        <span class="release-downloads" id="dl-v050">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.5.0/Gen6CTRPluginFramework-v0.5.0.zip" target="_blank" rel="noopener">Download</a>
       </div>
       <div class="release-row">
         <span class="release-tag">v0.3.3</span>
@@ -1259,7 +1275,7 @@
         <div class="step-num">2</div>
         <div class="step-content">
           <h4 data-i18n="step2_h">Extract everything to your SD card root</h4>
-          <p data-i18n="step2_p">Unzip to the <strong>root</strong> of your SD card. It adds <strong>two</strong> folders there: <code>luma/plugins/000400000011C500/</code> (the <code>.3gx</code> plugin) <strong>and</strong> <code>Gen6CTRPluginFramework/</code> (the language files &amp; data). Both sit at the SD <strong>root</strong> — the <code>Gen6CTRPluginFramework/</code> folder does <strong>not</strong> go inside <code>luma/</code>, and the plugin needs it to load its language.</p>
+          <p data-i18n="step2_p">Unzip to the <strong>root</strong> of your SD card. It adds <strong>two</strong> folders there: <code>luma/plugins/&lt;your game's Title ID&gt;/</code> (the <code>.3gx</code> plugin) <strong>and</strong> <code>Gen6CTRPluginFramework/</code> (the language files &amp; data). Both sit at the SD <strong>root</strong> — the <code>Gen6CTRPluginFramework/</code> folder does <strong>not</strong> go inside <code>luma/</code>, and the plugin needs it to load its language.</p>
         </div>
       </div>
       <div class="step fade-in">
@@ -1326,7 +1342,7 @@
         release.assets.forEach(asset => { total += asset.download_count; });
       });
 
-      const v042 = data.find(r => r.tag_name === 'v0.4.2');
+      const v050 = data.find(r => r.tag_name === 'v0.5.0');
       const v033 = data.find(r => r.tag_name === 'v0.3.3');
       const v032 = data.find(r => r.tag_name === 'v0.3.2');
       const v031 = data.find(r => r.tag_name === 'v0.3.1');
@@ -1334,7 +1350,7 @@
       const v021 = data.find(r => r.tag_name === 'v0.2.1');
       const v020 = data.find(r => r.tag_name === 'v0.2.0');
 
-      const count042 = v042 ? v042.assets.reduce((s, a) => s + a.download_count, 0) : 0;
+      const count050 = v050 ? v050.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count033 = v033 ? v033.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count032 = v032 ? v032.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count031 = v031 ? v031.assets.reduce((s, a) => s + a.download_count, 0) : 0;
@@ -1345,14 +1361,14 @@
       animateCount('total-downloads', total);
       animateCount('download-count', total);
 
-      const el042 = document.getElementById('dl-v042');
+      const el050 = document.getElementById('dl-v050');
       const el033 = document.getElementById('dl-v033');
       const el032 = document.getElementById('dl-v032');
       const el031 = document.getElementById('dl-v031');
       const el030 = document.getElementById('dl-v030');
       const el021 = document.getElementById('dl-v021');
       const el020 = document.getElementById('dl-v020');
-      if (el042) el042.textContent = count042 + ' downloads';
+      if (el050) el050.textContent = count050 + ' downloads';
       if (el033) el033.textContent = count033 + ' downloads';
       if (el032) el032.textContent = count032 + ' downloads';
       if (el031) el031.textContent = count031 + ' downloads';
@@ -1360,7 +1376,7 @@
       if (el021) el021.textContent = count021 + ' downloads';
       if (el020) el020.textContent = count020 + ' downloads';
     } catch (e) {
-      const els = ['total-downloads','download-count','dl-v042','dl-v033','dl-v032','dl-v031','dl-v030','dl-v021','dl-v020'];
+      const els = ['total-downloads','download-count','dl-v050','dl-v033','dl-v032','dl-v031','dl-v030','dl-v021','dl-v020'];
       els.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '–';
@@ -1460,6 +1476,7 @@
     nav_new: "Novidades", nav_features: "Recursos", nav_shots: "Capturas", nav_themes: "Temas", nav_download: "Download", nav_install: "Instalar",
     // hero
     hero_sub: "Uma caixinha de superpoderes para <strong>Pokémon X, Y, Omega Ruby e Alpha Sapphire</strong> — feita para jogadores, não programadores. Gere qualquer Pokémon, compre em qualquer lugar, edite seu time, leia o rival no meio da batalha — tudo em <strong>menus simples</strong>, com um guia dentro do plugin.",
+    hero_langs: "🌐 <strong>7 idiomas</strong>, alternáveis no plugin: 🇺🇸 English · 🇫🇷 Français · 🇩🇪 Deutsch · 🇮🇹 Italiano · 🇯🇵 日本語 · 🇧🇷 Português (BR) · 🇪🇸 Español",
     // about + tour + history (reescrita intro-first v0.3.3)
     nav_about: "Sobre", nav_tour: "Tour",
     about_tag: "O projeto de um jogador curioso", about_title: "Feito por um jogador curioso, com o Claude",
@@ -1492,6 +1509,7 @@
     hist_030: "Os localizadores de tela dupla (Wild Pokémon Spawner, Respawn Legendary) e o App Guide.",
     hist_031: "PokéMart Anywhere — uma loja real na bag com preços, carrinho e checkout — mais ordenar a bag.",
     hist_032: "Capturar a própria UI do plugin; favoritos, cheats e hotkeys sobrevivem a uma atualização.",
+    hist_050: "Versão multi-jogo — conteúdo dedicado (guias + assets) para os quatro títulos Gen 6 (X, Y, Omega Ruby, Alpha Sapphire), um mapa de teleporte completo de Kalos, e toda a UI em 7 idiomas.",
     hist_042: "O Teletransporte renasceu — um seletor de lugares em duas telas com um Map navegável e um grid-overview de todos os lugares, seus próprios warp points salvos (MyTeleport.txt), e as pastas do plugin organizadas em Assets/.",
     hist_033: "In-Battle Tools (Enemy Helper, Change Party Stats), o editor visual PC Box ++, e o Mini Game Corner.",
     stat_version: "Versão atual", stat_dl: "Downloads totais", stat_themes: "Temas de cor", stat_games: "Jogos suportados",
@@ -1514,7 +1532,7 @@
     sec_features_tag: "Tudo num relance", sec_features_title: "O resto, em linguagem simples", sec_features_sub: "Um índice rápido do que mais tem aqui — as pequenas conveniências e as redes de segurança, cada uma nomeada pelo que de fato faz.",
     sec_shots_tag: "Em ação", sec_shots_title: "Capturas de Tela", sec_shots_sub: "Clique em qualquer imagem pra ver em tamanho real.",
     sec_themes_tag: "25 temas embutidos", sec_themes_title: "Deixe do Seu Jeito", sec_themes_sub: "Pré-visualização instantânea — o plugin lembra sua escolha entre as sessões.",
-    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "O framework é feito para os quatro títulos da 6ª geração — mas esta versão só tem conteúdo dedicado para <strong>Pokémon Alpha Sapphire</strong> (Title ID <code>000400000011C500</code>). X, Y e Omega Ruby já estão a caminho.",
+    sec_compat_tag: "Compatibilidade", sec_compat_title: "Jogos &amp; status", sec_compat_sub: "Os quatro títulos da 6ª geração são suportados agora — <strong>X, Y, Omega Ruby e Alpha Sapphire</strong> — cada um com conteúdo dedicado na sua própria pasta de Title ID. Um <code>.3gx</code> detecta o jogo automaticamente.",
     compat_ready: "Conteúdo pronto", compat_wip: "A caminho",
     sec_download_tag: "Quando você quiser", sec_download_title: "Download",
     sec_install_tag: "Configuração", sec_install_title: "Como Instalar", sec_install_sub: "Requer um Nintendo 3DS com o CFW Luma3DS e o carregador de plugins do menu Rosalina.",
@@ -1534,9 +1552,10 @@
     f_themes_h: "25 Temas de Cor", f_themes_p: "Pré-visualização instantânea de cada tema: Game Boy, Persona 5, Cyberpunk, Pop Art, Wild West e muitos mais.",
     f_gameguide_h: "Game Guide Incluído", f_gameguide_p: "Guia passo a passo do Professor Oak Challenge para ORAS, embutido direto no plugin.",
     f_lang_h: "Idiomas",
+    f_lang_p: "🇺🇸 English &bull; 🇫🇷 French &bull; 🇩🇪 German &bull; 🇮🇹 Italian &bull; 🇯🇵 Japanese &bull; 🇧🇷 Portuguese (Brazil) &bull; 🇪🇸 Spanish<br/><strong>7 idiomas</strong>, alternáveis no plugin.",
     // install steps
     step1_h: "Baixe a versão mais recente", step1_p: "Pegue o <code>.zip</code> na <a href=\"https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--accent)\">página de Releases</a> e extraia o conteúdo.",
-    step2_h: "Extraia tudo na raiz do cartão SD", step2_p: "Descompacte na <strong>raiz</strong> do seu cartão SD. Ele adiciona <strong>duas</strong> pastas: <code>luma/plugins/000400000011C500/</code> (o plugin <code>.3gx</code>) <strong>e</strong> <code>Gen6CTRPluginFramework/</code> (os arquivos de idioma &amp; dados). As duas ficam na <strong>raiz</strong> do SD — a pasta <code>Gen6CTRPluginFramework/</code> <strong>não</strong> vai dentro de <code>luma/</code>, e o plugin precisa dela pra carregar o idioma.",
+    step2_h: "Extraia tudo na raiz do cartão SD", step2_p: "Descompacte na <strong>raiz</strong> do seu cartão SD. Ele adiciona <strong>duas</strong> pastas: <code>luma/plugins/&lt;Title ID do seu jogo&gt;/</code> (o plugin <code>.3gx</code>) <strong>e</strong> <code>Gen6CTRPluginFramework/</code> (os arquivos de idioma &amp; dados). As duas ficam na <strong>raiz</strong> do SD — a pasta <code>Gen6CTRPluginFramework/</code> <strong>não</strong> vai dentro de <code>luma/</code>, e o plugin precisa dela pra carregar o idioma.",
     step3_h: "Ative o carregador de plugins", step3_p: "Abra o menu do Rosalina (<code>L+Down+Select</code>) e deixe o <strong>Plugin Loader</strong> em <code>[ENABLED]</code>.",
     step4_h: "Inicie seu jogo Pokémon", step4_p: "Abra seu jogo Gen 6 normalmente. O Luma3DS carrega o plugin automaticamente na inicialização.",
     step5_h: "Abra o menu do plugin", step5_p: "Pressione <code>Select</code> no jogo pra abrir o menu do plugin.",

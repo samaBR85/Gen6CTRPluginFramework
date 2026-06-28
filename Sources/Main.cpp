@@ -17,14 +17,15 @@ namespace CTRPluginFramework {
         PATH_ITALIAN_TEXT,
         PATH_SPANISH_TEXT,
         PATH_GERMAN_TEXT,
-        PATH_JAPANESE_TEXT
+        PATH_JAPANESE_TEXT,
+        PATH_PORTUGUESE_TEXT
     };
 
-    enum Language {NONE = 0, ENG, FRE, ITA, SPA, GER, JAP};
+    enum Language {NONE = 0, ENG, FRE, ITA, SPA, GER, JAP, POR};
     Language currentLanguage = Language::NONE;
 
     void SetLanguage(bool SetInMenu) {
-        vector<string> languageOption = {"English", "French", "Italian", "Spanish", "German", "Japanese"};
+        vector<string> languageOption = {"English", "French", "Italian", "Spanish", "German", "Japanese", "Português (Brasil)"};
         u8 initLanguage = f_Language::l_None; // Initialize to "no language"
         int pos;
 
@@ -77,6 +78,10 @@ namespace CTRPluginFramework {
             Sleep(Milliseconds(1000));
             int selection = keyboard.Open();
 
+            // selection is the 0-based index into languageOption; each case sets initLanguage to the
+            // f_Language whose NUMERIC VALUE == selection, and `pos = initLanguage` then indexes
+            // languageText[selection]. (Names look shifted but the values line up.) Português = index 6,
+            // handled by case 6 (l_Japanese has value 6) -> languageText[6] = Portuguese.txt.
             switch (selection) {
                 case 1:
                     initLanguage = f_Language::l_English;
@@ -98,7 +103,7 @@ namespace CTRPluginFramework {
                     break;
             }
 
-            languageOption = {"English", "French", "Italian", "Spanish", "German", "Japanese"};
+            languageOption = {"English", "French", "Italian", "Spanish", "German", "Japanese", "Português (Brasil)"};
 
             if (File::Exists(PATH_LANGUAGE_SETTINGS) == 1) {
                 LineWriter writeFile(file);
@@ -122,6 +127,32 @@ namespace CTRPluginFramework {
 
         if (!getLanguage->Parse(languageText[pos]))
             OSD::Notify("Failed to load previously selected language file.");
+
+        // Push translations for the FRAMEWORK-owned UI (bottom buttons, Tools menu & submenus) down into the
+        // Library via SetFrameworkText. Missing keys ("???") are skipped so the Library keeps its English fallback.
+        // Menu/button labels are read at construction (this runs in PatchProcess, before the menu UI is built);
+        // keyboard prompts re-read live each time they open.
+        static const char *fwKeys[] = {
+            "FW_FAVORITES", "FW_MAPPER", "FW_GAME_GUIDE", "FW_SEARCH", "FW_APP_GUIDE", "FW_ACTIONREPLAY", "FW_TOOLS",
+            "FW_ABOUT", "FW_HOTKEYS", "FW_CHANGE_THEME", "FW_SETTINGS", "FW_SCREENSHOTS", "FW_HEXEDITOR",
+            "FW_RAM_DUMPER", "FW_MISC", "FW_REBOOT", "FW_POWEROFF",
+            "FW_HK_MENU", "FW_HK_FAV", "FW_HK_INFO", "FW_HK_EDIT", "FW_HK_CARD",
+            "FW_SET_SAVEFAV", "FW_SET_LOADFAV", "FW_SET_SAVECHEATS", "FW_SET_LOADCHEATS", "FW_SET_FLOATBTN", "FW_SET_BACKLIGHT",
+            "FW_SS_CONFIG", "FW_SS_OVERLAYS", "FW_SS_CAPTUREUI",
+            "FW_MISC_EXPORT", "FW_MISC_DISPLAY", "FW_MISC_CURSOR", "FW_MISC_COORDS",
+            "FW_GUIDE_HINT1", "FW_GUIDE_HINT2", "FW_GUIDE_HINT3"
+        };
+        for (const char *k : fwKeys) {
+            string v = getLanguage->Get(k);
+            if (v != "???") SetFrameworkText(k, v);
+        }
+
+        // Tell the framework which language code is active so GuideReader can load the matching
+        // AppGuide/<code> and GameGuide/<code> subfolder (falls back to .../en, then the base folder).
+        // pos indexes languageText: 0=en,1=fr,2=it,3=es,4=de,5=ja,6=pt.
+        static const char *langCodes[] = {"en", "fr", "it", "es", "de", "ja", "pt"};
+        if (pos >= 0 && pos < 7)
+            SetFrameworkLang(langCodes[pos]);
     }
 
     void Configuration(MenuEntry *entry) {
@@ -482,8 +513,10 @@ namespace CTRPluginFramework {
     }
 
     // Set a short alias shown ONLY in the Favorites list, inline (returns the item so it can wrap `new MenuEntry/Folder(...)`).
-    static MenuEntry  *Fav(MenuEntry *e,  const char *alias) { e->SetFavoriteAlias(alias); return e; }
-    static MenuFolder *Fav(MenuFolder *f, const char *alias) { f->SetFavoriteAlias(alias); return f; }
+    // Favorites are keyed by the LANGUAGE-INDEPENDENT FAV_/MENU_ lookup key (not the translated alias text), so a
+    // favorite survives a UI-language change. Pass the KEY: we store it as the stable favKey and show Get(key).
+    static MenuEntry  *Fav(MenuEntry *e,  const std::string &key) { e->SetFavoriteKey(key); e->SetFavoriteAlias(getLanguage->Get(key)); return e; }
+    static MenuFolder *Fav(MenuFolder *f, const std::string &key) { f->SetFavoriteKey(key); f->SetFavoriteAlias(getLanguage->Get(key)); return f; }
 
     // Tag a risky cheat's NAME in a warning red so it visibly stands out in the menu list. Plugin-only:
     // the framework's text renderer honors the inline 0x1B+RGB color escape that Color's operator string()
@@ -491,43 +524,42 @@ namespace CTRPluginFramework {
     static string Danger(const string &name) { return string(HexColor(0xE5433C)) + name; }
 
     void InitMenu(PluginMenu &menu) {
-        SetLanguage(false);
-        // Use the instance that SetLanguage() parsed | Ensure language file was parsed before using Get()
+        // Language is already loaded in main() (before `new PluginMenu`) so the framework UI gets translated too.
         if (!getLanguage)
             getLanguage = new TextFileParser();
 
         // Apply the saved color theme (defaults to Trainer Navy)
         ApplyTheme(LoadTheme());
 
-        MenuFolder *pss = new MenuFolder("Online Features (PSS)", "Online Player Search System extras (O-Powers, profile, shout-outs).", {
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_PROFILE"), nullptr, PlayerSearchSystem, "Edit your PSS profile: change your icon, message, Nices, Wishes, greet counts, link stats and mini-survey slots."), "PSS Profile"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_SHOUT_OUT"), nullptr, ShoutOut, "Change your PSS shout-out — the short message others see online.\nOptional color support (up to 12 colored chars)."), "Shout-out"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_O_POWER_GAUGE"), nullptr, Gauge, "Adjust your O-Power gauge."), "O-Power Gauge"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_UNLOCK_EVERY_O_POWER"), nullptr, UnlockEveryOPower, "Unlock all 63 O-Powers at once. Save the game and restart to make them permanent."), "All O-Powers"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_CLEAR_USERS_LIST"), nullptr, ClearUsersList, "Clear your PSS Friends or Acquaintances list."), "Clear Users"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_IGNORE_ICONS"), IgnoreUnclickableIcons, "Tap any PSS profile icon even if it's normally greyed out or locked."), "Ignore Icons") // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *pss = new MenuFolder(getLanguage->Get("MENU_ONLINE_FEATURES"), getLanguage->Get("NOTE_ONLINE_FEATURES"), {
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_PROFILE"), nullptr, PlayerSearchSystem, getLanguage->Get("NOTE_PSS_PROFILE")), "FAV_PSS_PROFILE"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_SHOUT_OUT"), nullptr, ShoutOut, getLanguage->Get("NOTE_PSS_SHOUT_OUT")), "FAV_PSS_SHOUT_OUT"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_O_POWER_GAUGE"), nullptr, Gauge, getLanguage->Get("NOTE_PSS_GAUGE")), "FAV_PSS_GAUGE"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_UNLOCK_EVERY_O_POWER"), nullptr, UnlockEveryOPower, getLanguage->Get("NOTE_PSS_ALL_O_POWERS")), "FAV_PSS_ALL_O_POWERS"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_CLEAR_USERS_LIST"), nullptr, ClearUsersList, getLanguage->Get("NOTE_PSS_CLEAR_USERS")), "FAV_PSS_CLEAR_USERS"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("PLAYER_SEARCH_SYSTEM_IGNORE_ICONS"), IgnoreUnclickableIcons, getLanguage->Get("NOTE_PSS_IGNORE_ICONS")), "FAV_PSS_IGNORE_ICONS") // <W, tested: O3DS/O2DS - Y/OR
         });
-        pss->SetFavoriteAlias("PSS Features");
+        Fav(pss, "FAV_ONLINE_FEATURES");
 
 
-        MenuFolder *combat = new MenuFolder("In-Battle Tools", "Your in-battle assistant: read the enemy, plan your matchup, and edit your own team mid-fight.\n\n- Change Party Stats: a visual editor for your party's stats, HP/PP, status, held item and moves, live in battle.\n\n- Enemy Helper: a coach card that explains the foe - its Ability, Item, moves, what beats it and how to play it.\n\n- Display Enemy Stats: a top-screen overlay revealing the opponent's hidden data.\n\n- Plus: open your Bag straight from FIGHT, allow more than one Mega per battle, and swap the battle music.\n\nMost of these only work while a battle is actually happening.");
-        combat->SetFavoriteAlias("Battle Tools");
+        MenuFolder *combat = new MenuFolder(getLanguage->Get("MENU_IN_BATTLE_TOOLS"), getLanguage->Get("NOTE_IN_BATTLE_TOOLS"));
+        Fav(combat, "FAV_IN_BATTLE_TOOLS");
 
         // Change Party Stats: ONE entry opens the visual dual-screen battle-party editor (PC Box ++ mold).
         // It rolls the seven legacy in-battle tweaks - slot, status, base stats & stat stages, HP/PP, held
         // item, moves and the EXP multiplier - into one touch UI. The live party struct only exists during a
         // battle, so the editor shows a "start a battle" prompt when used outside one.
-        *combat += Fav(new MenuEntry("Change Party Stats", nullptr, PKHeX::PartyBattleEditor,
-            "Visual editor for your in-battle party.\n\nTOP: the selected Pokemon's live card (sprite, types, level, HP, status, item, battle stats & stages).\n\nBOTTOM: pick a slot (1-6), then tap Status, Stats, HP/PP, Item, Moves or EXP. L/R switch slot, B back, SELECT exit.\n\nWorks only while you are in a battle."), "Party Stats"); // <W, tested: O3DS/O2DS - Y/OR
+        *combat += Fav(new MenuEntry(getLanguage->Get("MENU_CHANGE_PARTY_STATS"), nullptr, PKHeX::PartyBattleEditor,
+            getLanguage->Get("NOTE_CHANGE_PARTY_STATS")), "FAV_CHANGE_PARTY_STATS"); // <W, tested: O3DS/O2DS - Y/OR
         // Enemy Helper: a coach card that EXPLAINS the enemy (companion to Display Enemy Stats). Reads the same
         // enemy data and tells you what its Nature/Ability/Item/Hidden Power/Moves do, which types beat it, and
         // suggests PokeMart items you can grab in one tap. Like the editor, it only works during a battle.
-        *combat += Fav(new MenuEntry("Enemy Helper", nullptr, PKHeX::EnemyHelper,
-            "Coach card for the enemy Pokemon - a companion to Display Enemy Stats.\n\nTOP: the foe's card (species, types, level, Nature with +/- stat, Hidden Power, Ability, held Item) and 'Hit it with' = the attack types that are super-effective on it (2x or 4x). Under the sprite, 'In Box' / 'Not in Box' tells you whether you already own this species in your PC boxes.\n\nDETAILS tab: what its Ability, Item and 4 Moves do, then two summaries -\n\nMATCHUP = the type chart for this foe. 'Resists' are types it takes reduced damage from (avoid them); 'Immune' are types that do 0 damage (never use). The super-effective side is the 'Hit it with' chips on the top screen.\n\nTIPS (the green lines) = how to play it, read from its real stats and moves. E.g. 'Strong special attacker - raise your Sp. Def' means it will hit you mostly with special moves; 'Carries a status move - bring a status cure' means it can inflict a status condition.\n\nCOMPARE tab: the foe's six stats (HP, Atk, Def, Sp.Atk, Sp.Def, Spe) lined up against your active Pokemon, side by side. Each value is the FULL total - base + IVs + EVs + nature + level - so it's a fair comparison; in every row the higher number shows green and the lower one is dimmed, with a Total at the bottom. A quick read on where you out-muscle the foe, and where it out-muscles you.\n\nITEMS tab: handy PokeMart consumables for this fight; tap or press A to add one to your bag (in PAY mode it costs money, FREE is free).\n\nUp/Down scroll Details (or move between items); L/R switch the enemy slot; X swaps tabs; B back; SELECT exit.\n\nWorks only while you are in a battle."), "Enemy Helper"); // <W, tested: O3DS/O2DS - Y/OR
+        *combat += Fav(new MenuEntry(getLanguage->Get("MENU_ENEMY_HELPER"), nullptr, PKHeX::EnemyHelper,
+            getLanguage->Get("NOTE_ENEMY_HELPER")), "MENU_ENEMY_HELPER"); // <W, tested: O3DS/O2DS - Y/OR
         *combat += CreateEnemyStatsMenu(); // folder: master overlay toggle + per-stat "Show:" toggles // <W, tested: O3DS/O2DS - Y/OR
-        *combat += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("BATTLE_ACCESS_BAG"), AccessBag, "Open your Bag in battle without tapping the bag icon on the bottom screen.\n\nIn battle, HOLD the hotkey and press A on the FIGHT command: instead of opening the Fight menu it opens your Bag.\n\nDefault hotkey: L (configurable)."), {Key::L, ""}), "Bag in Battle"); // <W, tested: O3DS/O2DS - Y/OR
-        *combat += Fav(new MenuEntry(getLanguage->Get("BATTLE_ALLOW_MEGAS"), AllowMultipleMegas, "Mega-evolve more than one Pokémon per battle."), "Allow Megas"); // <W, tested: O3DS/O2DS - Y/OR
-        *combat += Fav(new MenuEntry(getLanguage->Get("BATTLE_MUSIC"), nullptr, SetBattleMusic, "Replace battle background music.\nChoose Wild or Trainer battle type, then pick a track from the game's music library."), "Battle Music"); // Battle Music (moved from old "Battle Cheats") // <W, tested: O3DS/O2DS - Y/OR
+        *combat += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("BATTLE_ACCESS_BAG"), AccessBag, getLanguage->Get("NOTE_BATTLE_ACCESS_BAG")), {Key::L, ""}), "FAV_BATTLE_ACCESS_BAG"); // <W, tested: O3DS/O2DS - Y/OR
+        *combat += Fav(new MenuEntry(getLanguage->Get("BATTLE_ALLOW_MEGAS"), AllowMultipleMegas, getLanguage->Get("NOTE_BATTLE_ALLOW_MEGAS")), "FAV_BATTLE_ALLOW_MEGAS"); // <W, tested: O3DS/O2DS - Y/OR
+        *combat += Fav(new MenuEntry(getLanguage->Get("BATTLE_MUSIC"), nullptr, SetBattleMusic, getLanguage->Get("NOTE_BATTLE_MUSIC")), "FAV_BATTLE_MUSIC"); // Battle Music (moved from old "Battle Cheats") // <W, tested: O3DS/O2DS - Y/OR
 
         // Tinted-header INFO notes for the two faceted finders (Spawner / Bag). Headers use the theme
         // accent color (Color -> \x1B+RGB escape); "\x18" resets to the live theme text color for the body.
@@ -586,116 +618,117 @@ namespace CTRPluginFramework {
             + H("PAY: SHOP")
             + "PAY NOW buys the item right away. ADD CART stacks items; the CART button opens CHECKOUT to pay for them all at once. You can't buy what you can't afford.";
 
-        MenuFolder *pkhex = new MenuFolder("Pokémon Spawner & Trainer (PKHeX)", "Spawn and catch Pokémon, then edit them, your trainer, bag, money and PC boxes.");
-        pkhex->SetFavoriteAlias("Spawner & PKHeX");
-        MenuFolder *trainer = new MenuFolder("Trainer & Money", "Edit your trainer profile (name, IDs, play time, language) and your money.");
-        trainer->SetFavoriteAlias("Trainer/Money");
+        MenuFolder *pkhex = new MenuFolder(getLanguage->Get("MENU_SPAWNER_TRAINER"), getLanguage->Get("NOTE_SPAWNER_TRAINER"));
+        Fav(pkhex, "FAV_SPAWNER_TRAINER");
+        MenuFolder *trainer = new MenuFolder(getLanguage->Get("MENU_TRAINER_MONEY"), getLanguage->Get("NOTE_TRAINER_MONEY"));
+        Fav(trainer, "FAV_TRAINER_MONEY");
 
-        MenuFolder *info = new MenuFolder(getLanguage->Get("EDITOR_INFO"), "Edit your trainer name, Trainer/Secret IDs, play time counter and game display language.", {
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_TID_SID"), nullptr, Identity, "Change your trainer ID and secret ID. Together they determine which Pokémon appear shiny for you."), "TID/SID"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_IGN"), nullptr, InGameName, "Change your in-game trainer name (up to 12 characters)."), "Trainer Name"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_TIME_PLAYED"), nullptr, PlayTime, "Edit the play time shown on the save screen (hours, minutes, seconds)."), "Play Time"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_GAME_LANGUAGE"), nullptr, GameLanguage, "Change the game's display language. Save and restart after changing."), "Game Language") // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *info = new MenuFolder(getLanguage->Get("EDITOR_INFO"), getLanguage->Get("NOTE_EDITOR_INFO_FOLDER"), {
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_TID_SID"), nullptr, Identity, getLanguage->Get("NOTE_EDITOR_TID_SID")), "FAV_EDITOR_TID_SID"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_IGN"), nullptr, InGameName, getLanguage->Get("NOTE_EDITOR_IGN")), "FAV_EDITOR_IGN"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_TIME_PLAYED"), nullptr, PlayTime, getLanguage->Get("NOTE_EDITOR_TIME_PLAYED")), "FAV_EDITOR_TIME_PLAYED"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_GAME_LANGUAGE"), nullptr, GameLanguage, getLanguage->Get("NOTE_EDITOR_GAME_LANGUAGE")), "FAV_EDITOR_GAME_LANGUAGE") // <W, tested: O3DS/O2DS - Y/OR
         });
 
         *trainer += info;
 
-        MenuFolder *currency = new MenuFolder(getLanguage->Get("EDITOR_CURRENCY"), "Set your Pokédollars, Battle Points and Pokémon Miles.", {
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_MONEY"), nullptr, Money, "Set your Pokédollars (up to 9,999,999). Used to buy items in shops."), "Set Money"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_BATTLE_POINTS"), nullptr, BattlePoints, "Set your Battle Points — earned at the Battle Maison and spent on rare held items (up to 9,999)."), "Set BP"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_POKE_MILES"), nullptr, PokeMiles, "Set your Pokémon Miles — earned by trading and spent on special items via the PokéMileage Club (up to 9,999,999)."), "Set Miles") // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *currency = new MenuFolder(getLanguage->Get("EDITOR_CURRENCY"), getLanguage->Get("NOTE_EDITOR_CURRENCY_FOLDER"), {
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_MONEY"), nullptr, Money, getLanguage->Get("NOTE_EDITOR_MONEY")), "FAV_EDITOR_MONEY"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_BATTLE_POINTS"), nullptr, BattlePoints, getLanguage->Get("NOTE_EDITOR_BATTLE_POINTS")), "FAV_EDITOR_BATTLE_POINTS"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_POKE_MILES"), nullptr, PokeMiles, getLanguage->Get("NOTE_EDITOR_POKE_MILES")), "FAV_EDITOR_POKE_MILES") // <W, tested: O3DS/O2DS - Y/OR
         });
 
         // Trainer & Money = Information + Currency. The save-flag "unlock everything" toggles get their own folder.
         *trainer += currency;
 
         // Unlocks (advanced): permanent save-flag unlocks — all sensitive (red title + BEWARE modal).
-        MenuFolder *unlocks = new MenuFolder("Unlocks (advanced)", "Permanent save-flag unlocks. Each one warns before applying — SAVE YOUR GAME FIRST.", vector<MenuEntry*>({
-            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_BAG_SPECIAL")), nullptr, KeyItems, "BEWARE — SAVE YOUR GAME FIRST!\n\nThis hands you every TM, HM and Key Item at once (Mega Bracelet, bikes, story items and more).\n\nIf you turn it on and then save, your Bag floods with items you won't understand, and it can tangle up your story progress.\n\nNew to the game? Best to skip this — or back up your save before you touch it.\n\nWant just one or two items instead? Use \"PokéMart Anywhere\" to pick exactly what you want."), "TM/HM + Keys"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_PC_BOXES")), nullptr, BoxesUnlocked, "BEWARE — SAVE YOUR GAME FIRST!\n\nForce-opens all 31 PC storage boxes at once, without filling the previous ones first.\n\nThis is a permanent change once you save. Handy on a finished file; if in doubt, leave it off."), "31 Boxes"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(Danger(getLanguage->Get("MISC_UNLOCK_MAP")), nullptr, UnlockFullFlyMap, "BEWARE — SAVE YOUR GAME FIRST!\n\nOpens every Fly destination from the very start.\n\nHandy late in the game — but turn it on early and save, and you lose track of where the story has actually taken you: which towns you've reached, and where to head next.\n\nBeginners: best left off until you've finished the main story."), "Full Fly Map"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_UNLOCK_FULL_DEX")), nullptr, UnlockFullDex, "BEWARE — SAVE YOUR GAME FIRST!\n\nMarks all 721 Pokémon as seen and caught in one tap.\n\nGreat on a finished file — but if you're still playing and you save with this on, you lose the fun of filling the Pokédex yourself, and any sense of what's left to find.\n\nIf in doubt, leave it off."), "Full Dex") // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *unlocks = new MenuFolder(getLanguage->Get("MENU_UNLOCKS_ADVANCED"), getLanguage->Get("NOTE_UNLOCKS_ADVANCED"), vector<MenuEntry*>({
+            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_BAG_SPECIAL")), nullptr, KeyItems, getLanguage->Get("NOTE_UNLOCK_BAG_SPECIAL")), "FAV_UNLOCK_BAG_SPECIAL"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_PC_BOXES")), nullptr, BoxesUnlocked, getLanguage->Get("NOTE_UNLOCK_PC_BOXES")), "FAV_UNLOCK_PC_BOXES"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(Danger(getLanguage->Get("MISC_UNLOCK_MAP")), nullptr, UnlockFullFlyMap, getLanguage->Get("NOTE_UNLOCK_FULL_FLY_MAP")), "FAV_UNLOCK_FULL_FLY_MAP"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(Danger(getLanguage->Get("EDITOR_UNLOCK_FULL_DEX")), nullptr, UnlockFullDex, getLanguage->Get("NOTE_UNLOCK_FULL_DEX")), "FAV_UNLOCK_FULL_DEX") // <W, tested: O3DS/O2DS - Y/OR
         }));
-        unlocks->SetFavoriteAlias("Unlocks");
-        MenuFolder *box = new MenuFolder(getLanguage->Get("EDITOR_PC_BOX"), "Browse, search and clone Pokémon in your PC boxes.\nExport or import your full save data here too.");
+        Fav(unlocks, "FAV_UNLOCKS_ADVANCED");
+        unlocks->SetDangerous(true); // sensitive folder -> red selected-row background
+        MenuFolder *box = new MenuFolder(getLanguage->Get("EDITOR_PC_BOX"), getLanguage->Get("NOTE_PC_BOX_FOLDER"));
         // Per-slot PC editor now lives directly in "PC Box" (the extra "PC Editor" layer is dissolved).
         box->OnAction = PcEditorOnAction; // entering PC Box targets the PC box (not the party)
         // PC Box ++: visual box grid. Replaces the old type-a-number "Position", the box-slot clone and Find-in-Boxes.
-        *box += Fav(new MenuEntry("PC Box ++", nullptr, PKHeX::BoxBrowserPlus, "Visual PC box editor - a 6x5 grid of your boxes with sprites.\n\nGRID: D-Pad move - L/R change box - X move/swap - Y clone - Start find a species - A open the editor.\n\nEDITOR: L/R switch tab (Main/Stats/Moves/Origins/Misc) - D-Pad pick a field - A edit it - B back."), "PC Box ++"); // <W
+        *box += Fav(new MenuEntry(getLanguage->Get("MENU_PC_BOX_PLUS"), nullptr, PKHeX::BoxBrowserPlus, getLanguage->Get("NOTE_PC_BOX_PLUS")), "MENU_PC_BOX_PLUS"); // <W
 
-        *box += new MenuFolder((getLanguage->Get("EDITOR_CLONING")), "Trade-cloning helpers: back up a Pokemon being offered in a trade, and keep the original after trading.", vector<MenuEntry*>({
-            Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("EDITOR_COPY_POKEMON_IN_TRADE"), CopyPokemonInTrade, getLanguage->Get("EDITOR_COPY_POKEMON_IN_TRADE_NOTE")), {Hotkey(Key::Start, "")}), "Copy in Trade"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("EDITOR_KEEP_ORIGINAL_POKEMON"), KeepOriginalPokemon, SetKeepOriginalPokemon, getLanguage->Get("EDITOR_KEEP_ORIGINAL_POKEMON_NOTE")), "Keep Original") // <W, tested: O3DS/O2DS - Y/OR
+        *box += new MenuFolder((getLanguage->Get("EDITOR_CLONING")), getLanguage->Get("NOTE_CLONING_FOLDER"), vector<MenuEntry*>({
+            Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("EDITOR_COPY_POKEMON_IN_TRADE"), CopyPokemonInTrade, getLanguage->Get("EDITOR_COPY_POKEMON_IN_TRADE_NOTE")), {Hotkey(Key::Start, "")}), "FAV_COPY_POKEMON_IN_TRADE"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("EDITOR_KEEP_ORIGINAL_POKEMON"), KeepOriginalPokemon, SetKeepOriginalPokemon, getLanguage->Get("EDITOR_KEEP_ORIGINAL_POKEMON_NOTE")), "FAV_KEEP_ORIGINAL_POKEMON") // <W, tested: O3DS/O2DS - Y/OR
         }));
-        *box += Fav(new MenuEntry(getLanguage->Get("EDITOR_PC_EXPORT_IMPORT"), nullptr, ExportImport, "Back up your full save data to the SD card, or restore a previous backup. Keeps up to 20 save files."), "Export/Import"); // <W, tested: O3DS/O2DS - Y/OR
+        *box += Fav(new MenuEntry(getLanguage->Get("EDITOR_PC_EXPORT_IMPORT"), nullptr, ExportImport, getLanguage->Get("NOTE_PC_EXPORT_IMPORT")), "FAV_PC_EXPORT_IMPORT"); // <W, tested: O3DS/O2DS - Y/OR
         // ----- "Pokémon Spawner & Trainer (PKHeX)" assembly: obtain + edit Pokémon / save -----
         // Encounters & Catching: control wild encounters, catching aids, and shiny toggles.
-        MenuFolder *catchShiny = new MenuFolder("Encounters & Catching", "Control wild encounters, catch anything, and force shininess.", {
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_NO_WILD_POKEMON"), NoWildPokemon, "Stop random wild Pokémon encounters in grass, caves and water.\nYou can still battle by walking into visible Pokémon."), "No Wild Pkmn"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_RATE_100"), CaptureRate, "Every thrown Poké Ball catches the target instantly — no shake, no fail, regardless of the species or HP remaining."), "Capture 100%"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_TRAINER_POKEMON"), CatchTrainerPokemon, "Let you catch a trainer's Pokémon in battle."), "Catch Trainer"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_ALWAYS_SHINY"), AlwaysShiny, "Every wild and bred Pokémon will be shiny. The sparkle animation plays when it appears."), "Always Shiny"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_DISABLE_SHINY_LOCK"), DisableShinyLock, "Allow shininess on normally shiny-locked encounters."), "No Shiny Lock"), // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *catchShiny = new MenuFolder(getLanguage->Get("MENU_ENCOUNTERS_CATCHING"), getLanguage->Get("NOTE_ENCOUNTERS_CATCHING"), {
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_NO_WILD_POKEMON"), NoWildPokemon, getLanguage->Get("NOTE_BATTLE_NO_WILD_POKEMON")), "FAV_BATTLE_NO_WILD_POKEMON"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_RATE_100"), CaptureRate, getLanguage->Get("NOTE_BATTLE_CAPTURE_RATE_100")), "FAV_BATTLE_CAPTURE_RATE_100"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_TRAINER_POKEMON"), CatchTrainerPokemon, getLanguage->Get("NOTE_BATTLE_CAPTURE_TRAINER_POKEMON")), "FAV_BATTLE_CAPTURE_TRAINER_POKEMON"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_ALWAYS_SHINY"), AlwaysShiny, getLanguage->Get("NOTE_BATTLE_ALWAYS_SHINY")), "FAV_BATTLE_ALWAYS_SHINY"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_DISABLE_SHINY_LOCK"), DisableShinyLock, getLanguage->Get("NOTE_BATTLE_DISABLE_SHINY_LOCK")), "FAV_BATTLE_DISABLE_SHINY_LOCK"), // <W, tested: O3DS/O2DS - Y/OR
             // ---- merged from the old "Quick Edits" folder ----
-            Fav(new MenuEntry("Rename Any Pokémon", RenameAnyPokemon, "Let you rename any Pokémon, including those originally from other games (which the game normally blocks)."), "Rename Any"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("MISC_LEARN_ANY"), LearnAnyTeachable, "Let any Pokémon learn moves from Move Tutors, ignoring normal compatibility restrictions."), "Learn TM/HM") // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("MENU_RENAME_ANY"), RenameAnyPokemon, getLanguage->Get("NOTE_RENAME_ANY")), "FAV_RENAME_ANY"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("MISC_LEARN_ANY"), LearnAnyTeachable, getLanguage->Get("NOTE_MISC_LEARN_ANY")), "FAV_MISC_LEARN_ANY") // <W, tested: O3DS/O2DS - Y/OR
         });
-        catchShiny->SetFavoriteAlias("Encounters");
+        Fav(catchShiny, "FAV_ENCOUNTERS_CATCHING");
 
         // Top level: frequent one-shot actions first, then the subfolders.
-        *pkhex += Fav(new MenuEntry(getLanguage->Get("BATTLE_WILD_POKEMON_SPAWNER"), nullptr, WildSpawner, spawnerNote), "Wild Spawner"); // <W, tested: O3DS/O2DS - Y/OR
-        *pkhex += Fav(new MenuEntry("Respawn Legendary", nullptr, RespawnLegendary, "Make a defeated or fled legendary respawn."), "Respawn Legend."); // <W, tested: O3DS/O2DS - Y/OR
-        *pkhex += Fav(new MenuEntry("PokéMart Anywhere", nullptr, BagItemFinder, bagNote), "PokéMart"); // <W
+        *pkhex += Fav(new MenuEntry(getLanguage->Get("BATTLE_WILD_POKEMON_SPAWNER"), nullptr, WildSpawner, spawnerNote), "FAV_WILD_POKEMON_SPAWNER"); // <W, tested: O3DS/O2DS - Y/OR
+        *pkhex += Fav(new MenuEntry(getLanguage->Get("BATTLE_RESPAWN_LEGENDARY"), nullptr, RespawnLegendary, getLanguage->Get("NOTE_RESPAWN_LEGENDARY")), "FAV_RESPAWN_LEGENDARY"); // <W, tested: O3DS/O2DS - Y/OR
+        *pkhex += Fav(new MenuEntry(getLanguage->Get("MENU_POKEMART_ANYWHERE"), nullptr, BagItemFinder, bagNote), "FAV_POKEMART_ANYWHERE"); // <W
         *pkhex += box;
         *pkhex += catchShiny;
         *pkhex += trainer;
         *pkhex += unlocks;
 
-        MenuFolder *cheats = new MenuFolder("Overworld & Quality of Life", "Out-of-battle helpers: text speed, visuals, movement and travel, breeding, and the custom keyboard.\n\nTo use ActionReplay (AR) codes, open the ActionReplay button on the bottom touch screen instead.");
-        cheats->SetFavoriteAlias("Overworld & QoL");
-        MenuFolder *misc = new MenuFolder("Screen Overlays", "Themes, HUD overlay, on/off notifications and this plugin's own settings (language).");
-        misc->SetFavoriteAlias("Overlays");
-        MenuFolder *movement = new MenuFolder("Movement & Travel", "Move faster, walk through walls, teleport to any location, unlock fly destinations and more.");
-        movement->SetFavoriteAlias("Mov & Travel");
+        MenuFolder *cheats = new MenuFolder(getLanguage->Get("MENU_OVERWORLD_QOL"), getLanguage->Get("NOTE_OVERWORLD_QOL"));
+        Fav(cheats, "FAV_OVERWORLD_QOL");
+        MenuFolder *misc = new MenuFolder(getLanguage->Get("MENU_SCREEN_OVERLAYS"), getLanguage->Get("NOTE_SCREEN_OVERLAYS"));
+        Fav(misc, "FAV_SCREEN_OVERLAYS");
+        MenuFolder *movement = new MenuFolder(getLanguage->Get("MENU_MOVEMENT_TRAVEL"), getLanguage->Get("NOTE_MOVEMENT_TRAVEL"));
+        Fav(movement, "FAV_MOVEMENT_TRAVEL");
 
-        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_TELEPORTATION"), nullptr, Teleportation, "Travel instantly to a location — and teach it the spots YOU actually use.\n\nWARP: pick a destination, then HOLD L and step into a door or building to warp there.\n\nTABS (L/R or tap a chip): All · Towns · Other (Caves / Forests / Landmarks / Mirage Spots, as sub-menus) · Routes (101-134) · Map (a connected mini-map you walk with the D-Pad; press Y there for a full picture-grid of every place, filtered by the chips you tap).\nA: teleport   Y: grid/list (or all-map grid in Map)   B: back.\n\nX = YOU ARE HERE: jumps the selection to wherever your character currently is on the map.\n\nZL = TAG AREA: when X reads an unlisted map (a shop, a city section, a route), highlight the correct place and press ZL — it learns that sub-map, so X recognizes it from then on.\n\nStart = SAVE WARP POINT: stand exactly where you want to arrive, then press Start — it saves that point as the place's teleport destination. This makes ROUTES teleportable and lets you change where any teleport drops you (one warp point per place; press again to replace it).\n\nEverything you teach is saved in MyTeleport.txt inside the plugin folder — editable by hand and kept across updates. The built-in destinations stay exactly as they are until you override one."), {Key::L, ""}), "Teleport"); // <W, tested: O3DS/O2DS - Y/OR
-        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_FAST_WALK_RUN"), FastWalkRun, "Speed the whole game up to 60fps — everything runs faster, so you walk, run and cycle faster too.\n\nHOLD ZL to drop back to normal speed (30fps) for a moment when you need precision.\n\n(On X/Y it uses a movement-speed patch instead.)"), {Key::ZL, ""}), "Fast Walk"); // <W
-        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_WALK_THROUGH_WALLS"), WalkThroughWalls, "Enable, then HOLD R to ignore ALL collision: walk through buildings, interior walls and any obstacle.\nIt also snaps you up when crossing onto higher terrain.\n\nWarning: this can occasionally crash the game, so save before using it."), {Key::R, ""}), "Walk Thru Walls"); // <W, tested: O3DS/O2DS - Y/OR
-        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_STAY_IN_ACTION"), StayInAction, "Keep the fast action-sequence speed active even after the trigger ends.\nThe game stays in 'action mode'."), "Action Mode"); // <W, tested: O3DS/O2DS - Y/OR
-        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_ACTION_MUSIC"), ApplyMusic, ActionMusic, "Replace the music played during action/soaring/cycling sequences with any track from the game."), "Action Music"); // <W, tested: O3DS/O2DS - Y/OR
-        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_ACCESS_FLY_MAP"), FlyMapInSummary, "Show the Fly destination map when viewing a Pokémon's summary screen."), "Fly via Summary"); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_TELEPORTATION"), nullptr, Teleportation, getLanguage->Get("NOTE_MISC_TELEPORTATION")), {Key::L, ""}), "FAV_MISC_TELEPORTATION"); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_FAST_WALK_RUN"), FastWalkRun, getLanguage->Get("NOTE_MISC_FAST_WALK_RUN")), {Key::ZL, ""}), "FAV_MISC_FAST_WALK_RUN"); // <W
+        *movement += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_WALK_THROUGH_WALLS"), WalkThroughWalls, getLanguage->Get("NOTE_MISC_WALK_THROUGH_WALLS")), {Key::R, ""}), "FAV_MISC_WALK_THROUGH_WALLS"); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_STAY_IN_ACTION"), StayInAction, getLanguage->Get("NOTE_MISC_STAY_IN_ACTION")), "FAV_MISC_STAY_IN_ACTION"); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_ACTION_MUSIC"), ApplyMusic, ActionMusic, getLanguage->Get("NOTE_MISC_ACTION_MUSIC")), "FAV_MISC_ACTION_MUSIC"); // <W, tested: O3DS/O2DS - Y/OR
+        *movement += Fav(new MenuEntry(getLanguage->Get("MISC_ACCESS_FLY_MAP"), FlyMapInSummary, getLanguage->Get("NOTE_MISC_ACCESS_FLY_MAP")), "FAV_MISC_ACCESS_FLY_MAP"); // <W, tested: O3DS/O2DS - Y/OR
         // "Full Fly Map" moved to Pokémon Spawner & Trainer (PKHeX) > Trainer (with the other save-flag unlocks).
 
         // Breeding: Day Care egg helpers (the old "Other Cheats" is dissolved; its other entries
         // moved to the Pokémon category — Rename/Learn → Quick Edits, View IV/EV → top level).
-        MenuFolder *breeding = new MenuFolder("Breeding", "Speed up Day Care egg mechanics.", {
-            Fav(new MenuEntry(getLanguage->Get("MISC_INSTANT_EGG"), InstantEgg, "Eggs appear in your party from the Day Care immediately instead of requiring steps walked."), "Instant Egg"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("MISC_HATCH_NOW"), InstantEggHatch, "Eggs hatch on the very next step instead of waiting hundreds of steps.\nPair with Instant D.C Egg."), "Hatch Now") // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *breeding = new MenuFolder(getLanguage->Get("MENU_BREEDING"), getLanguage->Get("NOTE_BREEDING"), {
+            Fav(new MenuEntry(getLanguage->Get("MISC_INSTANT_EGG"), InstantEgg, getLanguage->Get("NOTE_MISC_INSTANT_EGG")), "FAV_MISC_INSTANT_EGG"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("MISC_HATCH_NOW"), InstantEggHatch, getLanguage->Get("NOTE_MISC_HATCH_NOW")), "FAV_MISC_HATCH_NOW") // <W, tested: O3DS/O2DS - Y/OR
         });
 
         // Loose QoL toggles at the top, then the grouped subfolders.
-        *cheats += Fav(new MenuEntry(getLanguage->Get("MISC_SUPER_FAST_DIALOGS"), FastDialogs, "Speed up text and dialog boxes."), "Fast Dialogs"); // <W, tested: O3DS/O2DS - Y/OR
-        *cheats += Fav(new MenuEntry("Use PC Anywhere", PCAnywhere, "Open your PC boxes anywhere, with no PC needed.\n\nTurn this on, then tap the OPTIONS icon (the rightmost icon) on the game's bottom touch screen to open your PC on the spot.\n\nWhile this is on, that icon opens the PC instead, so to reach the game's own OPTIONS menu you must press Y and pick OPTIONS from the menu that appears."), "PC Anywhere"); // <W, tested: O3DS/O2DS - Y/OR
-        *cheats += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_VIEW_STATS_IN_SUMMARY"), ViewValuesInSummary, "See your own Pokémon's hidden stats on the Summary screen.\n\nTurn this on, then HOLD a hotkey and open the Pokémon's Summary: hold L for IVs, or hold R for EVs.\n\nThe values are already swapped when the Summary opens, so you can release the button once you are inside.\n\nTo go back to the normal stats, leave the Summary and open it again without holding any hotkey."), {Hotkey(Key::L, "View IVs"), Hotkey(Key::R, "View EVs")}), "View IV/EV"); // <W, tested: O3DS/O2DS - Y/OR
+        *cheats += Fav(new MenuEntry(getLanguage->Get("MISC_SUPER_FAST_DIALOGS"), FastDialogs, getLanguage->Get("NOTE_MISC_SUPER_FAST_DIALOGS")), "FAV_MISC_SUPER_FAST_DIALOGS"); // <W, tested: O3DS/O2DS - Y/OR
+        *cheats += Fav(new MenuEntry(getLanguage->Get("MENU_USE_PC_ANYWHERE"), PCAnywhere, getLanguage->Get("NOTE_USE_PC_ANYWHERE")), "FAV_USE_PC_ANYWHERE"); // <W, tested: O3DS/O2DS - Y/OR
+        *cheats += Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_VIEW_STATS_IN_SUMMARY"), ViewValuesInSummary, getLanguage->Get("NOTE_MISC_VIEW_STATS_IN_SUMMARY")), {Hotkey(Key::L, getLanguage->Get("HOTKEY_VIEW_IVS")), Hotkey(Key::R, getLanguage->Get("HOTKEY_VIEW_EVS"))}), "FAV_MISC_VIEW_STATS_IN_SUMMARY"); // <W, tested: O3DS/O2DS - Y/OR
 
         // Visuals & Display: overworld appearance toggles (Weather + Model Swap are ORAS-only).
-        MenuFolder *visuals = new MenuFolder("Visuals & Display", "Overworld appearance: model outlines, weather and your character model.");
-        visuals->SetFavoriteAlias("Visuals");
-        *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_NO_OUTLINES"), NoOutlines, "Remove black outlines on overworld models."), "No Outlines"); // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *visuals = new MenuFolder(getLanguage->Get("MENU_VISUALS_DISPLAY"), getLanguage->Get("NOTE_VISUALS_DISPLAY"));
+        Fav(visuals, "FAV_VISUALS_DISPLAY");
+        *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_NO_OUTLINES"), NoOutlines, getLanguage->Get("NOTE_MISC_NO_OUTLINES")), "FAV_MISC_NO_OUTLINES"); // <W, tested: O3DS/O2DS - Y/OR
         if (currGameSeries == GameSeries::ORAS) {
-            *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_WEATHER"), Weather, GetWeather, "Force a specific weather condition in certain ORAS routes (Route 113, 119, 120, Jagged Pass, East Hoenn)."), "Set Weather"); // <W, tested: O3DS/O2DS - Y/OR
-            *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_MODEL_SWAP"), nullptr, ModelSwap, "Pick a different overworld character model.\nThe new model only appears after you enter a building or change area.\n\nCustom models have no running animation."), "Model Swap"); // <W, tested: O3DS/O2DS - Y/OR
+            *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_WEATHER"), Weather, GetWeather, getLanguage->Get("NOTE_MISC_WEATHER")), "FAV_MISC_WEATHER"); // <W, tested: O3DS/O2DS - Y/OR
+            *visuals += Fav(new MenuEntry(getLanguage->Get("MISC_MODEL_SWAP"), nullptr, ModelSwap, getLanguage->Get("NOTE_MISC_MODEL_SWAP")), "FAV_MISC_MODEL_SWAP"); // <W, tested: O3DS/O2DS - Y/OR
         }
         *cheats += movement;  // Movement & Travel (now listed before Visuals)
         *cheats += visuals;   // Visuals & Display
         *cheats += breeding;  // Breeding (Day Care eggs)
 
-        *cheats += Fav(new MenuFolder("Custom Game Keyboard", "Add special characters (symbols, accents, Unicode) to the game's on-screen keyboard - handy for Pokémon nicknames, your trainer name and PSS messages.\n\nOpen a keyboard in the game first, then use these tools.", vector<MenuEntry*>({
-            Fav(new MenuEntry("Backup / Restore Keyboard", nullptr, CustomKeyboardConfig, "Save your custom keyboard to the SD card or load a saved one back.\n\nOpen a keyboard in-game, then pick Export (save) or Import (load).\n\nFiles are kept in the 'Keyboard' folder on your SD (up to 20)."), "Backup KB"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(HotkeyEntry(new MenuEntry("Custom Keys", CustomKeys, "With a keyboard open in-game, press X to add a character: choose a key slot (1-65), then a Unicode value (in hex).\nPress Y to wipe the keyboard.\n\nThis is where you actually create your custom characters."), {Hotkey(Key::X, "")}), "Custom Keys"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry("Bypass Text Restrictions", BypassTextRestrictions, "Turn off the game's name/text filter so it stops blocking 'invalid' characters and words.\n\nTurn this on before typing custom characters."), "Bypass Text"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry("Patch Colored Text Crashes", PatchColorCrash, "Stops the game from crashing when it shows colored text.\n\nTurn this on if you use colored characters or codes in names."), "Color Text Fix") // <W, tested: O3DS/O2DS - Y/OR
-        })), "Game Keyboard");
+        *cheats += Fav(new MenuFolder(getLanguage->Get("MISC_CUSTOM_GAME_KEYBOARD"), getLanguage->Get("NOTE_CUSTOM_GAME_KEYBOARD_FOLDER"), vector<MenuEntry*>({
+            Fav(new MenuEntry(getLanguage->Get("MENU_BACKUP_RESTORE_KEYBOARD"), nullptr, CustomKeyboardConfig, getLanguage->Get("NOTE_BACKUP_RESTORE_KEYBOARD")), "FAV_BACKUP_RESTORE_KEYBOARD"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("MISC_CUSTOM_GAME_KEYBOARD_KEYS"), CustomKeys, getLanguage->Get("NOTE_CUSTOM_GAME_KEYBOARD_KEYS")), {Hotkey(Key::X, "")}), "FAV_CUSTOM_GAME_KEYBOARD_KEYS"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("MISC_BYPASS_TEXT_RESTRICT"), BypassTextRestrictions, getLanguage->Get("NOTE_BYPASS_TEXT_RESTRICT")), "FAV_BYPASS_TEXT_RESTRICT"), // <W, tested: O3DS/O2DS - Y/OR
+            Fav(new MenuEntry(getLanguage->Get("MISC_PATCH_COLOR_CRASHES"), PatchColorCrash, getLanguage->Get("NOTE_PATCH_COLOR_CRASHES")), "FAV_PATCH_COLOR_CRASHES") // <W, tested: O3DS/O2DS - Y/OR
+        })), "FAV_CUSTOM_GAME_KEYBOARD");
 
         // "Change Theme" now lives in the framework "Tools" screen (it's a plugin tool, not a game
         // cheat). Register the theme table so Tools can build the "Change Theme" sub-menu; logic stays here.
@@ -709,23 +742,23 @@ namespace CTRPluginFramework {
         LoadMyTeleport();   // HERE binds + custom teleport SPOTs (Teleport X / routes)
         OSD::Run(HudCallback);
 
-        MenuEntry *notifEntry = new MenuEntry("Display On-Screen Notifications", ShowNotifications, "Toast on the top screen when you toggle a cheat on/off.");
-        notifEntry->SetFavoriteAlias("Notifications");
+        MenuEntry *notifEntry = new MenuEntry(getLanguage->Get("MENU_SHOW_NOTIFICATIONS"), ShowNotifications, getLanguage->Get("NOTE_SHOW_NOTIFICATIONS"));
+        Fav(notifEntry, "FAV_SHOW_NOTIFICATIONS");
         g_entryToggleNotifSrc = (void *)notifEntry; // let the menu give this checkbox a single instant toast (no double)
 
         // Screen Overlays order: notifications, HUD, then this plugin's own settings (language).
         // (Themes moved to the framework "Tools" screen.)
         *misc += notifEntry;
         *misc += hud;
-        *misc += Fav(new MenuEntry("Plugin Settings", nullptr, Configuration, "This plugin's own settings (e.g. language) - not your game options."), "Plugin Settings");
+        *misc += Fav(new MenuEntry(getLanguage->Get("MENU_PLUGIN_SETTINGS"), nullptr, Configuration, getLanguage->Get("NOTE_PLUGIN_SETTINGS")), "MENU_PLUGIN_SETTINGS");
 
-        MenuFolder *viewParty = new MenuFolder("View Party Summary", "View your team's hidden stats (stats, IVs, EVs, nature, ability, item, OT...). Pick a slot to see its full card.\n\nShows your LAST SAVED party — if you changed your team, save the game first.\n\nCard controls:\n\nUp/Down: move the box to pick a stat (HP, Atk, Def, SpA, SpD, Spe).\n\nA: jump to the team member with the HIGHER (or LOWER) value of that stat. If several tie, press A again to cycle through them.\n\nL (rebindable in Tools > Hotkeys): flip between HIGHER and LOWER, shown at the bottom-right of the top screen.\n\nA small triangle left of a stat means this Pokemon has the team's best (up) or worst (down) value of it.\n\nLeft/Right: switch cards. B: back. Select: exit to the game.");
-        viewParty->SetFavoriteAlias("Party Summary");
+        MenuFolder *viewParty = new MenuFolder(getLanguage->Get("MENU_VIEW_PARTY_SUMMARY"), getLanguage->Get("NOTE_VIEW_PARTY_SUMMARY"));
+        Fav(viewParty, "FAV_VIEW_PARTY_SUMMARY");
         viewParty->OnAction = ViewPartyOnAction;
 
         // "Fun Stuff": mini-games hub (folder-as-button). Sits right after In-Battle Tools in the root order.
-        MenuFolder *fun = new MenuFolder("\xE2\x98\x85 Mini Game Corner \xE2\x98\x85","Mini-games for fun: roll for a random wild encounter, open loot boxes, bet your Pokemon on a stat, spin the wheel, play slots and more.\n\nOn the bottom screen, switch between:\n\nFREE TO PLAY: you still get the items, Pokemon and spawns you win, but your money never changes.\n\nSPEND PokeDollars: real money is at stake - games charge an entry/bet and pay out (or take) Pokedollars for real.\n\nYour FREE/PAID choice is remembered between sessions.\n\nHeads up: items you win and any money changes only stick if you SAVE THE GAME afterwards. Loot Box never gives out TMs/HMs or Key Items, so it can't affect your story progress.");
-        fun->SetFavoriteAlias("MinGame Corner");
+        MenuFolder *fun = new MenuFolder(getLanguage->Get("MENU_MINI_GAME_CORNER"), getLanguage->Get("NOTE_MINI_GAME_CORNER"));
+        Fav(fun, "FAV_MINI_GAME_CORNER");
         fun->OnAction = FunStuffOnAction;
 
         // Top-level menu order: Pokémon (Spawner & Trainer) / View Party Summary / In-Battle Tools / Fun Stuff / Overworld & QoL / Screen Overlays / Online
@@ -739,7 +772,11 @@ namespace CTRPluginFramework {
     }
 
     int main(void) {
-        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 4, 2, "Gen6CTRPluginFrameworkOverhauled — an overhauled 3gx plugin for Pokémon X, Y, Omega Ruby and Alpha Sapphire on the Nintendo 3DS.\n\nA beginner-friendly fork that keeps every feature and wraps it in a guided, welcoming experience.\n\nFork & overhaul by:\ngithub.com/samaBR85\n\n----- CREDITS -----\n\nThis stands on a long line of volunteer work — every bit of it deserves recognition.\n\nBased on Gen 6 CTRPluginFramework by biometrix76:\ngithub.com/biometrix76\n\nA continuation of Multi-Pokémon Framework (semaj14 & contributors):\ngithub.com/semaj14\n\nFoundations & tooling:\n- ThePixellizerOSS (3gxtool + CTRPluginFramework):\n  gitlab.com/thepixellizeross\n- PKHeX (kwsch):\n  github.com/kwsch/PKHeX\n- AnalogMan151 (ultraSuMoFramework):\n  github.com/AnalogMan151\n- dragonfyre173 (in-game data viewer):\n  github.com/dragonfyre173\n- JourneyOver (ActionReplay code DB):\n  github.com/JourneyOver\n- Alexander Hartmann / Hartie95 (XY & ORAS base):\n  github.com/Hartie95\n\n----- IMAGE & DATA SOURCES -----\n\nPokemon sprites (Spawner + Legendary icons) are downscaled from the Pokemon Database X/Y sprite set:\n  pokemondb.net\n\nItem, TM and HM icons come from the PokeAPI sprites repository:\n  github.com/PokeAPI/sprites\n\nPokedex, type, ability, move and item data (including item prices): Pokemon Showdown (smogon/pokemon-showdown) and PokeAPI (pokeapi.co). Item names: PKHeX (kwsch). Poke Mart buy lists were cross-checked against the oraswiki and Bulbapedia shop pages.\n\nTeleport Location & route map images, plus the area-connection data, come from the ORAS Wiki:\n  oraswiki.com/locations\n\nAll Pokemon images and names are (C) Nintendo / Game Freak / The Pokemon Company. These community mirrors are used only to build this free fan tool.\n\nBundled Game Guide (Professor Oak Challenge) by Mewlax, via the r/ProfessorOak community.\n\nBuilt in collaboration with Claude (Anthropic).");
+        // Load the chosen language FIRST — `new PluginMenu` below builds the framework's bottom buttons +
+        // Tools menu, which read their labels via SetFrameworkText/FwText. SetLanguage() pushes those
+        // translations, so it must run BEFORE the menu is constructed (InitMenu later reuses the parsed instance).
+        SetLanguage(false);
+        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 5, 0, getLanguage->Get("FW_ABOUT_BODY"));
         // Enable menu synchronization with the game's frame rate
         menu->SynchronizeWithFrame(true);
         // Pause the execution for 100 milliseconds to ensure the menu is properly initialized

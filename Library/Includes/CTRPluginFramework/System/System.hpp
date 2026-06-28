@@ -73,6 +73,17 @@ namespace CTRPluginFramework {
             */
             static void Reboot(void) NORETURN;
     };
+
+    // Plugin-injected i18n for framework-owned UI text (bottom buttons, Tools menu & submenus).
+    // The plugin pushes translations via SetFrameworkText after loading its language file; framework
+    // code reads them with FwText(key, englishFallback) — returns the fallback when nothing was set.
+    void        SetFrameworkText(const std::string &key, const std::string &value);
+    std::string FwText(const std::string &key, const std::string &fallback);
+
+    // The plugin pushes the active UI language code ("en"/"fr"/"it"/"es"/"de"/"ja"/"pt") so framework
+    // code (e.g. GuideReader) can load a language-specific sibling folder with English fallback.
+    void        SetFrameworkLang(const std::string &code);
+    std::string FwLang(void);
 }
 
 #endif

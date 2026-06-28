@@ -4,6 +4,22 @@ namespace CTRPluginFramework {
     PluginMenuImpl *PluginMenuImpl::_runningInstance = nullptr;
     Mutex PluginMenuImpl::_trashBinMutex;
 
+    // Resolve a guide folder to its per-language subfolder (e.g. "AppGuide" -> "AppGuide/fr")
+    // for the active UI language. Falls back to the English subfolder ("AppGuide/en"), and as a
+    // last resort to the base folder itself (legacy flat layout with loose English files).
+    static std::string GuidePath(const std::string &base) {
+        std::string lang = FwLang();
+        if (lang.empty())
+            lang = "en";
+        std::string candidate = base + "/" + lang;
+        if (Directory::IsExists(candidate) == 1)
+            return candidate;
+        std::string english = base + "/en";
+        if (Directory::IsExists(english) == 1)
+            return english;
+        return base;
+    }
+
     PluginMenuImpl::PluginMenuImpl(string &name, string &about, u32 menuType) :
         OnFirstOpening(nullptr),
         OnOpening(nullptr),
@@ -12,8 +28,8 @@ namespace CTRPluginFramework {
         _search(new PluginMenuSearch(_hexEditor)),
         _tools(new PluginMenuTools(about, _hexEditor)),
         _executeLoop(new PluginMenuExecuteLoop()),
-        _guide(new GuideReader("GameGuide")),
-        _appGuide(new GuideReader("AppGuide")),
+        _guide(new GuideReader(GuidePath("GameGuide"), FwText("FW_GAME_GUIDE", "Game Guide"))),
+        _appGuide(new GuideReader(GuidePath("AppGuide"), FwText("FW_APP_GUIDE", "App Guide"))),
         _hexEditor(0x00100000),
         _forceOpen(false),
         _forceClose(false),

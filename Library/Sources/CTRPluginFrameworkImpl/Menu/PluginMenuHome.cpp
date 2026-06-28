@@ -11,13 +11,13 @@ namespace CTRPluginFramework {
     PluginMenuHome::PluginMenuHome(string &name, bool showNoteBottom) :
         _noteTB("", "", IntRect(40, 28, 320, 185)),
 
-        _showStarredBtn(Button::Toggle | Button::Sysfont | Button::Rounded, "Favorites", IntRect(45, 75, 110, 28), Icon::DrawFavorite),
-        _hidMapperBtn(Button::Sysfont | Button::Rounded, "Mapper", IntRect(165, 75, 110, 28), Icon::DrawController),
-        _gameGuideBtn(Button::Sysfont | Button::Rounded, "Game Guide", IntRect(45, 110, 110, 28), Icon::DrawGuide),
-        _searchBtn(Button::Sysfont | Button::Rounded, "Search", IntRect(165, 75, 110, 28), Icon::DrawSearch),
-        _appGuideBtn(Button::Sysfont | Button::Rounded, "App Guide", IntRect(165, 110, 110, 28), Icon::DrawGuide),
-        _arBtn(Button::Sysfont | Button::Rounded, "ActionReplay", IntRect(45, 145, 110, 28)),
-        _toolsBtn(Button::Sysfont | Button::Rounded, "Tools", IntRect(165, 145, 110, 28), Icon::DrawTools),
+        _showStarredBtn(Button::Toggle | Button::Sysfont | Button::Rounded, FwText("FW_FAVORITES", "Favorites"), IntRect(45, 75, 110, 28), Icon::DrawFavorite),
+        _hidMapperBtn(Button::Sysfont | Button::Rounded, FwText("FW_MAPPER", "Mapper"), IntRect(165, 75, 110, 28), Icon::DrawController),
+        _gameGuideBtn(Button::Sysfont | Button::Rounded, FwText("FW_GAME_GUIDE", "Game Guide"), IntRect(45, 110, 110, 28), Icon::DrawGuide),
+        _searchBtn(Button::Sysfont | Button::Rounded, FwText("FW_SEARCH", "Search"), IntRect(165, 75, 110, 28), Icon::DrawSearch),
+        _appGuideBtn(Button::Sysfont | Button::Rounded, FwText("FW_APP_GUIDE", "App Guide"), IntRect(165, 110, 110, 28), Icon::DrawGuide),
+        _arBtn(Button::Sysfont | Button::Rounded, FwText("FW_ACTIONREPLAY", "ActionReplay"), IntRect(45, 145, 110, 28)),
+        _toolsBtn(Button::Sysfont | Button::Rounded, FwText("FW_TOOLS", "Tools"), IntRect(165, 145, 110, 28), Icon::DrawTools),
 
         _AddFavoriteBtn(Button::Icon | Button::Toggle, IntRect(45, 30, 25, 25), Icon::DrawAddFavorite),
         _InfoBtn(Button::Icon | Button::Toggle, IntRect(80, 30, 25, 25), Icon::DrawInfo),
@@ -27,7 +27,7 @@ namespace CTRPluginFramework {
 
         {
             _root = _folder = new MenuFolderImpl(name);
-            _starredConst = _starred = new MenuFolderImpl("Favorites");
+            _starredConst = _starred = new MenuFolderImpl(FwText("FW_FAVORITES", "Favorites"));
             _starMode = false;
             _selector = 0;
             _selectedTextSize = 0;
@@ -622,7 +622,7 @@ namespace CTRPluginFramework {
             for (int i = firstIdx; i < lastIdx; i++) {
                 MenuItem *item = folder->_items[i];
                 const char *name = (!item->favAlias.empty() ? item->favAlias : item->name).c_str(); // favorites alias
-                const Color &fg = i == _selector ? selected : unselected;
+                Color fg = i == _selector ? selected : unselected;
                 float offset = i == _selector ? _scrollOffset : 0.f;
 
                 int col = i & 1;
@@ -630,8 +630,13 @@ namespace CTRPluginFramework {
                 int cellY = baseY + ((i - firstIdx) / 2) * rowH;
                 int colXLimit = col ? 370 : leftX + 152; // clip long unselected names at the column edge
 
-                if (drawSelector && i == _selector)
-                    Renderer::MenuSelector(cellX - 5, cellY - 3, 160, 20);
+                if (drawSelector && i == _selector) {
+                    if (item->Flags.isDangerous) { // sensitive entry -> solid red warning bar + white text
+                        Renderer::DrawRect(cellX - 5, cellY - 3, 160, 20, Color(0xE5, 0x43, 0x3C), true);
+                        fg = Color::White;
+                    } else
+                        Renderer::MenuSelector(cellX - 5, cellY - 3, 160, 20);
+                }
 
                 if (item->_type == MenuType::Entry) {
                     MenuEntryImpl *entry = reinterpret_cast<MenuEntryImpl*>(item);
@@ -681,15 +686,20 @@ namespace CTRPluginFramework {
 
                 MenuItem *item = folder->_items[k];
                 const char *name = item->name.c_str();
-                const Color &fg = k == _selector ? selected : unselected;
+                Color fg = k == _selector ? selected : unselected;
                 float offset = k == _selector ? _scrollOffset : 0.f;
                 bool full = !IsTwoColToggle(item);
                 int cellX = (full || colOf[k] == 0) ? leftX : rightX;
                 int cellY = baseY + (r - firstRow) * rowH;
                 int colXLimit = full ? 360 : (colOf[k] ? 343 : leftX + 152); // right col: ~27px margin off the border
 
-                if (drawSelector && k == _selector)
-                    Renderer::MenuSelector(cellX - 5, cellY - 3, full ? 330 : 160, 20);
+                if (drawSelector && k == _selector) {
+                    if (item->Flags.isDangerous) { // sensitive entry -> solid red warning bar + white text
+                        Renderer::DrawRect(cellX - 5, cellY - 3, full ? 330 : 160, 20, Color(0xE5, 0x43, 0x3C), true);
+                        fg = Color::White;
+                    } else
+                        Renderer::MenuSelector(cellX - 5, cellY - 3, full ? 330 : 160, 20);
+                }
 
                 int yy = cellY; // DrawSys* advance posY by ref; keep cellY intact for the grid
                 if (item->_type == MenuType::Entry) {
@@ -729,7 +739,10 @@ namespace CTRPluginFramework {
             // kHighlightMiniGameCorner to true to re-enable; while false every entry keeps the default MenuSelector.
             static const bool kHighlightMiniGameCorner = false;
             if (drawSelector && i == _selector) {
-                if (kHighlightMiniGameCorner && item->name == "\xE2\x98\x85 Mini Game Corner \xE2\x98\x85") {
+                if (item->Flags.isDangerous) { // sensitive entry -> solid red warning bar + white text
+                    Renderer::DrawRect(posX - 5, posY - 3, 330, 20, Color(0xE5, 0x43, 0x3C), true);
+                    fg = Color::White;
+                } else if (kHighlightMiniGameCorner && item->name == "\xE2\x98\x85 Mini Game Corner \xE2\x98\x85") {
                     const Color &alt = Preferences::Settings.MenuSelectedAltColor;
                     Renderer::DrawRect(posX - 5, posY - 3, 330, 20, alt, true);
                     fg = ((alt.r * 30 + alt.g * 59 + alt.b * 11) / 100 > 150) ? Color::Black : Color::White;

@@ -214,13 +214,13 @@ namespace CTRPluginFramework {
 
         Keyboard keyboard;
         if (s_bagPick < 0 || s_bagPick >= (int)ids.size()) s_bagPick = 0;
-        int choice = keyboard.Setup(pocket + ": choose an item to add", true, names, s_bagPick);
+        int choice = keyboard.Setup(pocket + ": " + getLanguage->Get("DLG_BAG_CHOOSE_ITEM"), true, names, s_bagPick);
         if (choice < 0) return; // cancelled
         s_bagPick = choice;
         int itemId = ids[choice];
 
         u16 qty = 1;
-        if (!KeyboardHandler<u16>::Set("How many? (1-999):", true, false, 3, qty, 0, 1, 999, Callback<u16>))
+        if (!KeyboardHandler<u16>::Set(getLanguage->Get("DLG_BAG_HOW_MANY"), true, false, 3, qty, 0, 1, 999, Callback<u16>))
             return; // cancelled
 
         // Bag pockets are front-packed: scan for the item (update its count) or the first empty
@@ -234,12 +234,12 @@ namespace CTRPluginFramework {
         }
         int slot = (existSlot >= 0) ? existSlot : freeSlot;
         if (slot < 0) {
-            MessageBox(CenterAlign("That pocket looks full - no free slot found."), DialogType::DialogOk, ClearScreen::Both)();
+            MessageBox(CenterAlign(getLanguage->Get("DLG_BAG_POCKET_FULL")), DialogType::DialogOk, ClearScreen::Both)();
             return;
         }
 
         Process::Write32(pocketBase + 0x4 * slot, (u32)itemId | ((u32)qty << 16));
-        MessageBox(CenterAlign("Added " + to_string(qty) + "x " + names[choice] + "\nto your " + pocket + " pocket."),
+        MessageBox(CenterAlign(Utils::Format(getLanguage->Get("DLG_BAG_ADDED_FMT").c_str(), (int)qty, names[choice].c_str(), pocket.c_str())),
                    DialogType::DialogOk, ClearScreen::Both)();
     }
 
@@ -258,7 +258,7 @@ namespace CTRPluginFramework {
             ids.insert(ids.end(), {534, 535, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 767, 768, 769, 770}); // ORAS-specific
         if (currGameSeries == GameSeries::XY || currGameSeries == GameSeries::ORAS)
             ids.insert(ids.end(), {500, 652, 653, 654, 655});
-        BagPickAndAdd("Items", address[0], ids);
+        BagPickAndAdd(getLanguage->Get("EDITOR_BAG_ITEMS"), address[0], ids);
     }
 
     void Medicines(MenuEntry *entry) { UpdateMedicines(entry); }
@@ -274,7 +274,7 @@ namespace CTRPluginFramework {
             ids.push_back(571);
         if (currGameSeries == GameSeries::ORAS)
             ids.insert(ids.end(), {65, 66, 67});
-        BagPickAndAdd("Medicines", address[0], ids);
+        BagPickAndAdd(getLanguage->Get("EDITOR_BAG_MEDICINE"), address[0], ids);
     }
 
     vector<int> berries = {149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 686, 687, 688};
@@ -285,7 +285,7 @@ namespace CTRPluginFramework {
         (void)entry;
         static const vector<u32> address = {AutoGameSet({0x8C67FCC, 0x8C67FCE}, {0x8C6F6E0, 0x8C6F6E2})};
         vector<int> ids(berries.begin(), berries.end());
-        BagPickAndAdd("Berries", address[0], ids);
+        BagPickAndAdd(getLanguage->Get("EDITOR_BAG_BERRIES"), address[0], ids);
     }
 
     static const vector<int> teachables = {328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 618, 619, 620, 690, 691, 692, 693, 694};
@@ -358,16 +358,16 @@ namespace CTRPluginFramework {
         const string reset(1, (char)0x18);                    // 0x18 resets colour to the theme's text colour
         string warn = CenterAlign(red + heading + "\n\n" + reset + body + "\n\n" + amber + question, 55, 345);
 
-        static const vector<string> options = {"NO - keep it off", "YES - apply it"};
+        static const vector<string> options = {getLanguage->Get("DLG_DANGER_NO"), getLanguage->Get("DLG_DANGER_YES")};
         int choice = 0;
         Keyboard kb;
         return kb.Setup(warn, true, options, choice) != -1 && choice == 1;
     }
 
     void KeyItems(MenuEntry *entry) {
-        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
-                           "It dumps every TM, HM and\nKey Item at once, flooding\nyour Bag and your progress.",
-                           "Apply it anyway?"))
+        if (!DangerConfirm(getLanguage->Get("DLG_DANGER_HEADING"),
+                           getLanguage->Get("DLG_DANGER_KEYITEMS_BODY"),
+                           getLanguage->Get("DLG_DANGER_APPLY_Q")))
             return;
 
         static const vector<string> options = {getLanguage->Get("EDITOR_BAG_TMS_HMS"), getLanguage->Get("EDITOR_BAG_KEY_ITEMS")};
@@ -387,9 +387,9 @@ namespace CTRPluginFramework {
                 {0x8C8204C, 0x8C81FEC, 0x8C81F20, 0x8C81FE8})
         };
 
-        if (DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
-                          "It marks every Pokémon as\nseen and caught, so you lose\nfilling the Dex yourself.",
-                          "Apply it anyway?")) {
+        if (DangerConfirm(getLanguage->Get("DLG_DANGER_HEADING"),
+                          getLanguage->Get("DLG_DANGER_DEX_BODY"),
+                          getLanguage->Get("DLG_DANGER_APPLY_Q"))) {
             if ((Nibble::Read8(address[2], dexByte, true) && dexByte != 5) || (Nibble::Read8(address[3], dexByte, true) && dexByte != 7)) {
                 if (Nibble::Write8(address[2], 5, true)) {
                     if (Nibble::Write8(address[3], 7, true))
@@ -947,21 +947,46 @@ namespace CTRPluginFramework {
                 }
             }
 
-            // The party is the only place two owned mons sit exactly 0x104 apart (box stride is 0xE8).
-            for (int i = 0; i < n; i++)
-                for (int j = 0; j < n; j++)
-                    if (matchAddr[j] == matchAddr[i] + SLOT) {
-                        gPartyBase = matchAddr[i];
-                        gPartyEncrypted = matchEnc[i];
-                        return gPartyBase;
-                    }
+            // The party is a run of owned mons at exactly 0x104 stride (box stride is 0xE8). A stale/partial
+            // copy can also leave a short 0x104 run at a LOWER address, so taking the first pair could lock
+            // onto a 4-mon leftover and miss slots 5-6 of the real party. Instead pick the candidate base with
+            // the MOST consecutive owned slots (the full live party); tie -> lowest address.
+            auto ownedIdx = [&](u32 a) -> int { for (int k = 0; k < n; k++) if (matchAddr[k] == a) return k; return -1; };
+            int bestIdx = -1, bestRun = 0;
+            for (int i = 0; i < n; i++) {
+                if (ownedIdx(matchAddr[i] + SLOT) < 0) continue;          // must start a 0x104 pair
+                int run = 1;
+                while (run < 6 && ownedIdx(matchAddr[i] + (u32)run * SLOT) >= 0) run++;
+                if (run > bestRun || (run == bestRun && bestIdx >= 0 && matchAddr[i] < matchAddr[bestIdx])) {
+                    bestRun = run; bestIdx = i;
+                }
+            }
+            // The owned-scan only matches the PLAYER'S OWN mons (TID/SID). Anything at the FRONT of the party that
+            // the scan skips (traded mons with a different OT, etc.) makes the anchor land a few slots IN, dropping
+            // the first slots. Walk the base BACKWARD over contiguous valid PK6 slots (any OT) to recover slot 1.
+            auto extendBack = [&](u32 b, bool enc) -> u32 {
+                PK6 tmp;
+                for (int back = 0; back < 6 && b >= scanStart + SLOT; back++) {
+                    u32 prev = b - SLOT;
+                    bool ok = enc ? GetPokemon(prev, &tmp) : GetPokemonRaw(prev, &tmp);
+                    if (!(ok && tmp.species >= 1 && tmp.species <= 721)) break; // empty / non-mon -> true party start
+                    b = prev;
+                }
+                return b;
+            };
 
-            // Fallback: a single-member party -> the lowest non-box owned match.
+            if (bestIdx >= 0) {
+                gPartyEncrypted = matchEnc[bestIdx];
+                gPartyBase = extendBack(matchAddr[bestIdx], matchEnc[bestIdx]);
+                return gPartyBase;
+            }
+
+            // Fallback: a single-member party -> the lowest non-box owned match (also extended back).
             if (n > 0) {
                 int lo = 0;
                 for (int i = 1; i < n; i++) if (matchAddr[i] < matchAddr[lo]) lo = i;
-                gPartyBase = matchAddr[lo];
                 gPartyEncrypted = matchEnc[lo];
+                gPartyBase = extendBack(matchAddr[lo], matchEnc[lo]);
                 return gPartyBase;
             }
 
@@ -1006,7 +1031,7 @@ namespace CTRPluginFramework {
             bool ok = (gPartyMode && !gPartyEncrypted) ? GetPokemonRaw(CurrentPtr(), &pk) : GetPokemon(CurrentPtr(), &pk);
 
             if (!ok)
-                return "Empty / invalid slot.\nPick a valid Position first.";
+                return getLanguage->Get("DLG_SHEET_EMPTY_SLOT");
 
             const char *genders[] = {"Male", "Female", "Genderless"};
             int g = (pk.fatefulEncounterGenderForm >> 1) & 0x3;
@@ -1205,7 +1230,7 @@ namespace CTRPluginFramework {
             (void)entry;
             u32 base = FindPartyBase();
             if (base == 0) {
-                MessageBox(CenterAlign("Could not locate your party in memory.\nLoad a save (and save the game) first."), DialogType::DialogOk, ClearScreen::Both)();
+                MessageBox(CenterAlign(getLanguage->Get("DLG_PARTY_NOT_FOUND")), DialogType::DialogOk, ClearScreen::Both)();
                 return;
             }
 
@@ -2240,8 +2265,8 @@ namespace CTRPluginFramework {
                     if (GetPokemon(CurrentPtr(), &cur))
                         for (int i = 0; i < 4; i++) if (cur.move[i] != mv[i] || (u8)(cur.movePPUp[i] > 3 ? 3 : cur.movePPUp[i]) != (u8)ppu[i]) { dirty = true; break; }
                     if (!dirty) return;
-                    vector<string> opts = {"DISCARD", "SAVE"}; int choice = 1; Keyboard kb;
-                    if (kb.Setup(CenterAlign("You changed the moves.\nSave before leaving?"), true, opts, choice) != -1) {
+                    vector<string> opts = {getLanguage->Get("DLG_DISCARD"), getLanguage->Get("DLG_SAVE")}; int choice = 1; Keyboard kb;
+                    if (kb.Setup(CenterAlign(getLanguage->Get("DLG_MOVES_SAVE_PROMPT")), true, opts, choice) != -1) {
                         if (choice == 1) { for (int i = 0; i < 4; i++) { pk.move[i] = mv[i]; pk.movePPUp[i] = (u8)ppu[i]; pk.movePP[i] = (u8)maxPP(mv[i], ppu[i]); } SetPokemon(CurrentPtr(), &pk); }
                         return; // SAVE or DISCARD both leave; only aborting the dialog stays
                     }
@@ -2297,8 +2322,8 @@ namespace CTRPluginFramework {
                     if (GetPokemon(CurrentPtr(), &cur))
                         for (int i = 0; i < 4; i++) if (cur.relearn[i] != rl[i]) { dirty = true; break; }
                     if (!dirty) return;
-                    vector<string> opts = {"DISCARD", "SAVE"}; int choice = 1; Keyboard kb;
-                    if (kb.Setup(CenterAlign("You changed the relearn moves.\nSave before leaving?"), true, opts, choice) != -1) {
+                    vector<string> opts = {getLanguage->Get("DLG_DISCARD"), getLanguage->Get("DLG_SAVE")}; int choice = 1; Keyboard kb;
+                    if (kb.Setup(CenterAlign(getLanguage->Get("DLG_RELEARN_SAVE_PROMPT")), true, opts, choice) != -1) {
                         if (choice == 1) { for (int i = 0; i < 4; i++) pk.relearn[i] = rl[i]; SetPokemon(CurrentPtr(), &pk); }
                         return;
                     }
@@ -2708,7 +2733,7 @@ namespace CTRPluginFramework {
                         else {
                             bool occupied = boxSpecies[cursor] != 0 && curBox == loadedBox;
                             bool go = !occupied ||
-                                      DangerConfirm("OVERWRITE?", "The destination slot already\nhas a Pokemon. Cloning will\nreplace it.", "Overwrite it?");
+                                      DangerConfirm(getLanguage->Get("DLG_OVERWRITE_HEADING"), getLanguage->Get("DLG_OVERWRITE_BODY"), getLanguage->Get("DLG_OVERWRITE_Q"));
                             if (go) {
                                 if (Process::CopyMemory((u8*)dst, (u8*)markAddr, 0xE8))
                                     setStatus("Cloned -> B" + to_string(curBox + 1) + ":" + to_string(cursor + 1));
@@ -2866,9 +2891,9 @@ namespace CTRPluginFramework {
                         bool dirty = false; for (int k = 0; k < 0xE8; ++k) if (editScratch[k] != editOrig[k]) { dirty = true; break; }
                         if (!dirty) mode = 0; // nothing changed -> just leave
                         else {
-                            vector<string> opts = {"DISCARD edits", "SAVE to box"};
+                            vector<string> opts = {getLanguage->Get("DLG_DISCARD_EDITS"), getLanguage->Get("DLG_SAVE_TO_BOX")};
                             int choice = 1; Keyboard kb;
-                            int r = kb.Setup(CenterAlign("Keep your edits to\nBox " + to_string(curBox + 1) + " / Slot " + to_string(cursor + 1) + " ?"), true, opts, choice);
+                            int r = kb.Setup(CenterAlign(Utils::Format(getLanguage->Get("DLG_KEEP_EDITS_FMT").c_str(), curBox + 1, cursor + 1)), true, opts, choice);
                             if (r != -1) { // -1 = aborted the dialog -> stay in the editor
                                 if (choice == 1) {
                                     if (Process::CopyMemory((u8*)editCommitAddr, editScratch, 0xE8)) { loadedBox = -1; cardKey = -1; setStatus("Saved to box (save the game to keep it)"); }
@@ -3435,7 +3460,7 @@ namespace CTRPluginFramework {
 
         // Each mini-game is a self-contained dual-screen tool (filled in across the build phases). Stubs for now.
         static void FunComingSoon(const char *name) {
-            MessageBox(CenterAlign(string(name) + "\n\nComing soon!"), DialogType::DialogOk, ClearScreen::Both)();
+            MessageBox(CenterAlign(string(name) + getLanguage->Get("DLG_COMING_SOON")), DialogType::DialogOk, ClearScreen::Both)();
         }
         // #1 Random Challenge: a sprite "roulette" rolls through Pokemon and lands on one, which becomes the next
         // wild encounter (UpdateWildSpawner). Its level is scaled near the team's average. No money either mode.
@@ -4764,13 +4789,15 @@ namespace CTRPluginFramework {
                 const string RST = "\x18";
                 // Clean single colored line (item in title color, price in green). The item's effect is shown in
                 // the Items-tab row instead - the framework MessageBox mangles a multi-line colored body.
+                string itemSpan  = (string)title + bagItemName[id] + RST;
+                string priceSpan = (string)good + "$" + commafy(bagItemCost[id]) + RST;
                 string q = (payMode == 1 && bagItemBuyable[id])
-                    ? ("Buy " + (string)title + bagItemName[id] + RST + " for " + (string)good + "$" + commafy(bagItemCost[id]) + RST + "?")
-                    : ("Add " + (string)title + bagItemName[id] + RST + " to your bag?");
+                    ? Utils::Format(getLanguage->Get("DLG_BUY_FMT").c_str(), itemSpan.c_str(), priceSpan.c_str())
+                    : Utils::Format(getLanguage->Get("DLG_ADD_FMT").c_str(), itemSpan.c_str());
                 bool yes = MessageBox(CenterAlign(q), DialogType::DialogYesNo, ClearScreen::Both)();
                 if (yes) {
                     int r = BagBuyOne(id);
-                    static const char *RES[5] = {"Added (free)", "Purchased", "Not sold in PAY mode", "Not enough money", "Bag is full"};
+                    string RES[5] = {getLanguage->Get("DLG_BUY_RES_ADDED_FREE"), getLanguage->Get("DLG_BUY_RES_PURCHASED"), getLanguage->Get("DLG_BUY_RES_NOT_SOLD"), getLanguage->Get("DLG_BUY_RES_NO_MONEY"), getLanguage->Get("DLG_BUY_RES_BAG_FULL")};
                     setFlash(string(bagItemName[id]) + ": " + RES[(r >= 0 && r < 5) ? r : 4]);
                 }
                 drainKeys();
@@ -5098,7 +5125,7 @@ namespace CTRPluginFramework {
                     if (wrote) {
                         string msg = getMessage();
                         if (gPartyMode) // edits land in the last-saved party block; stats are recomputed by the game
-                            msg += "\n\nSAVE the game to keep this change.\nHP/Atk/... refresh after you heal or deposit/withdraw.";
+                            msg += getLanguage->Get("DLG_PARTY_EDIT_SAVE_NOTE");
 
                         MessageBox(CenterAlign(msg), DialogType::DialogOk, ClearScreen::Both)();
                         return true;
@@ -5822,9 +5849,9 @@ namespace CTRPluginFramework {
     }
 
     void BoxesUnlocked(MenuEntry *entry) {
-        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
-                           "It force-opens all 31 PC\nboxes, a permanent change\nto your save file.",
-                           "Apply it anyway?"))
+        if (!DangerConfirm(getLanguage->Get("DLG_DANGER_HEADING"),
+                           getLanguage->Get("DLG_DANGER_BOXES_BODY"),
+                           getLanguage->Get("DLG_DANGER_APPLY_Q")))
             return;
 
         static const u32 address = AutoGameSet(0x8C6AC26, 0x8C7232A);

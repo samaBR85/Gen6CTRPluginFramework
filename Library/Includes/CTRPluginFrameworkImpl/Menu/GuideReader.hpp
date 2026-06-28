@@ -14,7 +14,7 @@ namespace CTRPluginFramework {
         using EventList = vector<Event>;
 
         public:
-            GuideReader(const string &folderPath = "Guide");
+            GuideReader(const string &folderPath = "Guide", const string &title = "");
             ~GuideReader(void){};
 
             bool Draw(void);

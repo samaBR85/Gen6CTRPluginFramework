@@ -1,7 +1,22 @@
 #include <Headers.hpp>
+#include <string>
+#include <unordered_map>
 
 namespace CTRPluginFramework {
     void (*System::OnAbort)(void) = nullptr;
+
+    // Plugin-injected UI text table (i18n bridge for framework-owned labels/prompts).
+    static std::unordered_map<std::string, std::string> g_fwText;
+    void SetFrameworkText(const std::string &key, const std::string &value) { g_fwText[key] = value; }
+    std::string FwText(const std::string &key, const std::string &fallback) {
+        auto it = g_fwText.find(key);
+        return (it != g_fwText.end() && !it->second.empty()) ? it->second : fallback;
+    }
+
+    // Active UI language code, pushed by the plugin (empty/"en" => English).
+    static std::string g_fwLang;
+    void SetFrameworkLang(const std::string &code) { g_fwLang = code; }
+    std::string FwLang(void) { return g_fwLang; }
 
     bool System::IsNew3DS(void) {
         return (SystemImpl::IsNew3DS);

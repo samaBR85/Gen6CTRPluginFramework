@@ -147,6 +147,17 @@ namespace CTRPluginFramework {
             void SetFavoriteAlias(const string &alias) const;
 
             /**
+            * \brief Set a language-independent persistence id (e.g. the "FAV_X" lookup key) so the favorite
+            *        survives UI-language changes. Preferred over the translated alias for identity.
+            */
+            void SetFavoriteKey(const string &key) const;
+
+            /**
+            * \brief Flag this entry dangerous: when selected, its row gets a solid red warning background.
+            */
+            void SetDangerous(bool enable) const;
+
+            /**
             * \brief Force this entry to span the full width when its folder is rendered in 2 columns.
             * \param enable Whether the entry should take a full-width row instead of a half-width cell
             */

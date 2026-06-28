@@ -233,10 +233,23 @@ namespace CTRPluginFramework {
         }
 
         _strKeys.clear();
-        int posY = (count < 7) ? (20 + (200 - ((28 * count) + 3 * (count - 1))) / 2) : 30;
+
+        // Row geometry. Lists of <= 7 entries render WITHOUT a scrollbar (every row fits on-screen).
+        // Up to 6 use the normal 28px rows; exactly 7 shrink to 24px rows (stride 27) so all of them fit
+        // the ~190px list area (clamp y in [25,215]) with no scrollbar. 8+ keep the scrollbar layout.
+        int rowH   = (count <= 7) ? ((count <= 6) ? 28 : 24) : 28;
+        int stride = (count <= 7) ? ((count <= 6) ? 31 : 27) : 31;
+        int posY;
+
+        if (count <= 6)
+            posY = 20 + (200 - ((28 * count) + 3 * (count - 1))) / 2;
+        else if (count == 7)
+            posY = 25 + (190 - ((rowH * count) + 3 * (count - 1))) / 2;
+        else
+            posY = 30;
 
         if (mustReset) {
-            if (count < 7)
+            if (count < 8)
                 _displayScrollbar = false;
 
             else {
@@ -264,7 +277,7 @@ namespace CTRPluginFramework {
         _scrollSize = 0;
         _inertialVelocity = 0;
 
-        IntRect box(60, posY, 200, 28);
+        IntRect box(60, posY, 200, rowH);
         int i = 0;
 
         for (const string &str : input) {
@@ -276,7 +289,7 @@ namespace CTRPluginFramework {
             _strKeys.push_back(tks);
 
             if (mustReset)
-                box.leftTop.y += 31;
+                box.leftTop.y += stride;
         }
 
         origPosY.clear();
@@ -674,7 +687,7 @@ namespace CTRPluginFramework {
         Renderer::DrawRect2(background, theme.BackgroundMain, theme.BackgroundSecondary);
         Renderer::DrawRect(background2, theme.BackgroundBorder, false);
         size_t max = _strKeys.size();
-        int offset = _isIconKeyboard ? 24 : 6;
+        int offset = _isIconKeyboard ? 24 : (_displayScrollbar ? 6 : (int)_strKeys.size());
         max = min(static_cast<int>(max), _currentPosition + offset);
         PrivColor::UseClamp(true, clampArea);
 

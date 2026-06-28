@@ -123,6 +123,14 @@ namespace CTRPluginFramework {
         _item->favAlias = alias;
     }
 
+    void MenuEntry::SetFavoriteKey(const string &key) const {
+        _item->favKey = key;
+    }
+
+    void MenuEntry::SetDangerous(bool enable) const {
+        _item->Flags.isDangerous = enable;
+    }
+
     void MenuEntry::SetGridFullWidth(bool enable) const {
         _item->Flags.gridFull = enable;
     }

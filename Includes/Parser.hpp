@@ -21,6 +21,7 @@ All credit for those functions goes to PabloMK7
 #define PATH_SPANISH_TEXT       "E:/Gen6CTRPluginFramework/Language/Spanish.txt"
 #define PATH_GERMAN_TEXT        "E:/Gen6CTRPluginFramework/Language/German.txt"
 #define PATH_JAPANESE_TEXT      "E:/Gen6CTRPluginFramework/Language/Japanese.txt"
+#define PATH_PORTUGUESE_TEXT    "E:/Gen6CTRPluginFramework/Language/Portuguese.txt"
 #define PATH_THEME_SETTINGS     "E:/Gen6CTRPluginFramework/Theme.txt"
 #define PATH_HUD_SETTINGS       "E:/Gen6CTRPluginFramework/HUD.txt"
 #define PATH_TELE_ALIASES       "E:/Gen6CTRPluginFramework/TeleAliases.txt"
@@ -63,6 +64,7 @@ namespace CTRPluginFramework {
         l_Spanish,
         l_German,
         l_Japanese,
+        l_Portuguese,
         l_Undefined
     };
 }

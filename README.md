@@ -1,4 +1,4 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.4.2
+# Gen6CTRPluginFrameworkOverhauled — v0.5.0
 
 **English** · [Português](README.pt-BR.md)
 
@@ -10,8 +10,9 @@ It's a `.3gx` plugin you drop onto your 3DS that adds a menu over your Pokémon 
 anywhere, edit your team, read your rival mid-battle, play a few mini-games, and a hundred small comforts in between.
 
 The twist: **it was built to be understood.** Every feature is named in plain language, every option has an info
-button that explains it, and there's a 23-page guide *inside* the plugin that walks you through it all. If you love
-these games but have never touched homebrew, you're exactly who this is for.
+button that explains it, and there's a 23-page guide *inside* the plugin that walks you through it all. The menus
+are available in **7 languages**. If you love these games but have never touched homebrew, you're exactly who this
+is for.
 
 You open everything with **SELECT**, and the menu appears over your game:
 
@@ -19,9 +20,9 @@ You open everything with **SELECT**, and the menu appears over your game:
   <img src="Screenshots/v0.3.3/export/01_menu.png" width="330" alt="The plugin menu over Pokémon Alpha Sapphire — feature list on top, buttons below" />
 </p>
 
-> 🎯 **Heads up — this release only has content for Pokémon Alpha Sapphire** (Title ID `000400000011C500`). The
-> framework is built for X, Y, Omega Ruby and Alpha Sapphire, but so far only **Alpha Sapphire** has been developed.
-> **X, Y and Omega Ruby are already in the works!**
+> 🎯 **Works on all four Gen 6 games.** X, Y, Omega Ruby and Alpha Sapphire each get their own tailored content (guides + assets) in their own Title-ID folder, and the same `.3gx` auto-detects which game you're running.
+
+> 🌐 **Available in 7 languages**, switchable in-plugin: 🇺🇸 English · 🇫🇷 French · 🇩🇪 German · 🇮🇹 Italian · 🇯🇵 Japanese · 🇧🇷 Portuguese (Brazil) · 🇪🇸 Spanish.
 
 ## Made by a curious player, with Claude
 
@@ -185,7 +186,7 @@ town, just like the real journey — and pressing **Y** there swaps it for a sin
 one). Everything you save lands in a hand-editable **MyTeleport.txt** in the plugin folder, and it survives updates.
 
 <p align="center">
-  <img src="Screenshots/v0.4.1/export/teleport_map.png" width="330" alt="The Map tab — Mauville City centred, its connecting routes shown as tiles around it" />
+  <img src="Screenshots/v0.4.1/export/teleport_map.png" width="330" alt="The Map tab — Oldale Town centred, its connecting routes shown as tiles around it" />
   <img src="Screenshots/v0.4.1/export/teleport_overview.png" width="330" alt="The Map tab's Y overview — a picture-grid of every place with filter chips below" />
 </p>
 
@@ -216,13 +217,14 @@ A short history, newest last — no detail, just the shape of it:
 - **v0.4.2** — **Teleportation** reborn: a two-screen place picker with a navigable **Map** and a full picture-grid
   overview, your own saved **warp points** (the hand-editable `MyTeleport.txt`), and tidier plugin folders under
   **Assets/**.
+- **v0.5.0** — **multi-game**: tailored content for all four Gen 6 titles (X, Y, Omega Ruby, Alpha Sapphire), a full Kalos teleport map, and the UI in **7 languages**.
 
 ## 📥 Installing
 1. Update to the latest [Luma3DS](https://github.com/LumaTeam/Luma3DS/releases/latest).
 2. Download the latest [release](https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/latest).
 3. Extract the `.zip` to the **root of your SD card**, keeping its folder layout. It adds two folders:
-   - `luma/` — the plugin itself, at `luma/plugins/000400000011C500/Gen6CTRPluginFramework.3gx` (along with the built-in App Guide and Game Guide).
-   - `Gen6CTRPluginFramework/` — the plugin's data, including the **language files** (English, French, German, Italian, Japanese, Spanish). **This folder goes at the SD root, next to `luma/` — *not* inside it.** The plugin loads its language from here, so don't skip it. (Your `Theme.txt` and `HUD.txt` settings are created in this folder automatically on first run.)
+   - `luma/` — the plugin, with one folder per game: `luma/plugins/0004000000055D00/` (X), `0004000000055E00/` (Y), `000400000011C400/` (Omega Ruby), `000400000011C500/` (Alpha Sapphire). The same `Gen6CTRPluginFramework.3gx` (plus the built-in App Guide & Game Guide) sits in each; it auto-detects your game.
+   - `Gen6CTRPluginFramework/` — the plugin's data, including the **language files** (English, French, German, Italian, Japanese, Portuguese (Brazil), Spanish — 7 languages). **This folder goes at the SD root, next to `luma/` — *not* inside it.** The plugin loads its language from here, so don't skip it. (Your `Theme.txt` and `HUD.txt` settings are created in this folder automatically on first run.)
 4. Make sure `Gen6CTRPluginFramework.3gx` is the only `.3gx` file for the title.
 5. Open the Rosalina menu (`L+Down+Select`) and set **Plugin Loader** to **[ENABLED]**.
 6. Launch your Gen 6 game — Luma3DS loads the plugin on startup. Press **Select** in-game to open the menu, then open the **App Guide**.
@@ -270,19 +272,20 @@ This project stands on a long line of volunteer work — from the very first anc
   [PokéAPI](https://pokeapi.co); **item names** from [PKHeX](https://github.com/kwsch/PKHeX/) (kwsch).
 - **Location & route images** — the Teleport map/route thumbnails and the area-connection data are from the
   [ORAS Wiki](https://oraswiki.com/locations/).
+- **Kalos (X/Y) location images** — from [Bulbapedia](https://bulbapedia.bulbagarden.net/).
 - All Pokémon images and names are **© Nintendo / Game Freak / The Pokémon Company.** These community mirrors
   are used only to build this free, non-commercial fan tool.
 
 **The bundled Game Guide** — the Professor Oak Challenge walkthrough
 - **Mewlax** ([u/mewlax84](https://www.reddit.com/user/mewlax84), Instagram [@pokemewlax](https://www.instagram.com/pokemewlax/),
-  X [@Mewlax1](https://twitter.com/Mewlax1)) — author of the ORAS guide, shared through the
+  X [@Mewlax1](https://twitter.com/Mewlax1)) — author of the **ORAS and X/Y guides**, shared through the
   [r/ProfessorOak](https://www.reddit.com/r/ProfessorOak/) community.
 - **Chamale** — first inspired the Professor Oak Challenge back in 2018.
 - **Johnstone** and **Chaotic Meatball** — for helping the r/ProfessorOak community grow.
 - **Dynamite** — for the O-Power order info; **Likemeon** — for the Granite Cave chaining tip.
 
 **This fork**
-- Fork, overhaul and v0.3.0 → v0.4.2 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
+- Fork, overhaul and v0.3.0 → v0.5.0 additions by [samaBR85](https://github.com/samaBR85), built in collaboration
   with **Claude** (Anthropic).
 
 ## License

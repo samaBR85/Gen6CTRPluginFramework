@@ -74,6 +74,14 @@ namespace CTRPluginFramework {
         _item->favAlias = alias;
     }
 
+    void MenuFolder::SetFavoriteKey(const string &key) const {
+        _item->favKey = key;
+    }
+
+    void MenuFolder::SetDangerous(bool enable) const {
+        _item->Flags.isDangerous = enable;
+    }
+
     void MenuFolder::SetTwoColumns(bool enable) const {
         _item->Flags.twoColumn = enable;
     }

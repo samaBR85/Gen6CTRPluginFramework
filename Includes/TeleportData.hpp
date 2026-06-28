@@ -9,17 +9,21 @@ namespace CTRPluginFramework {
     struct TelePos  { u8 x, y; }; // Hoenn geographic position (x W->E, y N->S, 0..100)
 
     // category per absolute kParsedLocations idx: 0=Towns&Cities 1=Other(caves/forests/landmarks/mirage) 0xFF=n/a
-    static const u8 kLocCat[63] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 };
+    static const u8 kLocCat[63] = { 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 };
 
     // "Other" tab sub-section (drill-down menu): 0=Cave 1=Forest 2=Landmark 3=Mirage Spot 0xFF=n/a
-    static const u8 kLocSec[63] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 2, 0, 2, 0, 255, 255, 3, 255, 255, 3, 0, 0, 255, 255, 255, 0, 255, 3, 0, 255, 255, 255, 1, 255, 255, 0, 0, 2, 0, 3, 2, 255, 255, 255, 0 };
+    static const u8 kLocSec[63] = { 255, 255, 255, 255, 255, 255, 2, 255, 2, 255, 255, 255, 255, 2, 255, 255, 0, 255, 1, 0, 255, 255, 2, 0, 2, 255, 255, 0, 2, 0, 2, 0, 255, 255, 3, 255, 255, 3, 0, 0, 255, 255, 255, 0, 255, 3, 0, 255, 255, 255, 1, 255, 255, 0, 0, 2, 0, 3, 2, 255, 255, 255, 0 };
 
     // Hoenn routes (Routes tab; bindable/teleportable via captured spots)
     static const char *const kRoutes[] = { "Route 101", "Route 102", "Route 103", "Route 104", "Route 105", "Route 106", "Route 107", "Route 108", "Route 109", "Route 110", "Route 111", "Route 112", "Route 113", "Route 114", "Route 115", "Route 116", "Route 117", "Route 118", "Route 119", "Route 120", "Route 121", "Route 122", "Route 123", "Route 124", "Route 125", "Route 126", "Route 127", "Route 128", "Route 129", "Route 130", "Route 131", "Route 132", "Route 133", "Route 134" };
     static const int kRouteCount = 34;
 
+    // Kalos (XY) routes - same player-taught warp model as Hoenn routes (warp via a MyTeleport SPOT).
+    static const char *const kRoutesXY[] = { "Route 1", "Route 2", "Route 3", "Route 4", "Route 5", "Route 6", "Route 7", "Route 8", "Route 9", "Route 10", "Route 11", "Route 12", "Route 13", "Route 14", "Route 15", "Route 16", "Route 17", "Route 18", "Route 19", "Route 20", "Route 21", "Route 22" };
+    static const int kRouteCountXY = 22;
+
     // geographic positions for the free Map mode (0,0 = n/a)
-    static const TelePos kLocPos[63] = { {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {66,46}, {96,94}, {78,66}, {44,58}, {50,42}, {26,96}, {90,88}, {6,34}, {34,28}, {62,36}, {6,46}, {18,92}, {8,52}, {74,46}, {40,90}, {52,56}, {24,36}, {88,54}, {6,58}, {58,68}, {40,80}, {70,84}, {26,76}, {26,66}, {96,84}, {16,54}, {28,52}, {58,44}, {44,86}, {62,92}, {6,70}, {82,86}, {52,80}, {70,64}, {36,60}, {82,82} };
+    static const TelePos kLocPos[63] = { {18,62}, {78,40}, {45,58}, {38,38}, {82,55}, {15,50}, {47,57}, {52,28}, {90,75}, {33,52}, {88,72}, {62,32}, {50,50}, {58,28}, {50,50}, {52,8}, {74,50}, {38,68}, {36,73}, {30,42}, {22,42}, {48,15}, {33,53}, {72,52}, {44,6}, {35,85}, {50,50}, {66,46}, {96,94}, {78,66}, {44,58}, {50,42}, {26,96}, {90,88}, {6,34}, {34,28}, {62,36}, {6,46}, {18,92}, {8,52}, {74,46}, {40,90}, {52,56}, {24,36}, {88,54}, {6,58}, {58,68}, {40,80}, {70,84}, {26,76}, {26,66}, {96,84}, {16,54}, {28,52}, {58,44}, {44,86}, {62,92}, {6,70}, {82,86}, {52,80}, {70,64}, {36,60}, {82,82} };
 
     // exit strings per location (for the detail screen)
     static const char *const kExit29[] = { "S: Sootopolis City" };
@@ -49,8 +53,36 @@ namespace CTRPluginFramework {
     static const char *const kExit61[] = { "N: Rusturf Tunnel", "E: Route 117" };
     static const char *const kExit62[] = { "N: Pokemon League", "S: Ever Grande City" };
 
+        static const char *const kExit0[] = { "E: Route 8 (Cyllage)", "N: Route 9 (Glittering Cave)" };
+    static const char *const kExit1[] = { "W: Route 17 (Dendemille)", "S: Route 18 (Couriway)" };
+    static const char *const kExit2[] = { "E: Route 5 (Lumiose)", "W: Route 7 (Day Care)" };
+    static const char *const kExit3[] = { "E: Route 13 (Lumiose)", "W: Route 12 (Shalour)" };
+    static const char *const kExit4[] = { "N: Route 18 (Anistar)", "S: Route 19 (Snowbelle)" };
+    static const char *const kExit5[] = { "W: Route 8 (Ambrette)", "E: Route 10 (Geosenge)" };
+    static const char *const kExit6[] = { "W: Route 7 (Camphrier)", "E: Route 7 (Cyllage)" };
+    static const char *const kExit7[] = { "S: Route 16 (Lumiose)", "SW: Route 15 (Factory)", "E: Route 17 (Anistar)" };
+    static const char *const kExit8[] = { "N: Kiloude City" };
+    static const char *const kExit9[] = { "W: Route 10 (Cyllage)", "NW: Route 11 (Shalour)", "Below: Team Flare HQ" };
+    static const char *const kExit10[] = { "Train: Lumiose City", "S: Friend Safari" };
+    static const char *const kExit11[] = { "S: Route 14 (Lumiose)", "N: Route 15 (Factory)" };
+    static const char *const kExit12[] = { "S: Route 4 (Santalune)", "W: Route 5 (Camphrier)", "NW: Route 13 (Coumarine)", "NE: Route 14 (Laverre)", "N: Route 16 (Dendemille)" };
+    static const char *const kExit13[] = { "S: Route 15 (Laverre)", "N: Route 15 (Dendemille)" };
+    static const char *const kExit14[] = { "In Lumiose City" };
+    static const char *const kExit15[] = { "S: Victory Road (Snowbelle)" };
+    static const char *const kExit16[] = { "In Terminus Cave" };
+    static const char *const kExit17[] = { "S: Route 3 (Forest)", "N: Route 4 (Lumiose)", "W: Route 22 (Victory Rd)" };
+    static const char *const kExit18[] = { "S: Route 2 (Aquacorde)", "N: Route 3 (Santalune)" };
+    static const char *const kExit19[] = { "Surf: Azure Bay (Coumarine)" };
+    static const char *const kExit20[] = { "E: Route 12 (Coumarine)", "SE: Route 11 (Geosenge)" };
+    static const char *const kExit21[] = { "S: Route 19 (Couriway)", "E: Route 21 (League)", "N: Route 20 (Pkmn Village)" };
+    static const char *const kExit22[] = { "Up: Geosenge Town" };
+    static const char *const kExit23[] = { "S: Route 18 (Couriway)", "NW: Route 18 (Anistar)" };
+    static const char *const kExit24[] = { "S: Route 20 (Snowbelle)" };
+    static const char *const kExit25[] = { "N: Route 1 (Aquacorde)" };
+    static const char *const kExit26[] = { "In Lumiose City" };
+
     static const TeleConn kLocConn[63] = {
-        { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { kExit29, 1 }, { kExit30, 2 }, { nullptr, 0 }, { kExit32, 2 }, { kExit33, 2 }, { nullptr, 0 }, { kExit35, 2 }, { kExit36, 2 }, { nullptr, 0 }, { kExit38, 1 }, { nullptr, 0 }, { kExit40, 2 }, { kExit41, 1 }, { kExit42, 4 }, { kExit43, 2 }, { kExit44, 3 }, { nullptr, 0 }, { nullptr, 0 }, { kExit47, 3 }, { kExit48, 2 }, { kExit49, 2 }, { kExit50, 2 }, { kExit51, 1 }, { kExit52, 3 }, { kExit53, 3 }, { kExit54, 1 }, { kExit55, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kExit58, 1 }, { kExit59, 3 }, { kExit60, 2 }, { kExit61, 2 }, { kExit62, 2 }
+        { kExit0, 2 }, { kExit1, 2 }, { kExit2, 2 }, { kExit3, 2 }, { kExit4, 2 }, { kExit5, 2 }, { kExit6, 2 }, { kExit7, 3 }, { kExit8, 1 }, { kExit9, 3 }, { kExit10, 2 }, { kExit11, 2 }, { kExit12, 5 }, { kExit13, 2 }, { kExit14, 1 }, { kExit15, 1 }, { kExit16, 1 }, { kExit17, 3 }, { kExit18, 2 }, { kExit19, 1 }, { kExit20, 2 }, { kExit21, 3 }, { kExit22, 1 }, { kExit23, 2 }, { kExit24, 1 }, { kExit25, 1 }, { kExit26, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kExit29, 1 }, { kExit30, 2 }, { nullptr, 0 }, { kExit32, 2 }, { kExit33, 2 }, { nullptr, 0 }, { kExit35, 2 }, { kExit36, 2 }, { nullptr, 0 }, { kExit38, 1 }, { nullptr, 0 }, { kExit40, 2 }, { kExit41, 1 }, { kExit42, 4 }, { kExit43, 2 }, { kExit44, 3 }, { nullptr, 0 }, { nullptr, 0 }, { kExit47, 3 }, { kExit48, 2 }, { kExit49, 2 }, { kExit50, 2 }, { kExit51, 1 }, { kExit52, 3 }, { kExit53, 3 }, { kExit54, 1 }, { kExit55, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kExit58, 1 }, { kExit59, 3 }, { kExit60, 2 }, { kExit61, 2 }, { kExit62, 2 }
     };
 
     // navigable connection graph (Map mode)
@@ -80,8 +112,36 @@ namespace CTRPluginFramework {
     static const TeleEdge kEdge61[] = { { 42, 2, "Route 117" }, { 30, 2, "Route 117" }, { 53, 0, "Rusturf Tunnel" } };
     static const TeleEdge kEdge62[] = { { 51, 0, "Pokemon League" }, { 33, 1, "Ever Grande City" } };
 
+        static const TeleEdge kEdge0[] = { { 5, 2, "Route 8" } };
+    static const TeleEdge kEdge1[] = { { 7, 3, "Route 17" }, { 4, 1, "Route 18" } };
+    static const TeleEdge kEdge2[] = { { 12, 2, "Route 5" }, { 6, 3, "Route 7" } };
+    static const TeleEdge kEdge3[] = { { 12, 2, "Route 13" }, { 20, 3, "Route 12" } };
+    static const TeleEdge kEdge4[] = { { 23, 0, "Route 18" }, { 1, 5, "Route 18" }, { 21, 1, "Route 19" } };
+    static const TeleEdge kEdge5[] = { { 0, 3, "Route 8" }, { 9, 2, "Route 10" } };
+    static const TeleEdge kEdge6[] = { { 2, 3, "Route 7" }, { 5, 2, "Route 7" } };
+    static const TeleEdge kEdge7[] = { { 12, 1, "Route 16" }, { 13, 7, "Route 15" }, { 1, 2, "Route 17" } };
+    static const TeleEdge kEdge8[] = { { 10, 0, "Kiloude City" } };
+    static const TeleEdge kEdge9[] = { { 5, 3, "Route 10" }, { 20, 5, "Reflection Cave" }, { 22, 1, "Underground" } };
+    static const TeleEdge kEdge10[] = { { 12, 5, "Train" }, { 8, 1, "Friend Safari" } };
+    static const TeleEdge kEdge11[] = { { 12, 1, "Route 14" }, { 13, 0, "Route 15" } };
+    static const TeleEdge kEdge12[] = { { 17, 1, "Route 4" }, { 2, 3, "Route 5" }, { 3, 5, "Route 13" }, { 11, 4, "Route 14" }, { 7, 0, "Route 16" }, { 10, 6, "Train" } };
+    static const TeleEdge kEdge13[] = { { 11, 1, "Route 15" }, { 7, 0, "Route 15" } };
+    static const TeleEdge kEdge14[] = { { 12, 0, "Lumiose City" } };
+    static const TeleEdge kEdge15[] = { { 21, 1, "Victory Road" } };
+    static const TeleEdge kEdge16[] = { { 23, 1, "Terminus Cave" } };
+    static const TeleEdge kEdge17[] = { { 18, 1, "Route 3" }, { 12, 0, "Route 4" } };
+    static const TeleEdge kEdge18[] = { { 17, 0, "Route 3" } };
+    static const TeleEdge kEdge19[] = { { 3, 4, "Azure Bay" } };
+    static const TeleEdge kEdge20[] = { { 3, 2, "Route 12" }, { 9, 6, "Reflection Cave" } };
+    static const TeleEdge kEdge21[] = { { 4, 1, "Route 19" }, { 15, 2, "Route 21" }, { 24, 0, "Route 20" } };
+    static const TeleEdge kEdge22[] = { { 9, 0, "Geosenge Town" } };
+    static const TeleEdge kEdge23[] = { { 4, 1, "Route 18" }, { 1, 5, "Route 18" } };
+    static const TeleEdge kEdge24[] = { { 21, 1, "Route 20" } };
+    static const TeleEdge kEdge25[] = { { 18, 0, "Route 1" } };
+    static const TeleEdge kEdge26[] = { { 12, 0, "Lumiose City" } };
+
     static const TeleNode kMap[63] = {
-        { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge29, 1 }, { kEdge30, 2 }, { nullptr, 0 }, { kEdge32, 1 }, { kEdge33, 1 }, { nullptr, 0 }, { kEdge35, 1 }, { kEdge36, 1 }, { nullptr, 0 }, { kEdge38, 1 }, { nullptr, 0 }, { kEdge40, 1 }, { kEdge41, 1 }, { kEdge42, 3 }, { kEdge43, 2 }, { kEdge44, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge47, 2 }, { kEdge48, 1 }, { kEdge49, 1 }, { kEdge50, 1 }, { kEdge51, 1 }, { kEdge52, 3 }, { kEdge53, 2 }, { kEdge54, 1 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge58, 1 }, { kEdge59, 1 }, { kEdge60, 1 }, { kEdge61, 3 }, { kEdge62, 2 }
+        { kEdge0, 1 }, { kEdge1, 2 }, { kEdge2, 2 }, { kEdge3, 2 }, { kEdge4, 3 }, { kEdge5, 2 }, { kEdge6, 2 }, { kEdge7, 3 }, { kEdge8, 1 }, { kEdge9, 3 }, { kEdge10, 2 }, { kEdge11, 2 }, { kEdge12, 6 }, { kEdge13, 2 }, { kEdge14, 1 }, { kEdge15, 1 }, { kEdge16, 1 }, { kEdge17, 2 }, { kEdge18, 1 }, { kEdge19, 1 }, { kEdge20, 2 }, { kEdge21, 3 }, { kEdge22, 1 }, { kEdge23, 2 }, { kEdge24, 1 }, { kEdge25, 1 }, { kEdge26, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge29, 1 }, { kEdge30, 2 }, { nullptr, 0 }, { kEdge32, 1 }, { kEdge33, 1 }, { nullptr, 0 }, { kEdge35, 1 }, { kEdge36, 1 }, { nullptr, 0 }, { kEdge38, 1 }, { nullptr, 0 }, { kEdge40, 1 }, { kEdge41, 1 }, { kEdge42, 3 }, { kEdge43, 2 }, { kEdge44, 1 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge47, 2 }, { kEdge48, 1 }, { kEdge49, 1 }, { kEdge50, 1 }, { kEdge51, 1 }, { kEdge52, 3 }, { kEdge53, 2 }, { kEdge54, 1 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { kEdge58, 1 }, { kEdge59, 1 }, { kEdge60, 1 }, { kEdge61, 3 }, { kEdge62, 2 }
     };
 
     // Map-mode graph: each node (location/route) -> direct neighbours (location/route + dir). Routes are tiles.
@@ -116,9 +176,61 @@ namespace CTRPluginFramework {
     static const MapLink kLL60[] = { { 25, 1, 1 }, { 29, 0, 0 } };
     static const MapLink kLL61[] = { { 16, 1, 2 }, { 53, 0, 5 } };
     static const MapLink kLL62[] = { { 33, 0, 1 }, { 51, 0, 0 } };
+        static const MapLink kLL0[] = { { 7, 1, 2 }, { 8, 1, 1 } };
+    static const MapLink kLL1[] = { { 16, 1, 3 }, { 17, 1, 1 } };
+    static const MapLink kLL2[] = { { 4, 1, 2 }, { 5, 1, 1 }, { 6, 1, 2 } };
+    static const MapLink kLL3[] = { { 11, 1, 3 }, { 12, 1, 2 }, { 19, 0, 7 } };
+    static const MapLink kLL4[] = { { 17, 1, 0 }, { 18, 1, 0 } };
+    static const MapLink kLL5[] = { { 6, 1, 3 }, { 7, 1, 3 }, { 9, 1, 2 } };
+    static const MapLink kLL6[] = { { 6, 1, 3 } };
+    static const MapLink kLL7[] = { { 14, 1, 1 }, { 15, 1, 1 }, { 16, 1, 2 } };
+    static const MapLink kLL8[] = { { 10, 0, 0 } };
+    static const MapLink kLL9[] = { { 9, 1, 3 }, { 10, 1, 3 }, { 22, 0, 1 } };
+    static const MapLink kLL10[] = { { 8, 0, 1 }, { 12, 0, 5 } };
+    static const MapLink kLL11[] = { { 13, 1, 0 }, { 14, 1, 0 } };
+    static const MapLink kLL12[] = { { 3, 1, 1 }, { 4, 1, 3 }, { 12, 1, 3 }, { 13, 1, 1 }, { 15, 1, 0 }, { 21, 1, 2 }, { 10, 0, 6 }, { 14, 0, 0 }, { 26, 0, 0 } };
+    static const MapLink kLL13[] = { { 14, 1, 3 } };
+    static const MapLink kLL14[] = { { 12, 0, 0 } };
+    static const MapLink kLL15[] = { { 20, 1, 2 } };
+    static const MapLink kLL16[] = { { 23, 0, 1 } };
+    static const MapLink kLL17[] = { { 2, 1, 1 }, { 3, 1, 0 } };
+    static const MapLink kLL18[] = { { 1, 1, 1 }, { 2, 1, 0 } };
+    static const MapLink kLL19[] = { { 3, 0, 4 } };
+    static const MapLink kLL20[] = { { 10, 1, 2 }, { 11, 1, 2 } };
+    static const MapLink kLL21[] = { { 18, 1, 1 }, { 19, 1, 1 }, { 20, 1, 3 } };
+    static const MapLink kLL22[] = { { 9, 0, 1 } };
+    static const MapLink kLL23[] = { { 17, 1, 3 }, { 16, 0, 0 } };
+    static const MapLink kLL24[] = { { 19, 1, 0 } };
+    static const MapLink kLL25[] = { { 0, 1, 0 } };
+    static const MapLink kLL26[] = { { 12, 0, 0 } };
+
     static const MapNode kLocLinks[63] = {
-        { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { nullptr, 0 }, { kLL27, 1 }, { nullptr, 0 }, { kLL29, 1 }, { kLL30, 1 }, { nullptr, 0 }, { kLL32, 2 }, { kLL33, 2 }, { nullptr, 0 }, { kLL35, 2 }, { kLL36, 2 }, { nullptr, 0 }, { kLL38, 1 }, { nullptr, 0 }, { kLL40, 2 }, { kLL41, 1 }, { kLL42, 4 }, { kLL43, 2 }, { kLL44, 3 }, { nullptr, 0 }, { kLL46, 1 }, { kLL47, 3 }, { kLL48, 2 }, { kLL49, 2 }, { kLL50, 1 }, { kLL51, 1 }, { kLL52, 3 }, { kLL53, 2 }, { kLL54, 1 }, { kLL55, 1 }, { kLL56, 1 }, { nullptr, 0 }, { kLL58, 1 }, { kLL59, 3 }, { kLL60, 2 }, { kLL61, 2 }, { kLL62, 2 }
+        { kLL0, 1 }, { kLL1, 2 }, { kLL2, 2 }, { kLL3, 2 }, { kLL4, 3 }, { kLL5, 2 }, { kLL6, 2 }, { kLL7, 3 }, { kLL8, 1 }, { kLL9, 3 }, { kLL10, 2 }, { kLL11, 2 }, { kLL12, 6 }, { kLL13, 2 }, { kLL14, 1 }, { kLL15, 1 }, { kLL16, 1 }, { kLL17, 2 }, { kLL18, 1 }, { kLL19, 1 }, { kLL20, 2 }, { kLL21, 3 }, { kLL22, 1 }, { kLL23, 2 }, { kLL24, 1 }, { kLL25, 1 }, { kLL26, 1 }, { kLL27, 1 }, { nullptr, 0 }, { kLL29, 1 }, { kLL30, 1 }, { nullptr, 0 }, { kLL32, 2 }, { kLL33, 2 }, { nullptr, 0 }, { kLL35, 2 }, { kLL36, 2 }, { nullptr, 0 }, { kLL38, 1 }, { nullptr, 0 }, { kLL40, 2 }, { kLL41, 1 }, { kLL42, 4 }, { kLL43, 2 }, { kLL44, 3 }, { nullptr, 0 }, { kLL46, 1 }, { kLL47, 3 }, { kLL48, 2 }, { kLL49, 2 }, { kLL50, 1 }, { kLL51, 1 }, { kLL52, 3 }, { kLL53, 2 }, { kLL54, 1 }, { kLL55, 1 }, { kLL56, 1 }, { nullptr, 0 }, { kLL58, 1 }, { kLL59, 3 }, { kLL60, 2 }, { kLL61, 2 }, { kLL62, 2 }
     };
+    static const MapLink kRLX0[] = { { 25, 0, 1 } };
+    static const MapLink kRLX1[] = { { 18, 0, 0 } };
+    static const MapLink kRLX2[] = { { 18, 0, 1 }, { 17, 0, 0 } };
+    static const MapLink kRLX3[] = { { 17, 0, 1 }, { 12, 0, 0 } };
+    static const MapLink kRLX4[] = { { 12, 0, 2 }, { 2, 0, 3 } };
+    static const MapLink kRLX5[] = { { 2, 0, 0 } };
+    static const MapLink kRLX6[] = { { 2, 0, 3 }, { 6, 0, 2 }, { 5, 0, 2 } };
+    static const MapLink kRLX7[] = { { 0, 0, 3 }, { 5, 0, 2 } };
+    static const MapLink kRLX8[] = { { 0, 0, 0 } };
+    static const MapLink kRLX9[] = { { 5, 0, 3 }, { 9, 0, 2 } };
+    static const MapLink kRLX10[] = { { 9, 0, 2 }, { 20, 0, 3 } };
+    static const MapLink kRLX11[] = { { 20, 0, 3 }, { 3, 0, 2 } };
+    static const MapLink kRLX12[] = { { 3, 0, 3 }, { 12, 0, 2 } };
+    static const MapLink kRLX13[] = { { 12, 0, 0 }, { 11, 0, 1 } };
+    static const MapLink kRLX14[] = { { 11, 0, 1 }, { 13, 0, 2 }, { 7, 0, 0 } };
+    static const MapLink kRLX15[] = { { 12, 0, 1 }, { 7, 0, 0 } };
+    static const MapLink kRLX16[] = { { 7, 0, 3 }, { 1, 0, 2 } };
+    static const MapLink kRLX17[] = { { 1, 0, 0 }, { 23, 0, 2 }, { 4, 0, 1 } };
+    static const MapLink kRLX18[] = { { 4, 0, 1 }, { 21, 0, 0 } };
+    static const MapLink kRLX19[] = { { 21, 0, 0 }, { 24, 0, 1 } };
+    static const MapLink kRLX20[] = { { 21, 0, 2 }, { 15, 0, 3 } };
+    static const MapLink kRLX21[] = { { 12, 0, 3 } };
+    static const MapNode kRouteLinksXY[22] = { { kRLX0, 1 }, { kRLX1, 1 }, { kRLX2, 2 }, { kRLX3, 2 }, { kRLX4, 2 }, { kRLX5, 1 }, { kRLX6, 3 }, { kRLX7, 2 }, { kRLX8, 1 }, { kRLX9, 2 }, { kRLX10, 2 }, { kRLX11, 2 }, { kRLX12, 2 }, { kRLX13, 2 }, { kRLX14, 3 }, { kRLX15, 2 }, { kRLX16, 2 }, { kRLX17, 3 }, { kRLX18, 2 }, { kRLX19, 2 }, { kRLX20, 2 }, { kRLX21, 1 } };
+
     static const MapLink kRL0[] = { { 47, 0, 0 }, { 41, 0, 1 } };
     static const MapLink kRL1[] = { { 49, 0, 3 }, { 47, 0, 2 } };
     static const MapLink kRL2[] = { { 9, 1, 2 }, { 47, 0, 7 } };
@@ -157,6 +269,9 @@ namespace CTRPluginFramework {
         { kRL0, 2 }, { kRL1, 2 }, { kRL2, 2 }, { kRL3, 4 }, { kRL4, 2 }, { kRL5, 3 }, { kRL6, 1 }, { kRL7, 2 }, { kRL8, 2 }, { kRL9, 4 }, { kRL10, 3 }, { kRL11, 1 }, { kRL12, 2 }, { kRL13, 2 }, { kRL14, 2 }, { kRL15, 2 }, { kRL16, 3 }, { kRL17, 3 }, { kRL18, 2 }, { kRL19, 4 }, { kRL20, 3 }, { kRL21, 2 }, { kRL22, 2 }, { kRL23, 3 }, { kRL24, 1 }, { kRL25, 3 }, { kRL26, 3 }, { kRL27, 3 }, { kRL28, 2 }, { kRL29, 2 }, { kRL30, 3 }, { kRL31, 2 }, { kRL32, 2 }, { kRL33, 3 }
     };
 
+    // Kalos (XY) overview grid (Y-toggle in Map): 27 locations (0-26) + 22 routes (2000+R), ~geographic order.
+    static const u16 kOverviewTilesXY[49] = { 24, 15, 2019, 2020, 21, 7, 13, 2014, 11, 2016, 2018, 3, 2015, 2011, 1, 2013, 20, 19, 2012, 2010, 2017, 5, 12, 14, 26, 2021, 16, 2009, 9, 23, 22, 2004, 2006, 4, 2007, 6, 2, 2005, 2003, 0, 2008, 17, 2002, 10, 18, 2001, 8, 25, 2000 };
+    static const int kOverviewCountXY = 49;
     // overview grid (Y-toggle in Map): all imaged tiles (locations 27..62 + routes 2000+R) in
     // approximate-geographic order, packed dense row-major into kOverviewCols columns.
     static const u16 kOverviewTiles[70] = { 34, 43, 2013, 35, 2012, 36, 2018, 37, 2014, 31, 54, 2019, 27, 40, 39, 2015, 53, 2022, 2020, 2021, 2023, 52, 42, 2010, 2011, 44, 2024, 2026, 45, 61, 30, 2016, 2017, 60, 2025, 57, 2003, 50, 49, 2009, 46, 29, 2004, 2001, 47, 2002, 59, 2008, 62, 2000, 55, 2032, 48, 2031, 2030, 51, 2007, 2033, 58, 2029, 33, 2027, 2028, 38, 2005, 32, 2006, 41, 56, 28 };

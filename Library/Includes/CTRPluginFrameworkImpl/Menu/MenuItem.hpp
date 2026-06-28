@@ -23,6 +23,7 @@ namespace CTRPluginFramework {
         bool twoColumn : 1; // render this folder's items in a 2-column grid (set per-folder)
         bool gridFull : 1;  // force this entry to span the full width inside a 2-column folder
         bool gridPair : 1;  // force this entry to pair (half-width) in a 2-column folder, even if not a checkbox
+        bool isDangerous : 1; // selected-row draws a solid red warning background (sensitive entry)
     };
 
     class MenuEntryImpl;
@@ -47,12 +48,14 @@ namespace CTRPluginFramework {
                     Flags.twoColumn = false;
                     Flags.gridFull = false;
                     Flags.gridPair = false;
+                    Flags.isDangerous = false;
                 }
 
             string name;
             string firstName;
             string note;
             string favAlias; // short label shown only in the Favorites list (empty = use full name)
+            string favKey;   // language-independent persistence id (e.g. the "FAV_X" lookup key); preferred over favAlias in StableKey()
 
             void Hide(void);
             void Show(void);

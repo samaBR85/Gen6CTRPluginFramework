@@ -12,10 +12,13 @@ namespace CTRPluginFramework {
         // the root, separator between levels) - stable only as long as no name on the path changes.
         u32 h = 2166136261u;
 
-        if (!favAlias.empty()) {
-            h ^= 0xA1u; h *= 16777619u; // 'alias' domain tag so an alias can't collide with a name-path hash
-            for (size_t i = 0; i < favAlias.size(); ++i) {
-                h ^= static_cast<u8>(favAlias[i]);
+        // PREFER a language-INDEPENDENT id: favKey (e.g. the "FAV_X" lookup key the plugin set) so the favorite
+        // survives UI-language changes. Else the author-set favAlias (display label). Else the name-path below.
+        const string &id = !favKey.empty() ? favKey : favAlias;
+        if (!id.empty()) {
+            h ^= 0xA1u; h *= 16777619u; // 'id' domain tag so it can't collide with a name-path hash
+            for (size_t i = 0; i < id.size(); ++i) {
+                h ^= static_cast<u8>(id[i]);
                 h *= 16777619u;
             }
             return h;

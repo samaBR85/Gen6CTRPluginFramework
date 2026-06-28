@@ -1,9 +1,10 @@
 #include <Headers.hpp>
 
 namespace CTRPluginFramework {
-    static MenuFolderImpl *CreateFolder(std::string path) {
+    static MenuFolderImpl *CreateFolder(std::string path, const std::string &displayName = "") {
         u32 pos = path.rfind("/");
-        string name = pos != std::string::npos ? path.substr(pos + 1) : path;
+        // The root call may pass a friendly (translated) title; subfolders keep their own folder name.
+        string name = !displayName.empty() ? displayName : (pos != std::string::npos ? path.substr(pos + 1) : path);
         MenuFolderImpl *mFolder = new MenuFolderImpl(name);
         Directory folder;
         vector<string> directories;
@@ -48,9 +49,9 @@ namespace CTRPluginFramework {
     // In Preferences.cpp
     BMPImage *PostProcess(BMPImage *img, int maxX, int maxY);
 
-    GuideReader::GuideReader(const string &folderPath):
+    GuideReader::GuideReader(const string &folderPath, const string &title):
         _isOpen(false),
-        _menu(CreateFolder(folderPath), Icon::DrawFile),
+        _menu(CreateFolder(folderPath, title), Icon::DrawFile),
         _guideTB("", "", Window::TopWindow.GetRect()),
         _text(""),
         _last(nullptr)
@@ -110,15 +111,16 @@ namespace CTRPluginFramework {
                 _image->Draw(IntRect(60, 20, 280, 200));
 
             else {
-                const char *l1 = "Tap a topic on the bottom screen.";
-                const char *l2 = "It opens here, on the top screen.";
-                const char *l3 = "While reading: Up/Down scroll, B goes back.";
+                // Translatable via the plugin->Library text bridge (falls back to English).
+                std::string l1 = FwText("FW_GUIDE_HINT1", "Tap a topic on the bottom screen.");
+                std::string l2 = FwText("FW_GUIDE_HINT2", "It opens here, on the top screen.");
+                std::string l3 = FwText("FW_GUIDE_HINT3", "While reading: Up/Down scroll, B goes back.");
                 int y = 80;
-                Renderer::DrawSysString(l1, (400 - Renderer::GetTextSize(l1)) / 2, y, 400, Preferences::Settings.WindowTitleColor);
+                Renderer::DrawSysString(l1.c_str(), (400 - Renderer::GetTextSize(l1.c_str())) / 2, y, 400, Preferences::Settings.WindowTitleColor);
                 y = 120;
-                Renderer::DrawSysString(l2, (400 - Renderer::GetTextSize(l2)) / 2, y, 400, Preferences::Settings.MainTextColor);
+                Renderer::DrawSysString(l2.c_str(), (400 - Renderer::GetTextSize(l2.c_str())) / 2, y, 400, Preferences::Settings.MainTextColor);
                 y = 150;
-                Renderer::DrawSysString(l3, (400 - Renderer::GetTextSize(l3)) / 2, y, 400, Preferences::Settings.MainTextColor);
+                Renderer::DrawSysString(l3.c_str(), (400 - Renderer::GetTextSize(l3.c_str())) / 2, y, 400, Preferences::Settings.MainTextColor);
             }
         }
 

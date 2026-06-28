@@ -427,7 +427,7 @@ namespace CTRPluginFramework {
 
         // Lambda to generate prompt text for party positions
         auto generatePromptText = [&](const vector<string> &party) -> string {
-            string promptText = string("Choose Party Slot") <<
+            string promptText = string(getLanguage->Get("KB_BATTLE_CHOOSE_PARTY_SLOT")) <<
                 sel << "\n\n1: " + party[0] <<
                 sel << "\n2: " + party[1] <<
                 sel << "\n3: " + party[2] <<
@@ -454,7 +454,7 @@ namespace CTRPluginFramework {
                 updatePointerOffsets(position); // Adjust pointer offsets based on selection
 
                 // Update the menu entry with the newly set position
-                entry->Name() = string("Slot ") << Color::Gray << Utils::ToString(position, 0);
+                entry->Name() = string(getLanguage->Get("KB_BATTLE_SLOT") + " ") << Color::Gray << Utils::ToString(position, 0);
                 MessageBox(CenterAlign(getLanguage->Get("KB_BATTLE_SELECTED_POSITION") + " " + party[position - 1]), DialogType::DialogOk, ClearScreen::Both)();
             }
         }
@@ -873,25 +873,25 @@ namespace CTRPluginFramework {
                 u32 location = base + (box * 6960) + (slot * 0xE8);
 
                 if (GetPokemon(location, &boxmon) && boxmon.species == species)
-                    locations.push_back("Box " + to_string(box + 1) + " - Slot " + to_string(slot + 1));
+                    locations.push_back(Utils::Format(getLanguage->Get("FIND_BOX_SLOT_FMT").c_str(), box + 1, slot + 1));
             }
 
         string name = speciesList[species - 1];
 
         if (locations.empty()) {
-            MessageBox(name + ": not found in any PC box.", DialogType::DialogOk, ClearScreen::Both)();
+            MessageBox(Utils::Format(getLanguage->Get("FIND_NOT_IN_BOX_FMT").c_str(), name.c_str()), DialogType::DialogOk, ClearScreen::Both)();
             return;
         }
 
         // One location per line, left-aligned. No CenterAlign: on multi-line it clipped AND dropped lines.
-        string msg = name + " - found " + to_string((int)locations.size()) + ":\n\n";
+        string msg = Utils::Format(getLanguage->Get("FIND_FOUND_FMT").c_str(), name.c_str(), (int)locations.size()) + "\n\n";
         int shown = (int)locations.size() < 10 ? (int)locations.size() : 10;
 
         for (int i = 0; i < shown; ++i)
             msg += locations[i] + "\n";
 
         if ((int)locations.size() > shown)
-            msg += "...and " + to_string((int)locations.size() - shown) + " more";
+            msg += Utils::Format(getLanguage->Get("FIND_AND_MORE_FMT").c_str(), (int)locations.size() - shown);
 
         MessageBox(msg, DialogType::DialogOk, ClearScreen::Both)();
     }
@@ -1125,12 +1125,12 @@ namespace CTRPluginFramework {
             // Line 2: Lv.X - HP: Y [star] [pkrs]. Each part toggles.
             string l2; bool any2 = false;
             if (EsOn(g_esLevel)) {
-                l2 = textColor << "Lv." << Utils::ToString(level, 0);
+                l2 = textColor << getLanguage->Get("ENEMY_LV") << Utils::ToString(level, 0);
                 any2 = true;
             }
             if (EsOn(g_esMaxHP)) {
-                if (any2) l2 = l2 << " - HP: " << to_string(maxHP);
-                else l2 = textColor << "HP: " << to_string(maxHP);
+                if (any2) l2 = l2 << " - " << getLanguage->Get("ENEMY_HP") << " " << to_string(maxHP);
+                else l2 = textColor << getLanguage->Get("ENEMY_HP") << " " << to_string(maxHP);
                 any2 = true;
             }
             if (EsOn(g_esShiny) && shiny) {
@@ -1140,35 +1140,35 @@ namespace CTRPluginFramework {
             }
             if (EsOn(g_esPkrs) && pkrs) {
                 if (any2) l2 = l2 << " ";
-                l2 = l2 << Color::Magenta << "pkrs";
+                l2 = l2 << Color::Magenta << getLanguage->Get("ENEMY_PKRS");
                 any2 = true;
             }
             if (any2) { draw(l2, xPos, yPos); yPos += lineHeight; }
 
             // Nature (the raised/lowered stat is colored on the IV/EV page)
             if (EsOn(g_esNature)) {
-                draw("Ntr: " << textColor << natureList[pokemon->nature], xPos, yPos);
+                draw(getLanguage->Get("ENEMY_NATURE") << " " << textColor << natureList[pokemon->nature], xPos, yPos);
                 yPos += lineHeight;
             }
 
             // Ability (cyan + "(HA)" when it is the Hidden Ability)
             if (EsOn(g_esAbility)) {
                 bool hiddenAbility = pokemon->abilityNumber == 4;
-                string abilityLine = "Abt: " << (hiddenAbility ? Color::Cyan : textColor) << abilityList[pokemon->ability - 1];
-                if (hiddenAbility) abilityLine = abilityLine << Color::Cyan << " (HA)";
+                string abilityLine = getLanguage->Get("ENEMY_ABILITY") << " " << (hiddenAbility ? Color::Cyan : textColor) << abilityList[pokemon->ability - 1];
+                if (hiddenAbility) abilityLine = abilityLine << Color::Cyan << " " << getLanguage->Get("ENEMY_HA");
                 draw(abilityLine, xPos, yPos);
                 yPos += lineHeight;
             }
 
             // Hidden Power
             if (EsOn(g_esHiddenP)) {
-                draw("Hid.P: " << Color::White << hiddenPowerTypes[hpSum * 15 / 63], xPos, yPos);
+                draw(getLanguage->Get("ENEMY_HIDDEN_POWER") << " " << Color::White << hiddenPowerTypes[hpSum * 15 / 63], xPos, yPos);
                 yPos += lineHeight;
             }
 
             // Item (label spelled out, per user preference)
             if (EsOn(g_esItem)) {
-                draw("Item: " << (pokemon->heldItem == 0 ? Color::Gray : textColor) << (pokemon->heldItem == 0 ? getLanguage->Get("PK_VIEW_NONE") : heldItemList[pokemon->heldItem - 1]), xPos, yPos);
+                draw(getLanguage->Get("ENEMY_ITEM") << " " << (pokemon->heldItem == 0 ? Color::Gray : textColor) << (pokemon->heldItem == 0 ? getLanguage->Get("PK_VIEW_NONE") : heldItemList[pokemon->heldItem - 1]), xPos, yPos);
             }
 
             // Right column: moves
@@ -1206,7 +1206,7 @@ namespace CTRPluginFramework {
                 }
             }
             if (EsOn(g_esIVTotal))
-                draw("IV: " << (ivTotal == 186 ? Color(0xF2, 0xCE, 0x70) : textColor) << to_string(ivTotal) << textColor << "/186", xPos, yPos);
+                draw(getLanguage->Get("ENEMY_IV_TOTAL") << " " << (ivTotal == 186 ? Color(0xF2, 0xCE, 0x70) : textColor) << to_string(ivTotal) << textColor << getLanguage->Get("ENEMY_IV_MAX"), xPos, yPos);
 
             // Right column: EVs. Stat name colored by nature too; value colored by investment; total at the bottom.
             xPos = rightX; yPos = 5;
@@ -1224,7 +1224,7 @@ namespace CTRPluginFramework {
                 }
             }
             if (EsOn(g_esEVTotal))
-                draw("EV: " << (evTotal > 510 ? Color::Red : textColor) << to_string(evTotal) << textColor << "/510", xPos, yPos);
+                draw(getLanguage->Get("ENEMY_EV_TOTAL") << " " << (evTotal > 510 ? Color::Red : textColor) << to_string(evTotal) << textColor << getLanguage->Get("ENEMY_EV_MAX"), xPos, yPos);
         }
 
         return true; // Successful execution of the callback function
@@ -1584,8 +1584,14 @@ namespace CTRPluginFramework {
     }
 
     // Short labels (the full names overflow the small bottom-screen chips).
-    static const char *g_stageShort[5] = { "Baby", "Stage 1", "Stage 2", "Stage 3", "No evo" };
-    static const char *g_catShort[6]   = { "Regular", "Legend.", "Mythical", "Pseudo", "Starter", "Fossil" };
+    static string g_stageShort(int i) {
+        static const char *k[5] = { "SPAWN_STAGE_BABY", "SPAWN_STAGE_1", "SPAWN_STAGE_2", "SPAWN_STAGE_3", "SPAWN_STAGE_NOEVO" };
+        return getLanguage->Get(k[(i < 0 || i > 4) ? 0 : i]);
+    }
+    static string g_catShort(int i) {
+        static const char *k[6] = { "SPAWN_CAT_REGULAR", "SPAWN_CAT_LEGEND", "SPAWN_CAT_MYTHICAL", "SPAWN_CAT_PSEUDO", "SPAWN_CAT_STARTER", "SPAWN_CAT_FOSSIL" };
+        return getLanguage->Get(k[(i < 0 || i > 5) ? 0 : i]);
+    }
 
     static bool SpawnerInBox(const UIntVector &p, int x, int y, int w, int h) {
         return (int)p.x >= x && (int)p.x < x + w && (int)p.y >= y && (int)p.y < y + h;
@@ -1636,13 +1642,13 @@ namespace CTRPluginFramework {
         Color bg = st.BackgroundMainColor, txt = st.MainTextColor, title = st.WindowTitleColor;
         Color border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor;
 
-        static const char *taunts[10] = {
-            "You're going down!", "You'll regret this!", "Bring it on!", "Catch me if you can!",
-            "You're no match for me!", "Let's settle this!", "Is that all you've got?",
-            "Prepare to lose!", "Come and get me!", "I won't go easy on you!"
+        const string taunts[10] = {
+            getLanguage->Get("SPAWN_TAUNT_1"), getLanguage->Get("SPAWN_TAUNT_2"), getLanguage->Get("SPAWN_TAUNT_3"), getLanguage->Get("SPAWN_TAUNT_4"),
+            getLanguage->Get("SPAWN_TAUNT_5"), getLanguage->Get("SPAWN_TAUNT_6"), getLanguage->Get("SPAWN_TAUNT_7"),
+            getLanguage->Get("SPAWN_TAUNT_8"), getLanguage->Get("SPAWN_TAUNT_9"), getLanguage->Get("SPAWN_TAUNT_10")
         };
         static unsigned tauntRot = 0; tauntRot++;
-        const char *taunt = taunts[(unsigned)(n + lvl + tauntRot) % 10];
+        const string taunt = taunts[(unsigned)(n + lvl + tauntRot) % 10];
 
         const string name = speciesList[n - 1];
         int t1 = spawnerType1[n], t2 = spawnerType2[n];
@@ -1663,7 +1669,7 @@ namespace CTRPluginFramework {
             // ---------- TOP: the wild Pokemon, taunting you ----------
             top.DrawRect(30, 20, 340, 200, bg, true);
             top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "A wild Pokemon appeared!", 96, 26, title);
+            top.DrawSysfont(title << getLanguage->Get("SPAWN_APPEARED"), 96, 26, title);
 
             // speech bubble (theme-independent white, like the sprite frame) + a stepped tail to the sprite
             const int bx = 150, by = 52, bw = 206, bh = 40;
@@ -1684,14 +1690,14 @@ namespace CTRPluginFramework {
                 int sw = sprite.Width(), sh = sprite.Height();
                 sprite.Draw(top, 70 + (86 - sw) / 2, 106 + (86 - sh) / 2);
             } else {
-                top.DrawSysfont(Color::Black << "IMAGE", 90, 140, Color::Black);
-                top.DrawSysfont(Color::Black << "N/A", 104, 156, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NO_IMAGE"), 90, 140, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NA"), 104, 156, Color::Black);
             }
 
             // to the right of the sprite: NAME / Lv / type badges
             int rx = 176;
             top.DrawSysfont(title << name, rx, 112, title);
-            top.DrawSysfont(txt << (string("Lv ") + to_string(lvl)), rx, 136, txt);
+            top.DrawSysfont(txt << Utils::Format(getLanguage->Get("SPAWN_LV_FMT").c_str(), lvl), rx, 136, txt);
             {
                 string tn = spawnerTypeNames[t1];
                 int w = (int)OSD::GetTextWidth(true, tn) + 12;
@@ -1710,22 +1716,22 @@ namespace CTRPluginFramework {
             bot.DrawRect(20, 20, 280, 200, bg, true);
             bot.DrawRect(20, 20, 280, 200, border, false);
             {
-                string s = "Spawned!";
+                string s = getLanguage->Get("SPAWN_SPAWNED");
                 int w = (int)OSD::GetTextWidth(true, s);
                 bot.DrawSysfont(title << s, 160 - w / 2, 56, title);
             }
-            bot.DrawSysfont(txt << "Step into grass / water / a cave", 52, 98, txt);
-            bot.DrawSysfont(txt << "to run into it.", 110, 116, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_STEP_INTO"), 52, 98, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_RUN_INTO"), 110, 116, txt);
             // dismiss hints: centre each line as a whole (key accent + description) on x=160
             {
-                const string k = "A / B ", d = "keep browsing";
+                const string k = getLanguage->Get("SPAWN_KEY_AB"), d = getLanguage->Get("SPAWN_KEEP_BROWSING");
                 int kw = (int)OSD::GetTextWidth(true, k), dw = (int)OSD::GetTextWidth(true, d);
                 int x = 160 - (kw + dw) / 2;
                 bot.DrawSysfont(sel << k, x, 158, sel);
                 bot.DrawSysfont(txt << d, x + kw, 158, txt);
             }
             {
-                const string k = "SELECT ", d = "back to the game";
+                const string k = getLanguage->Get("SPAWN_KEY_SELECT"), d = getLanguage->Get("SPAWN_BACK_TO_GAME");
                 int kw = (int)OSD::GetTextWidth(true, k), dw = (int)OSD::GetTextWidth(true, d);
                 int x = 160 - (kw + dw) / 2;
                 bot.DrawSysfont(sel << k, x, 182, sel);
@@ -1809,7 +1815,7 @@ namespace CTRPluginFramework {
                 else if (SpawnerInBox(lastPos, 150, 88, 26, 24)) { if (level > 1) level--; }
                 else if (SpawnerInBox(lastPos, 244, 88, 26, 24)) { if (level < 100) level++; }
                 else if (SpawnerInBox(lastPos, 180, 88, 60, 24)) {
-                    Keyboard kb("Level (1-100)"); u8 v = level;
+                    Keyboard kb(getLanguage->Get("SPAWN_LEVEL_PROMPT")); u8 v = level;
                     if (kb.Open(v, level) == 0) { if (v < 1) v = 1; if (v > 100) v = 100; level = v; }
                     while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
                     armed = false; wasDown = false;
@@ -1842,8 +1848,8 @@ namespace CTRPluginFramework {
                 int sw = sprite.Width(), sh = sprite.Height();
                 sprite.Draw(top, 44 + (88 - sw) / 2, 48 + (88 - sh) / 2);
             } else {
-                top.DrawSysfont(Color::Black << "IMAGE", 62, 80, Color::Black);
-                top.DrawSysfont(Color::Black << "N/A", 76, 96, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NO_IMAGE"), 62, 80, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NA"), 76, 96, Color::Black);
             }
 
             // right column: type badges, abilities, evo/mega
@@ -1863,12 +1869,12 @@ namespace CTRPluginFramework {
                 }
             }
             int a0 = spawnerAbil0[n], a1 = spawnerAbil1[n], ah = spawnerAbilH[n];
-            string abil = string("Ability: ") + (a0 != 255 ? abilityList[a0] : "-");
+            string abil = getLanguage->Get("SPAWN_ABILITY") + " " + (a0 != 255 ? abilityList[a0] : "-");
             if (a1 != 255 && a1 != a0) abil += string(" / ") + abilityList[a1];
             top.DrawSysfont(txt << abil, rx, 72, txt);
-            if (ah != 255) top.DrawSysfont(txt << (string("Hidden: ") + abilityList[ah]), rx, 90, txt);
+            if (ah != 255) top.DrawSysfont(txt << (getLanguage->Get("SPAWN_HIDDEN") + " " + abilityList[ah]), rx, 90, txt);
             string em = spawnerEvoNames[spawnerEvoStage[n]];
-            if (spawnerHasMega[n]) em += " | Mega Evolution";
+            if (spawnerHasMega[n]) em += string(" | ") + getLanguage->Get("SPAWN_MEGA_EVOLUTION");
             top.DrawSysfont(sel << em, rx, 110, sel);
 
             // base-stat values (no bars) + BST
@@ -1884,7 +1890,7 @@ namespace CTRPluginFramework {
             top.DrawSysfont(title << to_string(total), 46 + 6 * 46, 154, title);
 
             // moves at the chosen level (type-colour dot + name)
-            top.DrawSysfont(title << (string("Moves @ Lv ") + to_string((int)level)), 42, 172, title);
+            top.DrawSysfont(title << Utils::Format(getLanguage->Get("SPAWN_MOVES_AT_LV_FMT").c_str(), (int)level), 42, 172, title);
             for (int i = 0; i < 4; i++) {
                 int col = i % 2, row = i / 2;
                 int mx = 46 + col * 164, my = 188 + row * 16;
@@ -1900,10 +1906,10 @@ namespace CTRPluginFramework {
             // ===================== BOTTOM: spawn settings =====================
             bot.DrawRect(20, 20, 280, 200, bg, true);
             bot.DrawRect(20, 20, 280, 200, border, false);
-            bot.DrawSysfont(title << "Spawn settings", 40, 26, title);
+            bot.DrawSysfont(title << getLanguage->Get("SPAWN_SETTINGS"), 40, 26, title);
             bot.DrawRect(40, 44, 150, 1, title, true);
 
-            bot.DrawSysfont(txt << "Form", 32, 52, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_FORM"), 32, 52, txt);
             if (multiForm) {
                 bot.DrawRect(150, 48, 26, 24, bg2, true); bot.DrawRect(150, 48, 26, 24, border, false);
                 bot.DrawSysfont(txt << "<", 159, 52, txt);
@@ -1916,7 +1922,7 @@ namespace CTRPluginFramework {
                 bot.DrawSysfont(sel << fn, 214 - w / 2, 52, sel);
             }
 
-            bot.DrawSysfont(txt << "Level", 32, 92, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_LEVEL"), 32, 92, txt);
             bot.DrawRect(150, 88, 26, 24, bg2, true); bot.DrawRect(150, 88, 26, 24, border, false);
             bot.DrawSysfont(txt << "-", 160, 92, txt);
             bot.DrawRect(180, 88, 60, 24, bg2, true); bot.DrawRect(180, 88, 60, 24, border, false);
@@ -1928,23 +1934,23 @@ namespace CTRPluginFramework {
             bot.DrawRect(244, 88, 26, 24, bg2, true); bot.DrawRect(244, 88, 26, 24, border, false);
             bot.DrawSysfont(txt << "+", 253, 92, txt);
 
-            bot.DrawSysfont(txt << "Sprite", 32, 128, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_SPRITE"), 32, 128, txt);
             {
                 bool nSel = !spawnerShiny, sSel = spawnerShiny;
                 bot.DrawRect(120, 124, 70, 24, nSel ? sel : bg2, true); bot.DrawRect(120, 124, 70, 24, border, false);
-                bot.DrawSysfont((nSel ? bg : txt) << "Normal", 134, 128, txt);
+                bot.DrawSysfont((nSel ? bg : txt) << getLanguage->Get("SPAWN_NORMAL"), 134, 128, txt);
                 bot.DrawRect(196, 124, 70, 24, sSel ? sel : bg2, true); bot.DrawRect(196, 124, 70, 24, border, false);
-                bot.DrawSysfont((sSel ? bg : txt) << "Shiny", 214, 128, txt);
+                bot.DrawSysfont((sSel ? bg : txt) << getLanguage->Get("SPAWN_SHINY"), 214, 128, txt);
             }
 
             bot.DrawRect(40, 160, 240, 30, sel, true);
             bot.DrawRect(40, 160, 240, 30, border, false);
             {
-                string s = "SPAWN ON THE WILD";
+                string s = getLanguage->Get("SPAWN_ON_THE_WILD");
                 int w = (int)OSD::GetTextWidth(true, s);
                 bot.DrawSysfont(bg << s, 160 - w / 2, 167, bg);
             }
-            bot.DrawSysfont(txt << "B  -  back to results", 84, 198, txt);
+            bot.DrawSysfont(txt << getLanguage->Get("SPAWN_BACK_RESULTS"), 84, 198, txt);
 
             OSD::SwapBuffers();
         }
@@ -2037,7 +2043,7 @@ namespace CTRPluginFramework {
             if (doRespawn) {
                 dex = LegendaryDex(cursor);
                 bool ok = ApplyLegendaryRespawn(cursor);
-                flashMsg = string(speciesList[dex - 1]) + (ok ? " will respawn!" : " was already available");
+                flashMsg = ok ? Utils::Format(getLanguage->Get("LEGEND_WILL_RESPAWN_FMT").c_str(), speciesList[dex - 1]) : Utils::Format(getLanguage->Get("LEGEND_ALREADY_AVAILABLE_FMT").c_str(), speciesList[dex - 1]);
                 flash = 150;
                 while (Controller::IsKeyDown(Key::A) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
                 armed = false; wasDown = false;
@@ -2064,8 +2070,8 @@ namespace CTRPluginFramework {
                 int sw = sprite.Width(), sh = sprite.Height();
                 sprite.Draw(top, 44 + (88 - sw) / 2, 48 + (88 - sh) / 2);
             } else {
-                top.DrawSysfont(Color::Black << "IMAGE", 62, 80, Color::Black);
-                top.DrawSysfont(Color::Black << "N/A", 76, 96, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NO_IMAGE"), 62, 80, Color::Black);
+                top.DrawSysfont(Color::Black << getLanguage->Get("SPAWN_NA"), 76, 96, Color::Black);
             }
 
             int rx = 148;
@@ -2084,12 +2090,12 @@ namespace CTRPluginFramework {
                 }
             }
             int a0 = spawnerAbil0[dex], a1 = spawnerAbil1[dex], ah = spawnerAbilH[dex];
-            string abil = string("Ability: ") + (a0 != 255 ? abilityList[a0] : "-");
+            string abil = getLanguage->Get("SPAWN_ABILITY") + " " + (a0 != 255 ? abilityList[a0] : "-");
             if (a1 != 255 && a1 != a0) abil += string(" / ") + abilityList[a1];
             top.DrawSysfont(txt << abil, rx, 72, txt);
-            if (ah != 255) top.DrawSysfont(txt << (string("Hidden: ") + abilityList[ah]), rx, 90, txt);
+            if (ah != 255) top.DrawSysfont(txt << (getLanguage->Get("SPAWN_HIDDEN") + " " + abilityList[ah]), rx, 90, txt);
             string em = spawnerEvoNames[spawnerEvoStage[dex]];
-            if (spawnerHasMega[dex]) em += " | Mega Evolution";
+            if (spawnerHasMega[dex]) em += string(" | ") + getLanguage->Get("SPAWN_MEGA_EVOLUTION");
             top.DrawSysfont(sel << em, rx, 110, sel);
 
             static const char *snm[6] = { "HP", "Atk", "Def", "SpA", "SpD", "Spe" };
@@ -2104,7 +2110,7 @@ namespace CTRPluginFramework {
             top.DrawSysfont(title << to_string(total), 46 + 6 * 46, 154, title);
 
             // Location (replaces the Spawner sheet's "Moves @ Lv" block)
-            top.DrawSysfont(title << "Location", 42, 172, title);
+            top.DrawSysfont(title << getLanguage->Get("LEGEND_LOCATION"), 42, 172, title);
             top.DrawSysfont(txt << LegendaryLoc(cursor), 46, 190, txt);
 
             // ===================== BOTTOM: legendary list + respawn =====================
@@ -2113,8 +2119,8 @@ namespace CTRPluginFramework {
             if (flash > 0) {
                 bot.DrawSysfont(title << flashMsg, 40, 26, title);
             } else {
-                bot.DrawSysfont(title << "Legendaries", 40, 26, title);
-                string c = to_string(COUNT) + " in your game";
+                bot.DrawSysfont(title << getLanguage->Get("LEGEND_TITLE"), 40, 26, title);
+                string c = Utils::Format(getLanguage->Get("LEGEND_IN_YOUR_GAME_FMT").c_str(), COUNT);
                 int cwid = (int)OSD::GetTextWidth(true, c);
                 bot.DrawSysfont(txt << c, 296 - cwid, 28, txt);
             }
@@ -2133,7 +2139,7 @@ namespace CTRPluginFramework {
             bot.DrawRect(20, 192, 280, 26, sel, true);
             bot.DrawRect(20, 192, 280, 26, title, false);
             {
-                string s = "RESPAWN AT ITS LOCATION";
+                string s = getLanguage->Get("LEGEND_RESPAWN_BTN");
                 int w = (int)OSD::GetTextWidth(true, s);
                 bot.DrawSysfont(bg << s, 160 - w / 2, 197, bg);
             }
@@ -2194,25 +2200,25 @@ namespace CTRPluginFramework {
         auto oneType = [&](const bool *a, int lo) -> string {
             int c = 0, f = -1;
             for (int i = lo; i <= 18; i++) if (a[i]) { c++; if (f < 0) f = i; }
-            if (c == 0) return "any";
-            string r = (f == 0) ? "None" : spawnerTypeNames[f];
+            if (c == 0) return getLanguage->Get("SPAWN_ANY");
+            string r = (f == 0) ? getLanguage->Get("SPAWN_NONE") : spawnerTypeNames[f];
             if (c > 1) r += "+" + to_string(c - 1);
             return r;
         };
         auto genSummary = [&]() -> string {
             string r;
             for (int g = 1; g <= 6; g++) if (g_sf.gen[g]) { if (!r.empty()) r += ","; r += to_string(g); }
-            return r.empty() ? "any" : ("Gen " + r);
+            return r.empty() ? getLanguage->Get("SPAWN_ANY") : (getLanguage->Get("SPAWN_GEN") + " " + r);
         };
         auto traitSummary = [&]() -> string {
             int sc = 0; for (int i = 0; i < 5; i++) if (g_sf.stage[i]) sc++;
             int cc = 0, cf = -1; for (int i = 0; i < 6; i++) if (g_sf.cat[i]) { cc++; if (cf < 0) cf = i; }
             bool mega = g_sf.megaHas != g_sf.megaNo;
-            if (sc == 0 && cc == 0 && !mega) return "any";
+            if (sc == 0 && cc == 0 && !mega) return getLanguage->Get("SPAWN_ANY");
             string r;
-            if (cc > 0) { r = g_catShort[cf]; if (cc > 1) r += "+" + to_string(cc - 1); }
-            if (sc > 0) { if (!r.empty()) r += ", "; r += to_string(sc) + (sc > 1 ? " stages" : " stage"); }
-            if (mega)   { if (!r.empty()) r += ", "; r += g_sf.megaHas ? "Mega" : "NoMega"; }
+            if (cc > 0) { r = g_catShort(cf); if (cc > 1) r += "+" + to_string(cc - 1); }
+            if (sc > 0) { if (!r.empty()) r += ", "; r += sc > 1 ? Utils::Format(getLanguage->Get("SPAWN_STAGES_FMT").c_str(), sc) : Utils::Format(getLanguage->Get("SPAWN_STAGE_FMT").c_str(), sc); }
+            if (mega)   { if (!r.empty()) r += ", "; r += g_sf.megaHas ? getLanguage->Get("SPAWN_MEGA") : getLanguage->Get("SPAWN_NOMEGA"); }
             return r;
         };
         auto hubBtn = [&](int y, const string &label, const string &val, bool on = false) {
@@ -2268,15 +2274,15 @@ namespace CTRPluginFramework {
             // ===================== TOP: live results =====================
             top.DrawRect(30, 20, 340, 200, bg, true);
             top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "Wild Pokemon Spawner", 42, 26, title);
-            string cnt = to_string((int)results.size()) + (results.size() == 1 ? " match" : " matches");
+            top.DrawSysfont(title << getLanguage->Get("SPAWN_HUB_TITLE"), 42, 26, title);
+            string cnt = results.size() == 1 ? Utils::Format(getLanguage->Get("SPAWN_MATCH_ONE_FMT").c_str(), (int)results.size()) : Utils::Format(getLanguage->Get("SPAWN_MATCH_MANY_FMT").c_str(), (int)results.size());
             int cntw = (int)OSD::GetTextWidth(true, cnt);
             top.DrawSysfont(txt << cnt, 362 - cntw, 28, txt);
             top.DrawRect(42, 46, 316, 1, title, true);
 
             if (results.empty()) {
-                top.DrawSysfont(txt << "No Pokemon match these filters.", 96, 110, txt);
-                top.DrawSysfont(txt << "Tap a filter below to widen the search.", 80, 130, txt);
+                top.DrawSysfont(txt << getLanguage->Get("SPAWN_NO_MATCH"), 96, 110, txt);
+                top.DrawSysfont(txt << getLanguage->Get("SPAWN_WIDEN"), 80, 130, txt);
             } else {
                 for (int i = 0; i < ROWS; i++) {
                     int ri = scroll + i;
@@ -2308,36 +2314,36 @@ namespace CTRPluginFramework {
             bot.DrawRect(20, 20, 280, 200, border, false);
 
             if (panel == P_HUB) {
-                bot.DrawSysfont(title << "Filters", 38, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("SPAWN_FILTERS"), 38, 24, title);
                 // In-Inventory toggle (above all filters): only species held in the PC boxes
                 if (tap && SpawnerInBox(lastPos, 30, 46, 260, 24)) { g_sf.invOnly = !g_sf.invOnly; dirty = true; }
-                hubBtn(46, "In-Inventory", g_sf.invOnly ? "ON" : "any", g_sf.invOnly);
+                hubBtn(46, getLanguage->Get("SPAWN_IN_INVENTORY"), g_sf.invOnly ? getLanguage->Get("SPAWN_ON") : getLanguage->Get("SPAWN_ANY"), g_sf.invOnly);
                 if (tap && SpawnerInBox(lastPos, 30, 76, 260, 24)) {
-                    Keyboard kb("Search by name or National Dex #");
+                    Keyboard kb(getLanguage->Get("SPAWN_SEARCH_PROMPT"));
                     string s = g_sf.text;
                     if (kb.Open(s, g_sf.text) == 0) { g_sf.text = SpawnerLower(s); dirty = true; }
                     while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
                     armed = false; wasDown = false;
                 }
-                hubBtn(76, "Name / #", g_sf.text.empty() ? "any" : g_sf.text);
+                hubBtn(76, getLanguage->Get("SPAWN_NAME_NUM"), g_sf.text.empty() ? getLanguage->Get("SPAWN_ANY") : g_sf.text);
                 if (tap && SpawnerInBox(lastPos, 30, 106, 260, 24)) panel = P_GEN;
-                hubBtn(106, "Generation", genSummary());
+                hubBtn(106, getLanguage->Get("SPAWN_GENERATION"), genSummary());
                 if (tap && SpawnerInBox(lastPos, 30, 136, 260, 24)) { panel = P_TYPE; typeTab = 0; }
-                hubBtn(136, "Type", oneType(g_sf.prim, 1) + " / " + oneType(g_sf.sec, 0));
+                hubBtn(136, getLanguage->Get("SPAWN_TYPE"), oneType(g_sf.prim, 1) + " / " + oneType(g_sf.sec, 0));
                 if (tap && SpawnerInBox(lastPos, 30, 166, 260, 24)) panel = P_TRAITS;
-                hubBtn(166, "Traits", traitSummary());
-                bot.DrawSysfont(txt << "A pick    B exit    START reset", 46, 200, txt);
+                hubBtn(166, getLanguage->Get("SPAWN_TRAITS"), traitSummary());
+                bot.DrawSysfont(txt << getLanguage->Get("SPAWN_HUB_HELP"), 46, 200, txt);
             }
             else if (panel == P_GEN) {
-                bot.DrawSysfont(title << "Generation", 38, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("SPAWN_GENERATION"), 38, 24, title);
                 for (int g = 1; g <= 6; g++) {
                     int col = (g - 1) % 3, row = (g - 1) / 3;
                     int x = 36 + col * 86, y = 60 + row * 46, w = 80, h = 34;
                     if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.gen[g] = !g_sf.gen[g]; dirty = true; }
-                    chip(x, y, w, h, "Gen " + to_string(g), g_sf.gen[g]);
+                    chip(x, y, w, h, Utils::Format(getLanguage->Get("SPAWN_GEN_CHIP_FMT").c_str(), g), g_sf.gen[g]);
                 }
                 if (tap && SpawnerInBox(lastPos, 198, 194, 98, 22)) panel = P_HUB;
-                chip(198, 194, 98, 22, "< Back", false);
+                chip(198, 194, 98, 22, getLanguage->Get("FILTER_BACK"), false);
             }
             else if (panel == P_TYPE) {
                 bool pTab = (typeTab == 0);
@@ -2345,9 +2351,9 @@ namespace CTRPluginFramework {
                 if (tap && SpawnerInBox(lastPos, 158, 42, 124, 22)) typeTab = 1;
                 pTab = (typeTab == 0);
                 bot.DrawRect(28, 42, 124, 22, pTab ? sel : bg2, true); bot.DrawRect(28, 42, 124, 22, border, false);
-                { string s = "1st type"; int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((pTab ? bg : txt) << s, 28 + (124 - tw) / 2, 45, txt); }
+                { string s = getLanguage->Get("SPAWN_1ST_TYPE"); int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((pTab ? bg : txt) << s, 28 + (124 - tw) / 2, 45, txt); }
                 bot.DrawRect(158, 42, 124, 22, !pTab ? sel : bg2, true); bot.DrawRect(158, 42, 124, 22, border, false);
-                { string s = "2nd type"; int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((!pTab ? bg : txt) << s, 158 + (124 - tw) / 2, 45, txt); }
+                { string s = getLanguage->Get("SPAWN_2ND_TYPE"); int tw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont((!pTab ? bg : txt) << s, 158 + (124 - tw) / 2, 45, txt); }
 
                 int lo = pTab ? 1 : 0;
                 for (int t = lo; t <= 18; t++) {
@@ -2358,37 +2364,37 @@ namespace CTRPluginFramework {
                         if (pTab) g_sf.prim[t] = !g_sf.prim[t]; else g_sf.sec[t] = !g_sf.sec[t];
                         dirty = true;
                     }
-                    chip(x, y, w, h, (t == 0) ? "None" : spawnerTypeNames[t], on);
+                    chip(x, y, w, h, (t == 0) ? getLanguage->Get("SPAWN_NONE") : spawnerTypeNames[t], on);
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 19; i++) { g_sf.prim[i] = false; g_sf.sec[i] = false; } dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_HUB;
-                chip(198, 196, 98, 20, "< Back", false);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false);
             }
             else { // P_TRAITS
-                bot.DrawSysfont(title << "Evolution stage", 30, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("SPAWN_EVO_STAGE"), 30, 24, title);
                 for (int s = 0; s < 5; s++) {
                     int col = s % 3, row = s / 3;
                     int x = 28 + col * 88, y = 42 + row * 22, w = 84, h = 20;
                     if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.stage[s] = !g_sf.stage[s]; dirty = true; }
-                    chip(x, y, w, h, g_stageShort[s], g_sf.stage[s]);
+                    chip(x, y, w, h, g_stageShort(s), g_sf.stage[s]);
                 }
-                bot.DrawSysfont(title << "Category", 30, 90, title);
+                bot.DrawSysfont(title << getLanguage->Get("SPAWN_CATEGORY"), 30, 90, title);
                 for (int c = 0; c < 6; c++) {
                     int col = c % 3, row = c / 3;
                     int x = 28 + col * 88, y = 106 + row * 22, w = 84, h = 20;
                     if (tap && SpawnerInBox(lastPos, x, y, w, h)) { g_sf.cat[c] = !g_sf.cat[c]; dirty = true; }
-                    chip(x, y, w, h, g_catShort[c], g_sf.cat[c]);
+                    chip(x, y, w, h, g_catShort(c), g_sf.cat[c]);
                 }
-                bot.DrawSysfont(title << "Mega", 30, 154, title);
+                bot.DrawSysfont(title << getLanguage->Get("SPAWN_MEGA_HDR"), 30, 154, title);
                 if (tap && SpawnerInBox(lastPos, 28, 170, 128, 20)) { g_sf.megaHas = !g_sf.megaHas; dirty = true; }
-                chip(28, 170, 128, 20, "Has Mega", g_sf.megaHas);
+                chip(28, 170, 128, 20, getLanguage->Get("SPAWN_HAS_MEGA"), g_sf.megaHas);
                 if (tap && SpawnerInBox(lastPos, 162, 170, 128, 20)) { g_sf.megaNo = !g_sf.megaNo; dirty = true; }
-                chip(162, 170, 128, 20, "No Mega", g_sf.megaNo);
+                chip(162, 170, 128, 20, getLanguage->Get("SPAWN_NO_MEGA"), g_sf.megaNo);
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 5; i++) g_sf.stage[i] = false; for (int i = 0; i < 6; i++) g_sf.cat[i] = false; g_sf.megaHas = g_sf.megaNo = false; dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_HUB;
-                chip(198, 196, 98, 20, "< Back", false);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false);
             }
 
             OSD::SwapBuffers();
@@ -2413,24 +2419,29 @@ namespace CTRPluginFramework {
     //  Data: Includes/BagItems.hpp + BagItemMeta.hpp; sprites: SD BagSprites/{list,big}/NNN.bmp.
     // ======================================================================================
 
-    static const char *bagPocketNames[5] = { "Items", "Medicines", "Berries", "TMs & HMs", "Key Items" };
-    static const char *bagGrpItems[9] = { "Poke Balls", "Evolution", "Mega Stones", "Hold items", "Type item", "Battle item", "Treasures", "Fossils", "Other" };
-    static const char *bagGrpMeds[5]  = { "HP heal", "PP restore", "Status cure", "Revive", "Vitamin/EXP" };
-    static const char *bagGrpBerry[7] = { "Status cure", "HP/PP heal", "Pinch heal", "Type resist", "Pinch boost", "EV/friend", "Other" };
-    static const char *bagGrpTm[3]    = { "Physical", "Special", "Status" };
-    static const char *bagGrpKey[4]   = { "Travel/Tool", "Story/Event", "Mega/Form", "Misc" };
+    static const char *bagPocketKeys[5] = { "MART_POCKET_ITEMS", "MART_POCKET_MEDICINES", "MART_POCKET_BERRIES", "MART_POCKET_TMS_HMS", "MART_POCKET_KEY_ITEMS" };
+    static const char *bagGrpItemsK[9] = { "MART_GRP_POKE_BALLS", "MART_GRP_EVOLUTION", "MART_GRP_MEGA_STONES", "MART_GRP_HOLD_ITEMS", "MART_GRP_TYPE_ITEM", "MART_GRP_BATTLE_ITEM", "MART_GRP_TREASURES", "MART_GRP_FOSSILS", "MART_GRP_OTHER" };
+    static const char *bagGrpMedsK[5]  = { "MART_GRP_HP_HEAL", "MART_GRP_PP_RESTORE", "MART_GRP_STATUS_CURE", "MART_GRP_REVIVE", "MART_GRP_VITAMIN_EXP" };
+    static const char *bagGrpBerryK[7] = { "MART_GRP_STATUS_CURE", "MART_GRP_HP_PP_HEAL", "MART_GRP_PINCH_HEAL", "MART_GRP_TYPE_RESIST", "MART_GRP_PINCH_BOOST", "MART_GRP_EV_FRIEND", "MART_GRP_OTHER" };
+    static const char *bagGrpTmK[3]    = { "MART_GRP_PHYSICAL", "MART_GRP_SPECIAL", "MART_GRP_STATUS" };
+    static const char *bagGrpKeyK[4]   = { "MART_GRP_TRAVEL_TOOL", "MART_GRP_STORY_EVENT", "MART_GRP_MEGA_FORM", "MART_GRP_MISC" };
     static const int   bagGrpCount[5] = { 9, 5, 7, 3, 4 };
-    static const char *bagFlavorNames[6] = { "-", "Spicy", "Dry", "Sweet", "Bitter", "Sour" };
-    static const char *bagStatusNames[7] = { "-", "Poison", "Paralysis", "Sleep", "Burn", "Freeze", "Confusion" };
-    static const char *bagCatTab[5] = { "Items", "Meds", "Berry", "TM/HM", "Key" };
+    static const char *bagFlavorKeys[6] = { "MART_FLAVOR_NONE", "MART_FLAVOR_SPICY", "MART_FLAVOR_DRY", "MART_FLAVOR_SWEET", "MART_FLAVOR_BITTER", "MART_FLAVOR_SOUR" };
+    static const char *bagStatusKeys[7] = { "MART_STATUS_NONE", "MART_STATUS_POISON", "MART_STATUS_PARALYSIS", "MART_STATUS_SLEEP", "MART_STATUS_BURN", "MART_STATUS_FREEZE", "MART_STATUS_CONFUSION" };
+    static const char *bagCatTabKeys[5] = { "MART_TAB_ITEMS", "MART_TAB_MEDS", "MART_TAB_BERRY", "MART_TAB_TM_HM", "MART_TAB_KEY" };
 
-    static const char *BagGroupName(int pocket, int g) {
+    static string bagPocketNames(int p)  { return getLanguage->Get(bagPocketKeys[(p < 0 || p > 4) ? 0 : p]); }
+    static string bagFlavorNames(int v)  { return getLanguage->Get(bagFlavorKeys[(v < 0 || v > 5) ? 0 : v]); }
+    static string bagStatusNames(int s)  { return getLanguage->Get(bagStatusKeys[(s < 0 || s > 6) ? 0 : s]); }
+    static string bagCatTab(int t)       { return getLanguage->Get(bagCatTabKeys[(t < 0 || t > 4) ? 0 : t]); }
+
+    static string BagGroupName(int pocket, int g) {
         switch (pocket) {
-            case 0: return bagGrpItems[g];
-            case 1: return bagGrpMeds[g];
-            case 2: return bagGrpBerry[g];
-            case 3: return bagGrpTm[g];
-            default: return bagGrpKey[g];
+            case 0: return getLanguage->Get(bagGrpItemsK[g]);
+            case 1: return getLanguage->Get(bagGrpMedsK[g]);
+            case 2: return getLanguage->Get(bagGrpBerryK[g]);
+            case 3: return getLanguage->Get(bagGrpTmK[g]);
+            default: return getLanguage->Get(bagGrpKeyK[g]);
         }
     }
 
@@ -2610,33 +2621,47 @@ namespace CTRPluginFramework {
             if (tap && SpawnerInBox(lp, 40, 110, 110, 84)) pick = 1;
             if (tap && SpawnerInBox(lp, 170, 110, 110, 84)) pick = 0;
 
-            top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "PokeMart Anywhere", 44, 28, title);
+            top.DrawRect(30, 20, 340, 210, bg, true); top.DrawRect(30, 20, 340, 210, border, false);
+            top.DrawSysfont(title << getLanguage->Get("MART_MODAL_TITLE"), 44, 28, title);
             top.DrawRect(44, 46, 312, 1, title, true);
-            const char *L[] = {
-                "PAY  -  a real Poke Mart. The list shows",
-                "only items you can actually buy in-game,",
-                "and each costs Money (buy now, or build a",
-                "cart and check out). For the canonical",
-                "experience, play in PAY.", "",
-                "FREE  -  add any item, any amount, for free",
-                "(the classic behavior).", "",
-                "Switch any time with START." };
-            for (int i = 0; i < (int)(sizeof(L) / sizeof(L[0])); i++) top.DrawSysfont(txt << L[i], 44, 56 + i * 14, txt);
+            // Auto-wrap the explanation to the window width so longer languages don't overflow the box.
+            // (The L1..L10 keys are paragraph fragments; rejoin then re-wrap by real text width.)
+            auto G = [&](const char *k) -> string { return getLanguage->Get(k); };
+            auto wrapLines = [&](const string &text, int maxW) -> vector<string> {
+                vector<string> out; string cur;
+                for (size_t p = 0; p < text.size(); ) {
+                    size_t sp = text.find(' ', p);
+                    string word = (sp == string::npos) ? text.substr(p) : text.substr(p, sp - p);
+                    p = (sp == string::npos) ? text.size() : sp + 1;
+                    if (word.empty()) continue;
+                    string trial = cur.empty() ? word : cur + " " + word;
+                    if (!cur.empty() && (int)OSD::GetTextWidth(true, trial) > maxW) { out.push_back(cur); cur = word; }
+                    else cur = trial;
+                }
+                if (!cur.empty()) out.push_back(cur);
+                return out;
+            };
+            vector<string> body;
+            for (const string &l : wrapLines(G("MART_MODAL_L1") + " " + G("MART_MODAL_L2") + " " + G("MART_MODAL_L3") + " " + G("MART_MODAL_L4") + " " + G("MART_MODAL_L5"), 314)) body.push_back(l);
+            body.push_back("");
+            for (const string &l : wrapLines(G("MART_MODAL_L7") + " " + G("MART_MODAL_L8"), 314)) body.push_back(l);
+            body.push_back("");
+            for (const string &l : wrapLines(G("MART_MODAL_L10"), 314)) body.push_back(l);
+            for (int i = 0; i < (int)body.size(); i++) top.DrawSysfont(txt << body[i], 44, 54 + i * 13, txt);
 
             bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
             // centered on the box center (x=160)
             auto cen = [&](const Screen &sc, const string &s, int cx, int y, const Color &c) {
                 int w = (int)OSD::GetTextWidth(true, s); sc.DrawSysfont(c << s, cx - w / 2, y, c);
             };
-            cen(bot, "Choose a mode", 160, 32, title);
-            cen(bot, "Tap a box, or use Left / Right", 160, 52, txt);
-            cen(bot, "B = cancel", 160, 70, txt);
+            cen(bot, getLanguage->Get("MART_CHOOSE_MODE"), 160, 32, title);
+            cen(bot, getLanguage->Get("MART_TAP_BOX"), 160, 52, txt);
+            cen(bot, getLanguage->Get("MART_B_CANCEL"), 160, 70, txt);
             // PAY (box center x=95) / FREE (box center x=225), 20px gap, labels centered
             bot.DrawRect(40, 110, 110, 84, red, true);  bot.DrawRect(40, 110, 110, 84, g_bagPayMode == 1 ? white : border, false);
-            cen(bot, "PAY", 95, 140, white);  cen(bot, "costs Money", 95, 160, white);
+            cen(bot, getLanguage->Get("MART_PAY"), 95, 140, white);  cen(bot, getLanguage->Get("MART_COSTS_MONEY"), 95, 160, white);
             bot.DrawRect(170, 110, 110, 84, blue, true); bot.DrawRect(170, 110, 110, 84, g_bagPayMode == 0 ? white : border, false);
-            cen(bot, "FREE", 225, 140, white); cen(bot, "no charge", 225, 160, white);
+            cen(bot, getLanguage->Get("MART_FREE"), 225, 140, white); cen(bot, getLanguage->Get("MART_NO_CHARGE"), 225, 160, white);
 
             OSD::SwapBuffers();
             if (pick >= 0) { SetBagPayMode((u32)pick); while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } break; }
@@ -2672,36 +2697,36 @@ namespace CTRPluginFramework {
                     BagWriteMoney(money - (u32)total);
                     for (int i = 0; i < g_cartCount; i++) BagAddToPocket(g_cart[i].pocket, g_cart[i].id, g_cart[i].qty);
                     g_cartCount = 0; BagReadInventory();
-                    MessageBox(string("Thank you for your purchase!\n\n- PokeMart\n\nSpent: $") + to_string(total), DialogType::DialogOk, ClearScreen::Both)();
+                    MessageBox(Utils::Format(getLanguage->Get("MART_PURCHASE_THANKS_FMT").c_str(), total), DialogType::DialogOk, ClearScreen::Both)();
                     break;
-                } else { flash = "Not enough money!"; flashT = 120; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false; }
+                } else { flash = getLanguage->Get("MART_NOT_ENOUGH"); flashT = 120; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false; }
             }
             if (tap && SpawnerInBox(lp, 190, 150, 100, 34)) { g_cartCount = 0; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } break; }
 
             top.DrawRect(30, 20, 340, 200, bg, true); top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "Checkout", 42, 26, title);
-            { string m = string("Money: $") + to_string(money); int w = (int)OSD::GetTextWidth(true, m); top.DrawSysfont(txt << m, 362 - w, 28, txt); }
+            top.DrawSysfont(title << getLanguage->Get("MART_CHECKOUT"), 42, 26, title);
+            { string m = getLanguage->Get("MART_MONEY_LABEL") + to_string(money); int w = (int)OSD::GetTextWidth(true, m); top.DrawSysfont(txt << m, 362 - w, 28, txt); }
             top.DrawRect(42, 44, 316, 1, title, true);
-            if (g_cartCount == 0) top.DrawSysfont(txt << "Your cart is empty.", 120, 110, txt);
+            if (g_cartCount == 0) top.DrawSysfont(txt << getLanguage->Get("MART_CART_EMPTY"), 120, 110, txt);
             else for (int i = 0; i < ROWS; i++) {
                 int ri = scroll + i; if (ri >= g_cartCount) break; int y = 50 + i * 16; BagCartLine &c = g_cart[ri];
                 top.DrawSysfont(txt << bagItemName[c.id], 44, y, txt);
                 string r = string("x") + to_string(c.qty) + "   $" + to_string((int)c.qty * (int)c.unit);
                 int w = (int)OSD::GetTextWidth(true, r); top.DrawSysfont(txt << r, 360 - w, y, txt);
             }
-            { string tt = string("TOTAL:  $") + to_string(total); int w = (int)OSD::GetTextWidth(true, tt); top.DrawSysfont(title << tt, 360 - w, 198, title); }
+            { string tt = getLanguage->Get("MART_TOTAL_CAPS") + to_string(total); int w = (int)OSD::GetTextWidth(true, tt); top.DrawSysfont(title << tt, 360 - w, 198, title); }
 
             bot.DrawRect(20, 20, 280, 200, bg, true); bot.DrawRect(20, 20, 280, 200, border, false);
-            bot.DrawSysfont(title << "Checkout", 40, 30, title);
-            bot.DrawSysfont(txt << (string("Items in cart: ") + to_string(g_cartCount)), 40, 62, txt);
-            bot.DrawSysfont(txt << (string("Total:  $") + to_string(total)), 40, 84, txt);
-            bot.DrawSysfont(((int)money >= total ? green : red) << (string("Money:  $") + to_string(money)), 40, 106, txt);
+            bot.DrawSysfont(title << getLanguage->Get("MART_CHECKOUT"), 40, 30, title);
+            bot.DrawSysfont(txt << Utils::Format(getLanguage->Get("MART_ITEMS_IN_CART_FMT").c_str(), g_cartCount), 40, 62, txt);
+            bot.DrawSysfont(txt << (getLanguage->Get("MART_TOTAL_LABEL2") + to_string(total)), 40, 84, txt);
+            bot.DrawSysfont(((int)money >= total ? green : red) << (getLanguage->Get("MART_MONEY_LABEL2") + to_string(money)), 40, 106, txt);
             if (flashT > 0) { flashT--; bot.DrawSysfont(red << flash, 40, 128, red); }
             bot.DrawRect(30, 150, 150, 34, g_cartCount > 0 ? green : bg2, true); bot.DrawRect(30, 150, 150, 34, border, false);
-            { string s = string("PAY  $") + to_string(total); int w = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 105 - w / 2, 158, bg); }
+            { string s = getLanguage->Get("MART_PAY_TOTAL") + to_string(total); int w = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 105 - w / 2, 158, bg); }
             bot.DrawRect(190, 150, 100, 34, bg2, true); bot.DrawRect(190, 150, 100, 34, border, false);
-            { string s = "Clear Cart"; int w = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(txt << s, 240 - w / 2, 158, txt); }
-            bot.DrawSysfont(txt << "B - back to the list", 40, 196, txt);
+            { string s = getLanguage->Get("MART_CLEAR_CART"); int w = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(txt << s, 240 - w / 2, 158, txt); }
+            bot.DrawSysfont(txt << getLanguage->Get("MART_BACK_LIST"), 40, 196, txt);
             OSD::SwapBuffers();
         }
         while (Controller::IsKeyDown(Key::B) || Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); }
@@ -2877,15 +2902,15 @@ namespace CTRPluginFramework {
             // ===================== TOP: list + description strip =====================
             top.DrawRect(30, 20, 340, 200, bg, true);
             top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "Bag - add an item", 42, 26, title);
-            string cnt = to_string((int)results.size()) + " items";
+            top.DrawSysfont(title << getLanguage->Get("MART_TITLE"), 42, 26, title);
+            string cnt = Utils::Format(getLanguage->Get("MART_ITEMS_COUNT_FMT").c_str(), (int)results.size());
             int cw = (int)OSD::GetTextWidth(true, cnt);
             top.DrawSysfont(txt << cnt, 362 - cw, 28, txt);
             top.DrawRect(42, 44, 316, 1, title, true);
 
             if (results.empty()) {
-                top.DrawSysfont(txt << "No items match these filters.", 96, 96, txt);
-                top.DrawSysfont(txt << "Tap a filter below to widen it.", 96, 116, txt);
+                top.DrawSysfont(txt << getLanguage->Get("MART_NO_MATCH"), 96, 96, txt);
+                top.DrawSysfont(txt << getLanguage->Get("MART_WIDEN"), 96, 116, txt);
             } else {
                 for (int i = 0; i < ROWS; i++) {
                     int ri = scroll + i; if (ri >= (int)results.size()) break;
@@ -2901,7 +2926,7 @@ namespace CTRPluginFramework {
                     bool showPrice = (g_bagPayMode == 1 && bagItemCost[id] > 0);
                     string rtag = (g_invCount[id] > 0 ? (string("x") + to_string(g_invCount[id]) + "  ") : "")
                                   + (showPrice ? (string("$") + to_string(bagItemCost[id]))
-                                               : string(bagPocketNames[bagItemPocket[id]]));
+                                               : bagPocketNames(bagItemPocket[id]));
                     int pw = (int)OSD::GetTextWidth(true, rtag);
                     top.DrawSysfont(rc << rtag, 360 - pw, y + 2, rc);
                 }
@@ -2909,18 +2934,18 @@ namespace CTRPluginFramework {
                 int id = results[cursor], pk = bagItemPocket[id];
                 if (id != marqId) { marqId = id; marqStart = 0; marqTick = 0; marqDelay = 60; } // ~1s before it scrolls
                 top.DrawRect(42, 175, 316, 1, border, true);
-                string tag = string(bagPocketNames[pk]) + "  -  " + BagGroupName(pk, bagItemGroup[id]);
+                string tag = bagPocketNames(pk) + "  -  " + BagGroupName(pk, bagItemGroup[id]);
                 if (bagItemType[id]) tag += string("  -  ") + spawnerTypeNames[bagItemType[id]];
                 if (g_bagPayMode == 1 && bagItemCost[id] > 0) tag += string("  -  $") + to_string(bagItemCost[id]); // PAY only
                 top.DrawSysfont(title << tag, 42, 178, title);
                 if (BagIsHoldable(id)) { // green badge: this item can be held by a Pokemon
                     Color hc(0x35, 0xC3, 0x6A);
-                    top.DrawSysfont(hc << "Holdable", 358 - (int)OSD::GetTextWidth(true, "Holdable"), 178, hc);
+                    top.DrawSysfont(hc << getLanguage->Get("MART_HOLDABLE"), 358 - (int)OSD::GetTextWidth(true, getLanguage->Get("MART_HOLDABLE")), 178, hc);
                 }
                 const char *d = bagItemDesc[id];
                 const int STRIPW = 316;
                 if (!d[0]) {
-                    top.DrawSysfont(txt << "(no description available)", 42, 196, txt);
+                    top.DrawSysfont(txt << getLanguage->Get("MART_NO_DESC"), 42, 196, txt);
                 } else {
                     string ds(d);
                     if ((int)OSD::GetTextWidth(true, ds) <= STRIPW) {
@@ -2946,23 +2971,23 @@ namespace CTRPluginFramework {
             bot.DrawRect(20, 20, 280, 200, border, false);
 
             if (addMode) {
-                bot.DrawSysfont(title << "Add to bag", 40, 26, title);
+                bot.DrawSysfont(title << getLanguage->Get("MART_ADD_TO_BAG_HDR"), 40, 26, title);
                 bot.DrawRect(40, 44, 130, 1, title, true);
                 if (addId != bigIconId) { bigIcon.LoadFromFile(string("Assets/BagSprites/big/") + SpawnerPad3(addId) + ".bmp"); bigIconId = addId; }
                 bot.DrawRect(40, 52, 40, 40, Color::White, true); bot.DrawRect(40, 52, 40, 40, border, false);
                 if (bigIcon.IsLoaded()) bigIcon.Draw(bot, 40 + (40 - bigIcon.Width()) / 2, 52 + (40 - bigIcon.Height()) / 2);
                 bot.DrawSysfont(title << bagItemName[addId], 92, 56, title);
-                string ptag = bagPocketNames[addPocket];
+                string ptag = bagPocketNames(addPocket);
                 if (bagItemType[addId]) ptag += string("  -  ") + spawnerTypeNames[bagItemType[addId]];
                 bot.DrawSysfont(txt << ptag, 92, 76, txt);
 
                 bool consumable = (addPocket <= 2);
                 if (consumable) {
-                    bot.DrawSysfont(txt << "Quantity", 40, 108, txt);
+                    bot.DrawSysfont(txt << getLanguage->Get("MART_QUANTITY"), 40, 108, txt);
                     if (tap && SpawnerInBox(lastPos, 120, 104, 26, 24)) { if (addQty > 1) addQty--; added = false; }
                     bot.DrawRect(120, 104, 26, 24, bg2, true); bot.DrawRect(120, 104, 26, 24, border, false); bot.DrawSysfont(txt << "-", 130, 108, txt);
                     if (tap && SpawnerInBox(lastPos, 150, 104, 60, 24)) {
-                        Keyboard kb("Quantity (1-999)"); u16 v = addQty;
+                        Keyboard kb(getLanguage->Get("MART_QUANTITY_PROMPT")); u16 v = addQty;
                         if (kb.Open(v, addQty) == 0) { if (v < 1) v = 1; if (v > 999) v = 999; addQty = v; }
                         added = false; while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
                     }
@@ -2971,7 +2996,7 @@ namespace CTRPluginFramework {
                     if (tap && SpawnerInBox(lastPos, 214, 104, 26, 24)) { if (addQty < 999) addQty++; added = false; }
                     bot.DrawRect(214, 104, 26, 24, bg2, true); bot.DrawRect(214, 104, 26, 24, border, false); bot.DrawSysfont(txt << "+", 223, 108, txt);
                 } else {
-                    bot.DrawSysfont(txt << (addPocket == 3 ? "TM/HM - added as one (reusable)" : "Key Item - added as one"), 40, 110, txt);
+                    bot.DrawSysfont(txt << (addPocket == 3 ? getLanguage->Get("MART_TMHM_ONE") : getLanguage->Get("MART_KEY_ONE")), 40, 110, txt);
                 }
 
                 int unit = bagItemCost[addId];
@@ -2979,8 +3004,8 @@ namespace CTRPluginFramework {
                 if (g_bagPayMode == 1) {
                     // ---- PAY (Poké Mart): show Total + Money, then ADD CART / PAY NOW ----
                     u32 money = BagReadMoney(); int lineTotal = unit * qtyN;
-                    { string t = string("Total: $") + to_string(lineTotal); int w = (int)OSD::GetTextWidth(true, t); bot.DrawSysfont(title << t, 290 - w, 30, title); }
-                    { string m = string("Money: $") + to_string(money);     int w = (int)OSD::GetTextWidth(true, m); bot.DrawSysfont(txt << m, 290 - w, 48, txt); }
+                    { string t = getLanguage->Get("MART_TOTAL_LABEL") + to_string(lineTotal); int w = (int)OSD::GetTextWidth(true, t); bot.DrawSysfont(title << t, 290 - w, 30, title); }
+                    { string m = getLanguage->Get("MART_MONEY_LABEL") + to_string(money);     int w = (int)OSD::GetTextWidth(true, m); bot.DrawSysfont(txt << m, 290 - w, 48, txt); }
 
                     if (tap && SpawnerInBox(lastPos, 40, 140, 116, 30)) {        // ADD CART
                         BagCartAdd(addId, addPocket, qtyN, unit);
@@ -2988,7 +3013,7 @@ namespace CTRPluginFramework {
                         addMode = false; armed = false; wasDown = false;
                     }
                     bot.DrawRect(40, 140, 116, 30, bg2, true); bot.DrawRect(40, 140, 116, 30, border, false);
-                    { string s = "ADD CART"; int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(txt << s, 98 - sw / 2, 147, txt); }
+                    { string s = getLanguage->Get("MART_ADD_CART"); int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(txt << s, 98 - sw / 2, 147, txt); }
 
                     if (tap && SpawnerInBox(lastPos, 164, 140, 116, 30)) {       // PAY NOW
                         while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
@@ -3000,16 +3025,16 @@ namespace CTRPluginFramework {
                             if ((int)mny >= lineTotal) {
                                 BagWriteMoney(mny - (u32)lineTotal);
                                 BagAddToPocket(addPocket, addId, qtyN); BagReadInventory();
-                                MessageBox(string("Thank you for your purchase!\n\n- PokeMart\n\nSpent: $") + to_string(lineTotal), DialogType::DialogOk, ClearScreen::Both)();
+                                MessageBox(Utils::Format(getLanguage->Get("MART_PURCHASE_THANKS_FMT").c_str(), lineTotal), DialogType::DialogOk, ClearScreen::Both)();
                                 addMode = false;
                             } else { added = true; addOk = false; }             // reuse message line below
                         }
                     }
                     bot.DrawRect(164, 140, 116, 30, sel, true); bot.DrawRect(164, 140, 116, 30, border, false);
-                    { string s = "PAY NOW"; int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 222 - sw / 2, 147, bg); }
+                    { string s = getLanguage->Get("MART_PAY_NOW"); int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 222 - sw / 2, 147, bg); }
 
-                    if (added && !addOk) bot.DrawSysfont(Color(0xCC, 0x33, 0x33) << "Not enough money!", 92, 178, txt);
-                    bot.DrawSysfont(txt << "B - back to the list", 92, 196, txt);
+                    if (added && !addOk) bot.DrawSysfont(Color(0xCC, 0x33, 0x33) << getLanguage->Get("MART_NOT_ENOUGH"), 92, 178, txt);
+                    bot.DrawSysfont(txt << getLanguage->Get("MART_BACK_LIST"), 92, 196, txt);
                 } else {
                     // ---- FREE: plain ADD TO BAG (no charge) ----
                     if (tap && SpawnerInBox(lastPos, 40, 140, 240, 30)) {
@@ -3019,29 +3044,30 @@ namespace CTRPluginFramework {
                         while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
                     }
                     bot.DrawRect(40, 140, 240, 30, sel, true); bot.DrawRect(40, 140, 240, 30, border, false);
-                    { string s = "ADD TO BAG"; int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 160 - sw / 2, 147, bg); }
+                    { string s = getLanguage->Get("MART_ADD_TO_BAG_BTN"); int sw = (int)OSD::GetTextWidth(true, s); bot.DrawSysfont(bg << s, 160 - sw / 2, 147, bg); }
                     if (added) {
-                        string m = addOk ? (string("Added ") + (consumable ? to_string((int)addQty) + "x " : "") + bagItemName[addId] + "!")
-                                         : string("That pocket looks full.");
+                        string m = addOk ? (consumable ? Utils::Format(getLanguage->Get("MART_ADDED_QTY_FMT").c_str(), (int)addQty, bagItemName[addId])
+                                                        : Utils::Format(getLanguage->Get("MART_ADDED_FMT").c_str(), bagItemName[addId]))
+                                         : getLanguage->Get("MART_POCKET_FULL_SHORT");
                         int mw = (int)OSD::GetTextWidth(true, m); if (mw > 270) mw = 270;
                         bot.DrawSysfont(title << m, 160 - mw / 2, 176, title);
                     }
-                    bot.DrawSysfont(txt << "B - back to the list", 92, 196, txt);
+                    bot.DrawSysfont(txt << getLanguage->Get("MART_BACK_LIST"), 92, 196, txt);
                 }
             }
             else if (panel == P_NONE) {
-                bot.DrawSysfont(title << "Filters", 38, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("MART_FILTERS"), 38, 24, title);
                 bot.DrawRect(40, 40, 90, 1, title, true);
                 int f;
                 // Row 1: In-Inventory + Name/# (half-width each)
                 if (tap && SpawnerInBox(lastPos, 30, 44, 126, 24)) { g_bf.invOnly = !g_bf.invOnly; dirty = true; }
-                hubBtnAt(30, 44, 126, "In bag", g_bf.invOnly ? "ON" : "any", g_bf.invOnly);
+                hubBtnAt(30, 44, 126, getLanguage->Get("MART_IN_BAG"), g_bf.invOnly ? getLanguage->Get("MART_ON") : getLanguage->Get("MART_ANY"), g_bf.invOnly);
                 if (tap && SpawnerInBox(lastPos, 164, 44, 126, 24)) {
-                    Keyboard kb("Search by name or item #"); string s = g_bf.text;
+                    Keyboard kb(getLanguage->Get("MART_SEARCH_PROMPT")); string s = g_bf.text;
                     if (kb.Open(s, g_bf.text) == 0) { g_bf.text = SpawnerLower(s); dirty = true; }
                     while (Touch::IsDown()) { Controller::Update(); OSD::SwapBuffers(); } armed = false; wasDown = false;
                 }
-                hubBtnAt(164, 44, 126, "Name / #", g_bf.text.empty() ? "any" : g_bf.text, !g_bf.text.empty());
+                hubBtnAt(164, 44, 126, getLanguage->Get("MART_NAME_NUM"), g_bf.text.empty() ? getLanguage->Get("MART_ANY") : g_bf.text, !g_bf.text.empty());
                 // Row 2: Pocket (half) + Effect (half)
                 if (tap && SpawnerInBox(lastPos, 30, 74, 126, 26)) panel = P_CAT;
                 {
@@ -3051,97 +3077,97 @@ namespace CTRPluginFramework {
                         for (int g = 0; g < bagGrpCount[p]; g++) if (g_bf.grp[p][g]) { tot++; if (fp < 0) { fp = p; fg = g; } }
                     }
                     for (int v = 1; v <= 5; v++) if (g_bf.flavor[v]) tot++;
-                    string val = tot == 0 ? "any" : (allp ? (string("All ") + bagPocketNames[fp]) : string(BagGroupName(fp, fg)));
+                    string val = tot == 0 ? getLanguage->Get("MART_ANY") : (allp ? Utils::Format(getLanguage->Get("MART_ALL_FMT").c_str(), bagPocketNames(fp).c_str()) : BagGroupName(fp, fg));
                     if (tot > 1) val += "+" + to_string(tot - 1);
-                    hubBtnAt(30, 74, 126, "Pocket", val, tot > 0);
+                    hubBtnAt(30, 74, 126, getLanguage->Get("MART_POCKET"), val, tot > 0);
                 }
                 if (tap && SpawnerInBox(lastPos, 164, 74, 126, 26)) panel = P_EFFECT;
                 { int ec = 0, ef = -1; for (int i = 0; i < gBagItemTagCount; i++) if (g_bf.effect & (1u << i)) { ec++; if (ef < 0) ef = i; }
-                  string ev = ec == 0 ? "any" : (string(gBagItemTagName[ef]) + (ec > 1 ? "+" + to_string(ec - 1) : ""));
-                  hubBtnAt(164, 74, 126, "Effect", ev, ec > 0); }
+                  string ev = ec == 0 ? getLanguage->Get("MART_ANY") : (string(gBagItemTagName[ef]) + (ec > 1 ? "+" + to_string(ec - 1) : ""));
+                  hubBtnAt(164, 74, 126, getLanguage->Get("MART_EFFECT"), ev, ec > 0); }
                 // Row 3: Status + Type (half-width each)
                 if (tap && SpawnerInBox(lastPos, 30, 104, 126, 26)) panel = P_STATUS;
-                { int c = countSel(g_bf.status, 1, 6, f); hubBtnAt(30, 104, 126, "Status", c == 0 ? "any" : (string(bagStatusNames[f]) + (c > 1 ? "+" + to_string(c - 1) : "")), c > 0); }
+                { int c = countSel(g_bf.status, 1, 6, f); hubBtnAt(30, 104, 126, getLanguage->Get("MART_STATUS"), c == 0 ? getLanguage->Get("MART_ANY") : (bagStatusNames(f) + (c > 1 ? "+" + to_string(c - 1) : "")), c > 0); }
                 if (tap && SpawnerInBox(lastPos, 164, 104, 126, 26)) panel = P_TYPE;
-                { int c = countSel(g_bf.type, 1, 18, f); hubBtnAt(164, 104, 126, "Type", c == 0 ? "any" : (string(spawnerTypeNames[f]) + (c > 1 ? "+" + to_string(c - 1) : "")), c > 0); }
+                { int c = countSel(g_bf.type, 1, 18, f); hubBtnAt(164, 104, 126, getLanguage->Get("MART_TYPE"), c == 0 ? getLanguage->Get("MART_ANY") : (string(spawnerTypeNames[f]) + (c > 1 ? "+" + to_string(c - 1) : "")), c > 0); }
                 // Row 4: Sort + Reset all (half-width each)
                 if (tap && SpawnerInBox(lastPos, 30, 134, 126, 26)) panel = P_SORT;
-                { const char *kn[] = { "off", "Name", "Price", "Type", "Owned" };
-                  string sv = g_bagSortKey == 0 ? "off" : (string(kn[g_bagSortKey]) + (g_bagSortDesc ? " desc" : " asc"));
-                  hubBtnAt(30, 134, 126, "Sort", sv, g_bagSortKey != 0); }
+                { const char *kn[] = { "SORT_OFF", "SORT_NAME", "SORT_PRICE", "SORT_TYPE", "SORT_OWNED" };
+                  string sv = g_bagSortKey == 0 ? getLanguage->Get("SORT_OFF") : (getLanguage->Get(kn[g_bagSortKey]) + " " + (g_bagSortDesc ? getLanguage->Get("SORT_DESC_SUFFIX") : getLanguage->Get("SORT_ASC_SUFFIX")));
+                  hubBtnAt(30, 134, 126, getLanguage->Get("MART_SORT"), sv, g_bagSortKey != 0); }
                 if (tap && SpawnerInBox(lastPos, 164, 134, 126, 22)) { BagResetFilters(); dirty = true; }
-                actBtn(164, 134, 126, "Reset all", bg2, txt);
+                actBtn(164, 134, 126, getLanguage->Get("MART_RESET_ALL"), bg2, txt);
                 // Row 5: Cart/Checkout (full width, only in PAY with a non-empty cart)
                 if (g_bagPayMode == 1 && g_cartCount > 0) {
                     if (tap && SpawnerInBox(lastPos, 30, 164, 260, 22)) { BagCheckout(); armed = false; wasDown = false; }
-                    actBtn(30, 164, 260, string("CART ") + to_string(g_cartCount) + "   $" + to_string(BagCartTotal()), Color(0x3C, 0xB3, 0x71), bg);
+                    actBtn(30, 164, 260, Utils::Format(getLanguage->Get("MART_CART_FMT").c_str(), g_cartCount, BagCartTotal()), Color(0x3C, 0xB3, 0x71), bg);
                 }
                 // current-mode badge (top-right) + hint
-                { string mb = g_bagPayMode == 1 ? "Mode: PAY" : "Mode: FREE";
+                { string mb = g_bagPayMode == 1 ? getLanguage->Get("MART_MODE_PAY") : getLanguage->Get("MART_MODE_FREE");
                   Color mc = g_bagPayMode == 1 ? Color(0xCC, 0x33, 0x33) : Color(0x2F, 0x6F, 0xD0);
                   int w = (int)OSD::GetTextWidth(true, mb); bot.DrawSysfont(mc << mb, 290 - w, 26, mc); }
-                bot.DrawSysfont(txt << "A add   B exit   START: PAY/FREE", 44, 198, txt);
+                bot.DrawSysfont(txt << getLanguage->Get("MART_HUB_HELP"), 44, 198, txt);
             }
             else if (panel == P_STATUS) {
-                bot.DrawSysfont(title << "Status  (cure / inflict / teach)", 30, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("MART_STATUS_PANEL_HDR"), 30, 24, title);
                 for (int s = 1; s <= 6; s++) {
                     int k = s - 1, col = k % 2, row = k / 2, x = 36 + col * 128, y = 50 + row * 42;
                     if (tap && SpawnerInBox(lastPos, x, y, 120, 34)) { g_bf.status[s] = !g_bf.status[s]; dirty = true; }
-                    chip(x, y, 120, 34, bagStatusNames[s], g_bf.status[s], sel);
+                    chip(x, y, 120, 34, bagStatusNames(s), g_bf.status[s], sel);
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 7; i++) g_bf.status[i] = false; dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false, sel);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
-                chip(198, 196, 98, 20, "< Back", false, sel);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false, sel);
             }
             else if (panel == P_TYPE) {
-                bot.DrawSysfont(title << "Type", 38, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("MART_TYPE"), 38, 24, title);
                 for (int t = 1; t <= 18; t++) {
                     int k = t - 1, col = k % 3, row = k / 3, x = 26 + col * 90, y = 46 + row * 24;
                     if (tap && SpawnerInBox(lastPos, x, y, 86, 21)) { g_bf.type[t] = !g_bf.type[t]; dirty = true; }
                     chip(x, y, 86, 21, spawnerTypeNames[t], g_bf.type[t], SpawnerTypeColor(t));
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { for (int i = 0; i < 19; i++) g_bf.type[i] = false; dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false, sel);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
-                chip(198, 196, 98, 20, "< Back", false, sel);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false, sel);
             }
             else if (panel == P_EFFECT) {
-                bot.DrawSysfont(title << "Effect", 38, 24, title);
+                bot.DrawSysfont(title << getLanguage->Get("MART_EFFECT"), 38, 24, title);
                 for (int i = 0; i < gBagItemTagCount; i++) {
                     int col = i % 3, row = i / 3, x = 26 + col * 90, y = 46 + row * 24;
                     if (tap && SpawnerInBox(lastPos, x, y, 86, 21)) { g_bf.effect ^= (1u << i); dirty = true; }
                     chip(x, y, 86, 21, gBagItemTagName[i], (g_bf.effect & (1u << i)) != 0, sel);
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { g_bf.effect = 0; dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false, sel);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
-                chip(198, 196, 98, 20, "< Back", false, sel);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false, sel);
             }
             else if (panel == P_SORT) {
-                bot.DrawSysfont(title << "Sort the list", 38, 24, title);
-                const char *kn[] = { "Default", "Name (A-Z)", "Price", "Type", "Owned" };
+                bot.DrawSysfont(title << getLanguage->Get("MART_SORT_PANEL_HDR"), 38, 24, title);
+                const char *kn[] = { "SORT_DEFAULT", "SORT_NAME_AZ", "SORT_PRICE", "SORT_TYPE", "SORT_OWNED" };
                 for (int k = 0; k < 5; k++) {   // single-select (radio)
                     int col = k % 2, row = k / 2, x = 36 + col * 128, y = 50 + row * 38;
                     if (tap && SpawnerInBox(lastPos, x, y, 120, 30)) { g_bagSortKey = k; dirty = true; }
-                    chip(x, y, 120, 30, kn[k], g_bagSortKey == k, sel);
+                    chip(x, y, 120, 30, getLanguage->Get(kn[k]), g_bagSortKey == k, sel);
                 }
                 // ascending / descending (no effect on Default; shown dim then)
                 if (tap && SpawnerInBox(lastPos, 36, 162, 254, 24)) { g_bagSortDesc = !g_bagSortDesc; dirty = true; }
-                chip(36, 162, 254, 24, g_bagSortDesc ? "Order:  Descending" : "Order:  Ascending", g_bagSortKey != 0, sel);
+                chip(36, 162, 254, 24, g_bagSortDesc ? getLanguage->Get("SORT_ORDER_DESC") : getLanguage->Get("SORT_ORDER_ASC"), g_bagSortKey != 0, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
-                chip(198, 196, 98, 20, "< Back", false, sel);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false, sel);
             }
             else { // P_CAT (unified pocket + category + berry flavor)
                 for (int t = 0; t < 5; t++) {
                     int x = 24 + t * 54;
                     if (tap && SpawnerInBox(lastPos, x, 24, 52, 20)) catTab = t;
                     bot.DrawRect(x, 24, 52, 20, catTab == t ? sel : bg2, true); bot.DrawRect(x, 24, 52, 20, border, false);
-                    int tw = (int)OSD::GetTextWidth(true, bagCatTab[t]); bot.DrawSysfont((catTab == t ? bg : txt) << bagCatTab[t], x + (52 - tw) / 2, 27, txt);
+                    int tw = (int)OSD::GetTextWidth(true, bagCatTab(t)); bot.DrawSysfont((catTab == t ? bg : txt) << bagCatTab(t), x + (52 - tw) / 2, 27, txt);
                 }
                 // "All <pocket>" chip = whole-pocket select
                 if (tap && SpawnerInBox(lastPos, 26, 48, 264, 18)) { g_bf.grpAll[catTab] = !g_bf.grpAll[catTab]; dirty = true; }
-                chip(26, 48, 264, 18, string("All ") + bagPocketNames[catTab], g_bf.grpAll[catTab], sel);
+                chip(26, 48, 264, 18, Utils::Format(getLanguage->Get("MART_ALL_FMT").c_str(), bagPocketNames(catTab).c_str()), g_bf.grpAll[catTab], sel);
                 // group chips (3 columns)
                 for (int g = 0; g < bagGrpCount[catTab]; g++) {
                     int col = g % 3, row = g / 3, x = 26 + col * 90, y = 70 + row * 21;
@@ -3150,17 +3176,17 @@ namespace CTRPluginFramework {
                 }
                 // berry flavor sub-filter (only on the Berries tab)
                 if (catTab == 2) {
-                    bot.DrawSysfont(title << "Flavor", 30, 138, title);
+                    bot.DrawSysfont(title << getLanguage->Get("MART_FLAVOR"), 30, 138, title);
                     for (int v = 1; v <= 5; v++) {
                         int k = v - 1, col = k % 3, row = k / 3, x = 26 + col * 90, y = 152 + row * 21;
                         if (tap && SpawnerInBox(lastPos, x, y, 86, 19)) { g_bf.flavor[v] = !g_bf.flavor[v]; dirty = true; }
-                        chip(x, y, 86, 19, bagFlavorNames[v], g_bf.flavor[v], sel);
+                        chip(x, y, 86, 19, bagFlavorNames(v), g_bf.flavor[v], sel);
                     }
                 }
                 if (tap && SpawnerInBox(lastPos, 28, 196, 98, 20)) { BagResetCategory(); dirty = true; }
-                chip(28, 196, 98, 20, "Reset", false, sel);
+                chip(28, 196, 98, 20, getLanguage->Get("FILTER_RESET"), false, sel);
                 if (tap && SpawnerInBox(lastPos, 198, 196, 98, 20)) panel = P_NONE;
-                chip(198, 196, 98, 20, "< Back", false, sel);
+                chip(198, 196, 98, 20, getLanguage->Get("FILTER_BACK"), false, sel);
             }
 
             OSD::SwapBuffers();
@@ -3595,6 +3621,14 @@ namespace CTRPluginFramework {
     //      ROUTE_BASE+R = Hoenn route R; SEC_BASE+s = an "Other" section folder (UI only, never persisted) ----
     static const int ROUTE_BASE = 2000, SEC_BASE = 3000;
 
+    // Routes are series-aware: Kalos (XY) has Routes 1-22, Hoenn (ORAS) has Routes 101-134.
+    static inline int CurRouteCount()             { return currGameSeries == GameSeries::XY ? kRouteCountXY : kRouteCount; }
+    static inline const char *CurRouteName(int R) { return currGameSeries == GameSeries::XY ? kRoutesXY[R] : kRoutes[R]; }
+    static inline int RouteNumBase()              { return currGameSeries == GameSeries::XY ? 1 : 101; }
+    // Map-mode "all tiles" overview grid (Y-toggle): Kalos vs Hoenn tile lists.
+    static inline const u16 *CurOverviewTiles()   { return currGameSeries == GameSeries::XY ? kOverviewTilesXY : kOverviewTiles; }
+    static inline int CurOverviewCount()          { return currGameSeries == GameSeries::XY ? kOverviewCountXY : kOverviewCount; }
+
     // MyTeleport.txt (in the PLUGIN FOLDER via a relative path; survives updates; edit by hand):
     //   HERE <mapId> <place>               -> X "you are here" learns this sub-map id
     //   SPOT <place> <value> <dir> <x> <y> -> custom teleport drop point (overrides the dev default; 1 per place)
@@ -3604,7 +3638,7 @@ namespace CTRPluginFramework {
     static vector<TeleSpot> gSpots;
 
     static string teleToken(int target) {           // stable text token for the file
-        if (target >= ROUTE_BASE && target < SEC_BASE) return "Route_" + to_string(101 + (target - ROUTE_BASE));
+        if (target >= ROUTE_BASE && target < SEC_BASE) return "Route_" + to_string(RouteNumBase() + (target - ROUTE_BASE));
         const int NLOC = (int)(sizeof(kParsedLocations) / sizeof(kParsedLocations[0]));
         if (target >= 0 && target < NLOC) return string(kParsedLocations[target].key);
         return "?";
@@ -3612,7 +3646,7 @@ namespace CTRPluginFramework {
     static int teleTokenTarget(const string &tok) {  // text token -> target (or -1)
         if (tok.size() > 6 && tok.compare(0, 6, "Route_") == 0) {
             int n = 0; for (size_t i = 6; i < tok.size(); i++) if (tok[i] >= '0' && tok[i] <= '9') n = n * 10 + (tok[i] - '0');
-            int R = n - 101; return (R >= 0 && R < kRouteCount) ? ROUTE_BASE + R : -1;
+            int R = n - RouteNumBase(); return (R >= 0 && R < CurRouteCount()) ? ROUTE_BASE + R : -1;
         }
         const int NLOC = (int)(sizeof(kParsedLocations) / sizeof(kParsedLocations[0]));
         for (int i = 0; i < NLOC; i++) if (tok == kParsedLocations[i].key) return i;
@@ -3677,7 +3711,7 @@ namespace CTRPluginFramework {
     static string teleTodo(int target) {
         const int NLOC = (int)(sizeof(kParsedLocations) / sizeof(kParsedLocations[0]));
         bool isLoc   = (target >= 0 && target < NLOC);
-        bool isRoute = (target >= ROUTE_BASE && target < ROUTE_BASE + kRouteCount);
+        bool isRoute = (target >= ROUTE_BASE && target < ROUTE_BASE + CurRouteCount());
         if (!isLoc && !isRoute) return "";
         bool hasTag  = isLoc || HasTag(target);    // locations: recognized by the value table
         bool hasWarp = isLoc || HasSpot(target);   // locations: always have the dev-default drop point
@@ -3872,7 +3906,7 @@ namespace CTRPluginFramework {
         Color bg = st.BackgroundMainColor, bg2 = st.BackgroundSecondaryColor, txt = st.MainTextColor;
         Color title = st.WindowTitleColor, border = st.BackgroundBorderColor, sel = st.MenuSelectedItemColor;
         string ttl = entry->Name();
-        static const char *SEC_NAME[4] = { "Caves", "Forests", "Landmarks", "Mirage Spots" };   // ROUTE_BASE/SEC_BASE are file-scope (shared with MyTeleport.txt)
+        auto SEC_NAME = [](int s) -> string { static const char *k[4] = { "TELE_SEC_CAVES", "TELE_SEC_FORESTS", "TELE_SEC_LANDMARKS", "TELE_SEC_MIRAGE" }; return getLanguage->Get(k[(s < 0 || s > 3) ? 0 : s]); };   // ROUTE_BASE/SEC_BASE are file-scope (shared with MyTeleport.txt)
 
         auto pad2 = [](int n) -> string { string s = to_string(n); return s.size() < 2 ? "0" + s : s; };
         auto fitText = [&](string s, int maxw) -> string {
@@ -3880,21 +3914,21 @@ namespace CTRPluginFramework {
             return s;
         };
         auto locName = [&](int g) -> string {   // location idx, or SEC_BASE+s / ROUTE_BASE+R for non-location targets
-            if (g >= SEC_BASE)   { int s = g - SEC_BASE; return (s >= 0 && s < 4) ? string(SEC_NAME[s]) : string("?"); }
-            if (g >= ROUTE_BASE) { int R = g - ROUTE_BASE; return (R >= 0 && R < kRouteCount) ? string(kRoutes[R]) : string("?"); }
+            if (g >= SEC_BASE)   { int s = g - SEC_BASE; return (s >= 0 && s < 4) ? SEC_NAME(s) : string("?"); }
+            if (g >= ROUTE_BASE) { int R = g - ROUTE_BASE; return (R >= 0 && R < CurRouteCount()) ? string(CurRouteName(R)) : string("?"); }
             return (size_t)g < gLocations.size() ? gLocations[g].name : string("?");
         };
         auto gridPath = [&](int g) -> string { return "Assets/Teleport/grid/" + pad2(g) + ".bmp"; };
 
         // ---- category model: -1=All, 0=Towns, 1=Other(caves/forests/landmarks/mirage), 3=Map ----
-        static const char *CAT_SHORT[5] = { "All", "Towns", "Other", "Routes", "Map" };
-        static const char *CAT_FULL[4]  = { "Towns & Cities", "Other", "Routes", "Map" };
-        static const char *DABBR[8]     = { "N", "S", "E", "W", "NE", "NW", "SE", "SW" };
+        auto CAT_SHORT = [](int i) -> string { static const char *k[5] = { "TELE_CAT_ALL", "TELE_CAT_TOWNS", "TELE_CAT_OTHER", "TELE_CAT_ROUTES", "TELE_CAT_MAP" }; return getLanguage->Get(k[(i < 0 || i > 4) ? 0 : i]); };
+        auto CAT_FULL  = [](int i) -> string { static const char *k[4] = { "TELE_CATF_TOWNS", "TELE_CATF_OTHER", "TELE_CATF_ROUTES", "TELE_CATF_MAP" }; return getLanguage->Get(k[(i < 0 || i > 3) ? 0 : i]); };
+        auto DABBR     = [](int i) -> string { static const char *k[8] = { "TELE_DIR_N", "TELE_DIR_S", "TELE_DIR_E", "TELE_DIR_W", "TELE_DIR_NE", "TELE_DIR_NW", "TELE_DIR_SE", "TELE_DIR_SW" }; return getLanguage->Get(k[(i < 0 || i > 7) ? 0 : i]); };
         auto iabs = [](int v) -> int { return v < 0 ? -v : v; };
 
         vector<int> cats; cats.push_back(-1);
         for (int c = 0; c < 2; c++) { for (int i = 0; i < count; i++) if (kLocCat[base + i] == c) { cats.push_back(c); break; } }
-        if (currGameSeries != GameSeries::XY && kRouteCount > 0) cats.push_back(2);   // Routes (Hoenn) tab, in the old Mirage slot
+        if (CurRouteCount() > 0) cats.push_back(2);   // Routes tab (Hoenn 101-134 / Kalos 1-22)
         for (int i = 0; i < count; i++) if (kMap[base + i].count) { cats.push_back(3); break; }
         const int NCH = (int)cats.size(), CHW = 280 / NCH, CHY = 24, CHH = 22;
         static int sTeleCat = -1;
@@ -3917,7 +3951,7 @@ namespace CTRPluginFramework {
                     for (int i = 0; i < count; i++) if (kLocCat[base + i] == 1 && kLocSec[base + i] == sOtherSec) filt.push_back({ (int)base + i, nullptr });
                 }
             } else if (c == 2) {                 // Routes: every Hoenn route as a bindable/teleportable target
-                for (int R = 0; R < kRouteCount; R++) filt.push_back({ ROUTE_BASE + R, nullptr });
+                for (int R = 0; R < CurRouteCount(); R++) filt.push_back({ ROUTE_BASE + R, nullptr });
             } else {
                 for (int i = 0; i < count; i++) if (c == -1 || kLocCat[base + i] == c) filt.push_back({ (int)base + i, nullptr });
             }
@@ -3948,7 +3982,7 @@ namespace CTRPluginFramework {
         // free geographic Map: persisted cursor (absolute idx, independent of the grid) + a small tile cache
         static int sMapCur = -1;
         bool validMap = (sMapCur >= (int)base && sMapCur < (int)base + count)
-                     || (sMapCur >= ROUTE_BASE && sMapCur < ROUTE_BASE + kRouteCount);   // a location or a route node
+                     || (sMapCur >= ROUTE_BASE && sMapCur < ROUTE_BASE + CurRouteCount());   // a location or a route node
         if (!validMap) sMapCur = (currGameSeries == GameSeries::XY) ? (int)base : 42;     // default to a central hub (Mauville) on ORAS
         int mapCur = sMapCur;
         // gmap tiles: one never-evicted slot per location (indexed by gx-base) so re-centring the map
@@ -3964,7 +3998,9 @@ namespace CTRPluginFramework {
         // Map node neighbours: center = location (kLocLinks) or route target (kRouteLinks). Fills to[]/dir[] (target = loc idx / ROUTE_BASE+R).
         auto mapNeighbors = [&](int center, int *to, int *dir) -> int {
             const MapNode *nd = nullptr;
-            if (center >= ROUTE_BASE) { int R = center - ROUTE_BASE; if (R >= 0 && R < kRouteCount) nd = &kRouteLinks[R]; }
+            if (center >= ROUTE_BASE) { int R = center - ROUTE_BASE;
+                if (currGameSeries == GameSeries::XY) { if (R >= 0 && R < kRouteCountXY) nd = &kRouteLinksXY[R]; }
+                else if (R >= 0 && R < kRouteCount) nd = &kRouteLinks[R]; }
             else if (center >= 0 && center < 63) nd = &kLocLinks[center];
             int n = 0;
             if (nd) for (int e = 0; e < nd->count && n < 8; e++) { to[n] = nd->links[e].isRoute ? (ROUTE_BASE + nd->links[e].to) : nd->links[e].to; dir[n] = nd->links[e].dir; n++; }
@@ -4005,14 +4041,15 @@ namespace CTRPluginFramework {
         vector<int> overList;
         auto rebuildOver = [&]() {
             overList.clear();
-            for (int i = 0; i < kOverviewCount; i++) { int t = kOverviewTiles[i];
+            const u16 *ovTiles = CurOverviewTiles(); int ovCount = CurOverviewCount();
+            for (int i = 0; i < ovCount; i++) { int t = ovTiles[i];
                 if (sOverMask == 0 || (sOverMask & (1 << overCatBit(t)))) overList.push_back(t); }
-            if (overList.empty()) overList.push_back(kOverviewTiles[0]);
+            if (overList.empty()) overList.push_back(ovTiles[0]);
             if (sOverIdx >= (int)overList.size()) sOverIdx = (int)overList.size() - 1;
             if (sOverIdx < 0) sOverIdx = 0;
         };
         auto overFind = [&](int t) -> int { for (int i = 0; i < (int)overList.size(); i++) if (overList[i] == t) return i; return -1; };
-        static const char *OVCHIP[7] = { "ALL", "TOWNS", "ROUTES", "CAVES", "FORESTS", "LANDM.", "MIRAGE" };
+        auto OVCHIP = [](int i) -> string { static const char *k[7] = { "TELE_OV_ALL", "TELE_OV_TOWNS", "TELE_OV_ROUTES", "TELE_OV_CAVES", "TELE_OV_FORESTS", "TELE_OV_LANDM", "TELE_OV_MIRAGE" }; return getLanguage->Get(k[(i < 0 || i > 6) ? 0 : i]); };
         auto overChip = [&](int i, int &x, int &y, int &w, int &h) {     // 2 rows: ALL/TOWNS/ROUTES, then CAVES/FORESTS/LANDM/MIRAGE
             h = 20;                                                      // bottom window = x 20..300 (280 wide)
             if (i < 3) { w = 88; x = 24 + i * 92; y = 112; }
@@ -4118,8 +4155,8 @@ namespace CTRPluginFramework {
                         int p = overFind(found); if (p >= 0) sOverIdx = p;
                     }
                     pendingBindId = -1;
-                    setXMsg("Here: " + locName(found));
-                } else { pendingBindId = (int)here; setXMsg("map 0x" + hex((int)here) + " - pick place, ZL = tag"); }
+                    setXMsg(Utils::Format(getLanguage->Get("TELE_MSG_HERE_FMT").c_str(), locName(found).c_str()));
+                } else { pendingBindId = (int)here; setXMsg(Utils::Format(getLanguage->Get("TELE_MSG_MAP_FMT").c_str(), hex((int)here).c_str())); }
             }
 
             // ---- ZL = Tag area: teach X that the CURRENT sub-map = the highlighted place/route (saved to MyTeleport.txt) ----
@@ -4130,7 +4167,7 @@ namespace CTRPluginFramework {
                     u16 mid = 0; Process::Read16(A.mapId16, mid);
                     AddHere((int)mid, tg);
                     pendingBindId = -1;
-                    setXMsg("Tagged here (0x" + hex((int)mid) + ") -> " + locName(tg));
+                    setXMsg(Utils::Format(getLanguage->Get("TELE_MSG_TAGGED_FMT").c_str(), hex((int)mid).c_str(), locName(tg).c_str()));
                 }
             }
             // ---- Start = Save Warp Point: save your CURRENT position as the highlighted target's teleport drop point (+ tag). 1 per target. ----
@@ -4144,13 +4181,13 @@ namespace CTRPluginFramework {
                     float fx = *reinterpret_cast<float*>(&rawX), fy = *reinterpret_cast<float*>(&rawY);
                     bool replaced = AddSpot(tg, (int)mid, (int)dir, (int)fx, (int)fy);
                     AddHere((int)mid, tg);
-                    setXMsg((replaced ? "Warp point replaced: " : "Warp point set: ") + locName(tg));
+                    setXMsg(replaced ? Utils::Format(getLanguage->Get("TELE_MSG_WARP_REPLACED_FMT").c_str(), locName(tg).c_str()) : Utils::Format(getLanguage->Get("TELE_MSG_WARP_SET_FMT").c_str(), locName(tg).c_str()));
                 }
             }
 
             // ====================================================================== input
             if (curCat() == 3) {
-                if (currGameSeries != GameSeries::XY && Controller::IsKeyPressed(Key::Y)) {   // Y: graph <-> overview grid
+                if (Controller::IsKeyPressed(Key::Y)) {   // Y: graph <-> overview grid (both XY and ORAS)
                     if (sMapView == 0) { sMapView = 1; rebuildOver(); int p = overFind(mapCur); sOverIdx = (p >= 0) ? p : 0; }
                     else { sMapView = 0; mapCur = overList[sOverIdx]; sMapCur = mapCur; }
                     while (Controller::IsKeyDown(Key::Y)) { Controller::Update(); OSD::SwapBuffers(); }
@@ -4160,7 +4197,7 @@ namespace CTRPluginFramework {
                 if (sOverIdx >= (int)overList.size()) sOverIdx = (int)overList.size() - 1;
                 if (Controller::IsKeyPressed(Key::A)) {
                     int t = overList[sOverIdx];
-                    if (t >= ROUTE_BASE && !HasSpot(t)) setXMsg("No warp point yet - Start on the route");
+                    if (t >= ROUTE_BASE && !HasSpot(t)) setXMsg(getLanguage->Get("TELE_MSG_NO_WARP_ROUTE"));
                     else { chosen = true; commitAbs = t; break; }
                 }
                 int ncol = kOverviewCols, nn = (int)overList.size();
@@ -4177,7 +4214,7 @@ namespace CTRPluginFramework {
               } else {
                 // -------- MAP: grid-cell cursor (move to the tile shown in the pressed direction) --------
                 if (Controller::IsKeyPressed(Key::A)) {
-                    if (mapCur >= ROUTE_BASE && !HasSpot(mapCur)) setXMsg("No warp point yet - Start on the route");
+                    if (mapCur >= ROUTE_BASE && !HasSpot(mapCur)) setXMsg(getLanguage->Get("TELE_MSG_NO_WARP_ROUTE"));
                     else { chosen = true; commitAbs = mapCur; break; }
                 }
                 int want = -1;
@@ -4213,7 +4250,7 @@ namespace CTRPluginFramework {
                     if (tg >= SEC_BASE) {             // "Other" section folder -> drill in (not a teleport)
                         sOtherSec = tg - SEC_BASE; rebuild(); cursor = firstSel(); listScroll = 0; loadedKey = -1;
                     } else if (tg >= ROUTE_BASE && !HasSpot(tg)) {   // route with no captured spot -> can't teleport yet
-                        setXMsg("No warp point yet - stand there + Start to save");
+                        setXMsg(getLanguage->Get("TELE_MSG_NO_WARP_STAND"));
                     } else { chosen = true; commitAbs = tg; break; }
                 }
                 int n = (int)filt.size();
@@ -4251,7 +4288,7 @@ namespace CTRPluginFramework {
 
             if (curCat() == 3 && sMapView == 1) {
                 // ---- OVERVIEW: dense ~geographic grid of all imaged tiles (40x28), no labels, scrolls with the cursor ----
-                top.DrawSysfont(title << (ttl + " - All"), 42, 26, title);
+                top.DrawSysfont(title << Utils::Format(getLanguage->Get("TELE_TITLE_ALL_FMT").c_str(), ttl.c_str()), 42, 26, title);
                 top.DrawRect(42, 44, 316, 1, title, true);
                 const int OC = kOverviewCols, TW = 40, TH = 28, PX = 48, PY = 33, GX0 = 34, GY0 = 50, VR = 5;
                 int nn = (int)overList.size(), rows = (nn + OC - 1) / OC, curRow = sOverIdx / OC;
@@ -4271,7 +4308,7 @@ namespace CTRPluginFramework {
                 if (overScroll + VR < rows) top.DrawSysfont(title << "v", 360, GY0 + (VR - 1) * PY, title);
             } else if (curCat() == 3) {
                 // ---- fixed 5x3 grid: cursor centre, its connections anchored by direction, the rest geographic ----
-                top.DrawSysfont(title << (ttl + " - Map"), 42, 26, title);
+                top.DrawSysfont(title << Utils::Format(getLanguage->Get("TELE_TITLE_MAP_FMT").c_str(), ttl.c_str()), 42, 26, title);
                 top.DrawRect(42, 44, 316, 1, title, true);
                 const int COLS = 5, ROWS = 3, TW = 56, TH = 40, PX = 66, PY = 56, GX0 = 40, GY0 = 56;
                 int cellLoc[3][5]; buildGrid(mapCur, cellLoc);
@@ -4301,12 +4338,12 @@ namespace CTRPluginFramework {
                   top.DrawSysfont(sel << nm, slotX(2) + (TW - (int)OSD::GetTextWidth(true, nm)) / 2, slotY(1) + TH + 1, sel); }
             } else if (view == 0) {
                 int ng = (int)gsel.size();
-                const char *cf = (curCat() < 0) ? "All" : CAT_FULL[curCat()];
-                top.DrawSysfont(title << (string(cf) + " (" + to_string(ng) + ")"), 42, 26, title);
+                string cf = (curCat() < 0) ? getLanguage->Get("TELE_CAT_ALL") : CAT_FULL(curCat());
+                top.DrawSysfont(title << (cf + " (" + to_string(ng) + ")"), 42, 26, title);
                 int pages = (ng + PER - 1) / PER; if (pages < 1) pages = 1;
                 int gp = gposOf();
                 int page = ng ? gp / PER : 0;
-                string pg = "Pg " + to_string(page + 1) + "/" + to_string(pages);
+                string pg = Utils::Format(getLanguage->Get("TELE_PAGE_FMT").c_str(), page + 1, pages);
                 top.DrawSysfont(txt << pg, 362 - (int)OSD::GetTextWidth(true, pg), 28, txt);
                 top.DrawRect(42, 44, 316, 1, title, true);
 
@@ -4334,8 +4371,8 @@ namespace CTRPluginFramework {
                 bool isRoute = (gx >= ROUTE_BASE && gx < SEC_BASE); // route: image + set-spot hint
                 bool hasImg  = isLoc || isRoute;                 // both have a thumbnail; section folders don't
                 string nm = locName(gx);
-                string tt = (gx >= SEC_BASE) ? (ttl + " - Other")
-                          : (curCat() == 1 && sOtherSec >= 0 && isLoc) ? (string(SEC_NAME[sOtherSec]) + " > " + nm)   // breadcrumb inside a section
+                string tt = (gx >= SEC_BASE) ? Utils::Format(getLanguage->Get("TELE_TITLE_OTHER_FMT").c_str(), ttl.c_str())
+                          : (curCat() == 1 && sOtherSec >= 0 && isLoc) ? (SEC_NAME(sOtherSec) + " > " + nm)   // breadcrumb inside a section
                           : (ttl + ": " + nm);
                 top.DrawSysfont(title << tt, 42, 26, title);
                 top.DrawRect(42, 44, 316, 1, title, true);
@@ -4348,7 +4385,7 @@ namespace CTRPluginFramework {
                     if (isLoc) {
                         const TeleConn &cc = kLocConn[gx];
                         if (cc.count) {
-                            string ex = "Exits:  ";
+                            string ex = getLanguage->Get("TELE_EXITS") + "  ";
                             for (int i = 0; i < cc.count; i++) { if (i) ex += "   "; ex += cc.exits[i]; }
                             const int RX = 40, RW = 320, RY = BY + BH + 5;          // marquee region [40,360]
                             int tw = (int)OSD::GetTextWidth(true, ex);
@@ -4364,13 +4401,13 @@ namespace CTRPluginFramework {
                             }
                         }
                     } else {                                  // route: spot status / hint under the image
-                        const char *rh = HasSpot(gx) ? "A: teleport here   (Start: re-set warp)" : "stand on it, then Start = save warp point";
+                        string rh = HasSpot(gx) ? getLanguage->Get("TELE_ROUTE_HAS_SPOT") : getLanguage->Get("TELE_ROUTE_NO_SPOT");
                         top.DrawSysfont(txt << rh, 40, BY + BH + 5, txt);
                     }
                 } else {                                  // section folder: a text card (no image)
                     top.DrawRect(BX, BY, BW, BH, bg2, true);
                     top.DrawSysfont(title << nm, BX + (BW - (int)OSD::GetTextWidth(true, nm)) / 2, BY + BH / 2 - 18, title);
-                    const char *sub = "A: open this section";
+                    string sub = getLanguage->Get("TELE_OPEN_SECTION");
                     top.DrawSysfont(txt << sub, BX + (BW - (int)OSD::GetTextWidth(true, sub)) / 2, BY + BH / 2 + 4, txt);
                 }
             }
@@ -4382,7 +4419,7 @@ namespace CTRPluginFramework {
                 int cx = 20 + i * CHW; bool on = (i == catI);
                 bot.DrawRect(cx, CHY, CHW - 2, CHH, on ? sel : bg2, true);
                 bot.DrawRect(cx, CHY, CHW - 2, CHH, on ? title : border, false);
-                string lbl = fitText(CAT_SHORT[cats[i] + 1], CHW - 4);
+                string lbl = fitText(CAT_SHORT(cats[i] + 1), CHW - 4);
                 bot.DrawSysfont((on ? bg : txt) << lbl, cx + (CHW - 2 - (int)OSD::GetTextWidth(true, lbl)) / 2, CHY + 5, txt);
             }
             if (curCat() == 3 && sMapView == 1) {         // OVERVIEW bottom: big name + filter chips + help
@@ -4394,25 +4431,25 @@ namespace CTRPluginFramework {
                     bool onq = (i == 0) ? (sOverMask == 0) : (sOverMask & (1 << (i - 1)));
                     bot.DrawRect(x, y, w, h, onq ? sel : bg2, true);
                     bot.DrawRect(x, y, w, h, onq ? title : border, false);
-                    string lb = fitText(OVCHIP[i], w - 4);
+                    string lb = fitText(OVCHIP(i), w - 4);
                     bot.DrawSysfont((onq ? bg : txt) << lb, x + (w - (int)OSD::GetTextWidth(true, lb)) / 2, y + 4, txt);
                 }
-                const char *h1 = "D-Pad: move   A: teleport   X: here";
-                const char *h2 = "tap chips: filter    Y: map    B: back";
+                string h1 = getLanguage->Get("TELE_OV_HINT1");
+                string h2 = getLanguage->Get("TELE_OV_HINT2");
                 bot.DrawSysfont(txt << h1, 160 - (int)OSD::GetTextWidth(true, h1) / 2, 170, txt);
                 bot.DrawSysfont(txt << h2, 160 - (int)OSD::GetTextWidth(true, h2) / 2, 190, txt);
             } else if (curCat() == 3) {                   // map: cursor info + its connections legend
                 int nto[8], ndir[8]; int nn = mapNeighbors(mapCur, nto, ndir);
                 string nm = locName(mapCur);
                 bot.DrawSysfont(sel << nm, 160 - (int)OSD::GetTextWidth(true, nm) / 2, 56, sel);
-                if (nn == 0) { const char *nr = "(no links)";
+                if (nn == 0) { string nr = getLanguage->Get("TELE_NO_LINKS");
                     bot.DrawSysfont(txt << nr, 160 - (int)OSD::GetTextWidth(true, nr) / 2, 78, txt); }
                 for (int e = 0; e < nn && e < 5; e++) {
-                    string ln = string(DABBR[ndir[e]]) + ": " + locName(nto[e]);
+                    string ln = DABBR(ndir[e]) + ": " + locName(nto[e]);
                     bot.DrawSysfont(txt << fitText(ln, 264), 30, 76 + e * 16, txt);
                 }
-                const char *h1 = "D-Pad: move   A: teleport   X: here";
-                const char *h2 = "L/R: category   Y: all-map   B: back";
+                string h1 = getLanguage->Get("TELE_OV_HINT1");
+                string h2 = getLanguage->Get("TELE_MAP_HINT2");
                 bot.DrawSysfont(txt << h1, 160 - (int)OSD::GetTextWidth(true, h1) / 2, 184, txt);
                 bot.DrawSysfont(txt << h2, 160 - (int)OSD::GetTextWidth(true, h2) / 2, 200, txt);
             } else if (view == 0) {                       // grid: destination + hints
@@ -4420,9 +4457,9 @@ namespace CTRPluginFramework {
                 bot.DrawSysfont(sel << nm, 160 - (int)OSD::GetTextWidth(true, nm) / 2, 78, sel);
                 { string td = (curTgt() >= 0) ? teleTodo(curTgt()) : string();   // dim "+tag/+warp" still pending
                   if (!td.empty()) bot.DrawSysfont(border << td, 160 - (int)OSD::GetTextWidth(true, td) / 2, 96, border); }
-                const char *h1 = "A: teleport     X: you are here";
-                const char *h2 = "Start: save warp point    ZL: tag area";
-                const char *h3 = "Y: list   L/R: category   B: back";
+                string h1 = getLanguage->Get("TELE_GRID_HINT1");
+                string h2 = getLanguage->Get("TELE_GRID_HINT2");
+                string h3 = getLanguage->Get("TELE_GRID_HINT3");
                 bot.DrawSysfont(txt << h1, 160 - (int)OSD::GetTextWidth(true, h1) / 2, 130, txt);
                 bot.DrawSysfont(txt << h2, 160 - (int)OSD::GetTextWidth(true, h2) / 2, 150, txt);
                 bot.DrawSysfont(txt << h3, 160 - (int)OSD::GetTextWidth(true, h3) / 2, 184, txt);
@@ -4444,7 +4481,7 @@ namespace CTRPluginFramework {
                 }
                 if (listScroll > 0) bot.DrawSysfont(txt << "^", 286, LISTY, txt);
                 if (listScroll + LROWS < (int)filt.size()) bot.DrawSysfont(txt << "v", 286, LISTY + (LROWS - 1) * LROWH, txt);
-                { const char *lg = "+tag / +warp = not set yet";
+                { string lg = getLanguage->Get("TELE_LEGEND");
                   bot.DrawSysfont(border << lg, 160 - (int)OSD::GetTextWidth(true, lg) / 2, 204, border); }
             }
 
@@ -4456,7 +4493,7 @@ namespace CTRPluginFramework {
                 bot.DrawSysfont(sel << xMsg, 160 - (int)OSD::GetTextWidth(true, xMsg) / 2, 103, sel);
             } else if (pendingBindId >= 0) {   // persistent teach prompt: live updates with the highlighted place
                 int absSel = (curCat() == 3) ? mapCur : curTgt();
-                string bn = fitText("ZL = tag 0x" + hex(pendingBindId) + " -> " + (absSel >= 0 ? locName(absSel) : string("-")), 270);
+                string bn = fitText(Utils::Format(getLanguage->Get("TELE_MSG_ZL_TAG_FMT").c_str(), hex(pendingBindId).c_str(), (absSel >= 0 ? locName(absSel) : string("-")).c_str()), 270);
                 int w = (int)OSD::GetTextWidth(true, bn) + 14;
                 bot.DrawRect(160 - w / 2, 100, w, 18, bg2, true);
                 bot.DrawRect(160 - w / 2, 100, w, 18, title, false);
@@ -4496,16 +4533,16 @@ namespace CTRPluginFramework {
         const string reset(1, (char)0x18);                    // 0x18 resets colour to the theme's text colour
         string warn = CenterAlign(red + heading + "\n\n" + reset + body + "\n\n" + amber + question, 55, 345);
 
-        static const vector<string> options = {"NO - keep it off", "YES - apply it"};
+        static const vector<string> options = {getLanguage->Get("DLG_NO_KEEP_OFF"), getLanguage->Get("DLG_YES_APPLY")};
         int choice = 0;
         Keyboard kb;
         return kb.Setup(warn, true, options, choice) != -1 && choice == 1;
     }
 
     void UnlockFullFlyMap(MenuEntry *entry) {
-        if (!DangerConfirm("BEWARE!\nThis CANNOT be undone\nonce you save.",
-                           "It opens every Fly spot at\nonce, so you lose track of\nwhere the story has taken you.",
-                           "Apply it anyway?"))
+        if (!DangerConfirm(getLanguage->Get("TELE_FLYMAP_WARN_HEAD"),
+                           getLanguage->Get("TELE_FLYMAP_WARN_BODY"),
+                           getLanguage->Get("TELE_FLYMAP_WARN_Q")))
             return;
 
         static const u32 address = AutoGameSet(0x8C7A81C, 0x8C81F24);
@@ -4998,7 +5035,7 @@ namespace CTRPluginFramework {
         if (g_hudBP != nullptr && g_hudBP->IsActivated()) {
             u16 bp = 0;
             Process::Read16(AutoGameSet(0x8C6A6E0, 0x8C71DE8), bp);
-            lines.push_back(Utils::Format("BP: %u", (unsigned)bp));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_BP").c_str(), (unsigned)bp));
         }
 
         if (g_hudStatus != nullptr && g_hudStatus->IsActivated()
@@ -5025,7 +5062,7 @@ namespace CTRPluginFramework {
         if (g_hudMiles != nullptr && g_hudMiles->IsActivated()) {
             u32 miles = 0;
             Process::Read32(AutoGameSet(0x8C82BA0, 0x8C8B36C), miles);
-            lines.push_back(Utils::Format("Miles: %lu", (unsigned long)miles));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_MILES").c_str(), (unsigned long)miles));
         }
 
         if (g_hudParty != nullptr && g_hudParty->IsActivated()) {
@@ -5036,7 +5073,7 @@ namespace CTRPluginFramework {
                 Process::Read16(partyBase + i * 0x1E4 + 0x08, species);
                 if (species > 0 && species <= 721) count++;
             }
-            lines.push_back(Utils::Format("Party: %d/6", count));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_PARTY").c_str(), count));
         }
 
         if (g_hudXY != nullptr && g_hudXY->IsActivated()) {
@@ -5045,20 +5082,20 @@ namespace CTRPluginFramework {
             Process::Read32(AutoGameSet(0x8C671A8, 0x8C6E89C), rawY);
             float posX = *reinterpret_cast<float*>(&rawX);
             float posY = *reinterpret_cast<float*>(&rawY);
-            lines.push_back(Utils::Format("X:%.0f Y:%.0f", posX, posY));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_XY").c_str(), posX, posY));
         }
 
         if (g_hudRepel != nullptr && g_hudRepel->IsActivated()) {
             u8 repel = 0;
             // Volatile overworld counter (u8), not stored in the save. Addr from PokemonCheatPlugin (same game build).
             Process::Read8(AutoGameSet(0x8C7D23A, 0x8C8546E), repel);
-            lines.push_back(Utils::Format("Repel: %u", (unsigned)repel));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_REPEL").c_str(), (unsigned)repel));
         }
 
         if (g_hudMapId != nullptr && g_hudMapId->IsActivated()) {
             u16 mid = 0;
             Process::Read16(AutoGameSet(0x8C67190, 0x8C6E884), mid);   // XY, ORAS - current (fine) map id
-            lines.push_back(Utils::Format("Map #%u (0x%X)", (unsigned)mid, (unsigned)mid));
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_MAP_ID").c_str(), (unsigned)mid, (unsigned)mid));
         }
 
         if (lines.empty())
@@ -5079,9 +5116,16 @@ namespace CTRPluginFramework {
         if (g_hudPanel != nullptr && g_hudPanel->IsActivated())
             HudPanel(screen, x, y, boxW, boxH, g_hudOpacity);
 
+        // Align each line to the side the HUD is anchored on (left col -> left, center -> center, right -> right),
+        // so the info reads flush-right when the HUD sits on the right edge.
+        const int col = g_hudPosition % 3; // 0 = left, 1 = center, 2 = right
         int ty = y + 2;
         for (size_t i = 0; i < lines.size(); i++) {
-            screen.DrawSysfont(lines[i], (u32)(x + 4), (u32)ty, Color::White);
+            int lw = (int)OSD::GetTextWidth(true, lines[i]);
+            int lx = x + 4;                                    // left
+            if (col == 1)      lx = x + 4 + (w - lw) / 2;      // center within the content width
+            else if (col == 2) lx = x + 4 + (w - lw);          // right edge
+            screen.DrawSysfont(lines[i], (u32)lx, (u32)ty, Color::White);
             ty += lineH;
         }
 
@@ -5140,10 +5184,10 @@ namespace CTRPluginFramework {
     static void HudSetPosition(MenuEntry *entry) {
         (void)entry;
 
-        static const char *names[9] = {
-            "Top-Left", "Top-Center", "Top-Right",
-            "Left", "Center", "Right",
-            "Bottom-Left", "Bottom-Center", "Bottom-Right"
+        const string names[9] = {
+            getLanguage->Get("HUD_POS_TOP_LEFT"), getLanguage->Get("HUD_POS_TOP_CENTER"), getLanguage->Get("HUD_POS_TOP_RIGHT"),
+            getLanguage->Get("HUD_POS_LEFT"), getLanguage->Get("HUD_POS_CENTER"), getLanguage->Get("HUD_POS_RIGHT"),
+            getLanguage->Get("HUD_POS_BOTTOM_LEFT"), getLanguage->Get("HUD_POS_BOTTOM_CENTER"), getLanguage->Get("HUD_POS_BOTTOM_RIGHT")
         };
 
         const Screen &top = OSD::GetTopScreen();
@@ -5202,9 +5246,9 @@ namespace CTRPluginFramework {
             // ---- TOP: instructions (inside the standard window so nothing bleeds outside -> no residue) ----
             top.DrawRect(30, 20, 340, 200, bg, true);
             top.DrawRect(30, 20, 340, 200, border, false);
-            top.DrawSysfont(title << "Choose where the HUD appears", 90, 40, title);
-            top.DrawSysfont("Tap a cell below - it mirrors this screen.", 56, 74, txt);
-            top.DrawSysfont("Highlighted = target.   Press B to cancel.", 70, 104, txt);
+            top.DrawSysfont(title << getLanguage->Get("HUD_POS_TITLE"), 90, 40, title);
+            top.DrawSysfont(getLanguage->Get("HUD_POS_INSTR1"), 56, 74, txt);
+            top.DrawSysfont(getLanguage->Get("HUD_POS_INSTR2"), 70, 104, txt);
 
             // ---- BOTTOM: 3x3 grid (inside the bottom window) ----
             bot.DrawRect(20, 20, 280, 200, bg, true);
@@ -5235,7 +5279,7 @@ namespace CTRPluginFramework {
         if (selected >= 0) {
             g_hudPosition = selected;
             SaveHudConfig();
-            NotifyIfEnabled(string("HUD position: ") + names[selected], Color::LimeGreen);
+            NotifyIfEnabled(Utils::Format(getLanguage->Get("HUD_POS_TOAST_FMT").c_str(), names[selected].c_str()), Color::LimeGreen);
         }
     }
 
@@ -5293,7 +5337,7 @@ namespace CTRPluginFramework {
             top.DrawRect(80, 100,  40,  40, Color(210, 90, 80), true); // object
             top.DrawRect(320, 60,  28,  28, Color(225, 205, 95), true);// object
             top.DrawRect(30,  20, 340, 200, border, false);            // window border
-            top.DrawSysfont("Live preview", 160, 26, Color::White);
+            top.DrawSysfont(getLanguage->Get("HUD_LIVE_PREVIEW"), 160, 26, Color::White);
 
             // HUD info box in the window's bottom-right corner, with a small symmetric margin from the borders.
             const int M = 12;
@@ -5307,7 +5351,7 @@ namespace CTRPluginFramework {
             // color and the slider uses the theme background color, so they contrast by design on any theme. ----
             bot.DrawRect(20, 20, 280, 200, sel, true);     // window background = MenuSelectedItemColor
             bot.DrawRect(20, 20, 280, 200, border, false);
-            bot.DrawSysfont(bg << "Panel opacity", 105, 30, bg);
+            bot.DrawSysfont(bg << getLanguage->Get("HUD_PANEL_OPACITY_HDR"), 105, 30, bg);
             bot.DrawSysfont(Utils::Format("%d%%", g_hudOpacity), 140, 60, bg);
 
             // tick marks every 10%
@@ -5321,8 +5365,8 @@ namespace CTRPluginFramework {
             bot.DrawRect(TX, TY, fillW, TH, bg, true);                   // filled portion = theme background
             bot.DrawRect(TX + fillW - 5, TY - 6, 10, TH + 12, txt, true); // knob = main text (stands out)
 
-            bot.DrawSysfont("Drag the bar to set opacity.", 60, 178, bg);
-            bot.DrawSysfont("A = OK     B = Cancel", 88, 200, bg);
+            bot.DrawSysfont(getLanguage->Get("HUD_OPACITY_DRAG"), 60, 178, bg);
+            bot.DrawSysfont(getLanguage->Get("HUD_OK_CANCEL"), 88, 200, bg);
 
             OSD::SwapBuffers();
         }
@@ -5335,64 +5379,64 @@ namespace CTRPluginFramework {
 
         if (confirmed) {
             SaveHudConfig();
-            NotifyIfEnabled(Utils::Format("HUD panel opacity: %d%%", g_hudOpacity), Color::LimeGreen);
+            NotifyIfEnabled(Utils::Format(getLanguage->Get("HUD_OPACITY_TOAST").c_str(), g_hudOpacity), Color::LimeGreen);
         }
     }
 
     MenuFolder *CreateEnemyStatsMenu(void) {
-        MenuFolder *es = new MenuFolder("Display Enemy Stats", "See a battle opponent's hidden data on the top screen.\n\nFirst arm the overlay with \"Enable Stats\" (it can only be unlocked during a battle - read its info), then pick exactly which stats appear with the toggles below.");
-        es->SetFavoriteAlias("Enemy Stats");
+        MenuFolder *es = new MenuFolder(getLanguage->Get("MENU_ENEMY_STATS"), getLanguage->Get("NOTE_ENEMY_STATS"));
+        es->SetFavoriteKey("FAV_ENEMY_STATS"); es->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_STATS"));
         es->SetTwoColumns(true); // toggle-heavy folder: render in 2 columns to cut scrolling
 
         // Master: keeps the one-time ENABLE-in-battle unlock flow (ViewPokemonInfo menu func -> SetGameFunc(TogglePokemonInfo)).
-        MenuEntry *esMaster = new MenuEntry("Enable Stats", nullptr, ViewPokemonInfo, "See the foe's stats in battle.\n\nAt first this toggle is LOCKED (shown with a gear icon) because it can only be armed during a battle.\n\nTo unlock it: enter any battle, select this item, then tap ENABLE on the bottom touch screen - you only need to do this once.\n\nAfter that the toggle is unlocked; tick it to turn the feature on.\n\nIn battle: ZR flips between the two pages (Basic/Moves and IV/EV), and L/R switch between the enemy's Pokémon.\n\nTo hide the overlay entirely, just turn this Enable Stats toggle back OFF.");
-        esMaster->SetFavoriteAlias("Enable Stats");
+        MenuEntry *esMaster = new MenuEntry(getLanguage->Get("MENU_ENEMY_ENABLE"), nullptr, ViewPokemonInfo, getLanguage->Get("NOTE_ENEMY_ENABLE"));
+        esMaster->SetFavoriteKey("FAV_ENEMY_ENABLE"); esMaster->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_ENABLE"));
         *es += esMaster;
 
         // Per-element toggles (checkboxes). Names are short (no "Show:") to fit the 2-column layout; the
         // Favorites alias keeps "Show: X" so the star list stays self-explanatory.
-        g_esSlot    = new MenuEntry("Slot number", HudNoop, "Show the party slot [#N] (green when you already own the species in a box, red when you don't).");
-        g_esSlot->SetFavoriteAlias("Show: Slot #");
-        g_esSpecies = new MenuEntry("Species", HudNoop, "Show the opponent's species name.");
-        g_esSpecies->SetFavoriteAlias("Show: Species");
-        g_esGender  = new MenuEntry("Gender", HudNoop, "Show the gender symbol (blue male / pink female).");
-        g_esGender->SetFavoriteAlias("Show: Gender");
-        g_esLevel   = new MenuEntry("Level", HudNoop, "Show the opponent's level.");
-        g_esLevel->SetFavoriteAlias("Show: Level");
-        g_esMaxHP   = new MenuEntry("Max HP", HudNoop, "Show the opponent's maximum HP.");
-        g_esMaxHP->SetFavoriteAlias("Show: Max HP");
-        g_esShiny   = new MenuEntry("Shiny mark", HudNoop, "Show a gold star when the opponent is shiny.");
-        g_esShiny->SetFavoriteAlias("Show: Shiny mark");
-        g_esPkrs    = new MenuEntry("Pokerus", HudNoop, "Show a 'pkrs' mark when the opponent carries Pokerus.");
-        g_esPkrs->SetFavoriteAlias("Show: Pokerus");
-        g_esNature  = new MenuEntry("Nature", HudNoop, "Show the opponent's Nature.");
-        g_esNature->SetFavoriteAlias("Show: Nature");
-        g_esAbility = new MenuEntry("Ability", HudNoop, "Show the opponent's Ability, marked (HA) when it is the Hidden Ability.");
-        g_esAbility->SetFavoriteAlias("Show: Ability");
-        g_esHiddenP = new MenuEntry("Hidden Power", HudNoop, "Show the opponent's Hidden Power type.");
-        g_esHiddenP->SetFavoriteAlias("Show: Hid.Pwr");
-        g_esItem    = new MenuEntry("Held item", HudNoop, "Show the item the opponent is holding.");
-        g_esItem->SetFavoriteAlias("Show: Held item");
-        g_esMoves   = new MenuEntry("Moves", HudNoop, "Show the opponent's four moves.");
-        g_esMoves->SetFavoriteAlias("Show: Moves");
-        g_esIVs     = new MenuEntry("IVs", HudNoop, "On the IV/EV page, show the six per-stat IVs (color-coded by quality).");
-        g_esIVs->SetFavoriteAlias("Show: IVs");
-        g_esIVTotal = new MenuEntry("IV total", HudNoop, "On the IV/EV page, show the IV total (out of 186).");
-        g_esIVTotal->SetFavoriteAlias("Show: IV total");
-        g_esEVs     = new MenuEntry("EVs", HudNoop, "On the IV/EV page, show the six per-stat EVs (color-coded by investment).");
-        g_esEVs->SetFavoriteAlias("Show: EVs");
-        g_esEVTotal = new MenuEntry("EV total", HudNoop, "On the IV/EV page, show the EV total (out of 510).");
-        g_esEVTotal->SetFavoriteAlias("Show: EV total");
+        g_esSlot    = new MenuEntry(getLanguage->Get("MENU_ENEMY_SLOT"), HudNoop, getLanguage->Get("NOTE_ENEMY_SLOT"));
+        g_esSlot->SetFavoriteKey("FAV_ENEMY_SLOT"); g_esSlot->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_SLOT"));
+        g_esSpecies = new MenuEntry(getLanguage->Get("MENU_ENEMY_SPECIES"), HudNoop, getLanguage->Get("NOTE_ENEMY_SPECIES"));
+        g_esSpecies->SetFavoriteKey("FAV_ENEMY_SPECIES"); g_esSpecies->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_SPECIES"));
+        g_esGender  = new MenuEntry(getLanguage->Get("MENU_ENEMY_GENDER"), HudNoop, getLanguage->Get("NOTE_ENEMY_GENDER"));
+        g_esGender->SetFavoriteKey("FAV_ENEMY_GENDER"); g_esGender->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_GENDER"));
+        g_esLevel   = new MenuEntry(getLanguage->Get("MENU_ENEMY_LEVEL"), HudNoop, getLanguage->Get("NOTE_ENEMY_LEVEL"));
+        g_esLevel->SetFavoriteKey("FAV_ENEMY_LEVEL"); g_esLevel->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_LEVEL"));
+        g_esMaxHP   = new MenuEntry(getLanguage->Get("MENU_ENEMY_MAXHP"), HudNoop, getLanguage->Get("NOTE_ENEMY_MAXHP"));
+        g_esMaxHP->SetFavoriteKey("FAV_ENEMY_MAXHP"); g_esMaxHP->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_MAXHP"));
+        g_esShiny   = new MenuEntry(getLanguage->Get("MENU_ENEMY_SHINY"), HudNoop, getLanguage->Get("NOTE_ENEMY_SHINY"));
+        g_esShiny->SetFavoriteKey("FAV_ENEMY_SHINY"); g_esShiny->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_SHINY"));
+        g_esPkrs    = new MenuEntry(getLanguage->Get("MENU_ENEMY_PKRS"), HudNoop, getLanguage->Get("NOTE_ENEMY_PKRS"));
+        g_esPkrs->SetFavoriteKey("FAV_ENEMY_PKRS"); g_esPkrs->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_PKRS"));
+        g_esNature  = new MenuEntry(getLanguage->Get("MENU_ENEMY_NATURE"), HudNoop, getLanguage->Get("NOTE_ENEMY_NATURE"));
+        g_esNature->SetFavoriteKey("FAV_ENEMY_NATURE"); g_esNature->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_NATURE"));
+        g_esAbility = new MenuEntry(getLanguage->Get("MENU_ENEMY_ABILITY"), HudNoop, getLanguage->Get("NOTE_ENEMY_ABILITY"));
+        g_esAbility->SetFavoriteKey("FAV_ENEMY_ABILITY"); g_esAbility->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_ABILITY"));
+        g_esHiddenP = new MenuEntry(getLanguage->Get("MENU_ENEMY_HIDDEN_POWER"), HudNoop, getLanguage->Get("NOTE_ENEMY_HIDDEN_POWER"));
+        g_esHiddenP->SetFavoriteKey("FAV_ENEMY_HIDDEN_POWER"); g_esHiddenP->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_HIDDEN_POWER"));
+        g_esItem    = new MenuEntry(getLanguage->Get("MENU_ENEMY_HELD_ITEM"), HudNoop, getLanguage->Get("NOTE_ENEMY_HELD_ITEM"));
+        g_esItem->SetFavoriteKey("FAV_ENEMY_HELD_ITEM"); g_esItem->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_HELD_ITEM"));
+        g_esMoves   = new MenuEntry(getLanguage->Get("MENU_ENEMY_MOVES"), HudNoop, getLanguage->Get("NOTE_ENEMY_MOVES"));
+        g_esMoves->SetFavoriteKey("FAV_ENEMY_MOVES"); g_esMoves->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_MOVES"));
+        g_esIVs     = new MenuEntry(getLanguage->Get("MENU_ENEMY_IVS"), HudNoop, getLanguage->Get("NOTE_ENEMY_IVS"));
+        g_esIVs->SetFavoriteKey("FAV_ENEMY_IVS"); g_esIVs->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_IVS"));
+        g_esIVTotal = new MenuEntry(getLanguage->Get("MENU_ENEMY_IV_TOTAL"), HudNoop, getLanguage->Get("NOTE_ENEMY_IV_TOTAL"));
+        g_esIVTotal->SetFavoriteKey("FAV_ENEMY_IV_TOTAL"); g_esIVTotal->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_IV_TOTAL"));
+        g_esEVs     = new MenuEntry(getLanguage->Get("MENU_ENEMY_EVS"), HudNoop, getLanguage->Get("NOTE_ENEMY_EVS"));
+        g_esEVs->SetFavoriteKey("FAV_ENEMY_EVS"); g_esEVs->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_EVS"));
+        g_esEVTotal = new MenuEntry(getLanguage->Get("MENU_ENEMY_EV_TOTAL"), HudNoop, getLanguage->Get("NOTE_ENEMY_EV_TOTAL"));
+        g_esEVTotal->SetFavoriteKey("FAV_ENEMY_EV_TOTAL"); g_esEVTotal->SetFavoriteAlias(getLanguage->Get("FAV_ENEMY_EV_TOTAL"));
 
         // Non-selectable section labels matching the in-battle ZR pages (Basic/Moves vs IV/EV).
-        auto pageLbl = [](const char *t) { MenuEntry *e = new MenuEntry(t); e->CanBeSelected(false); return e; };
+        auto pageLbl = [](const string &t) { MenuEntry *e = new MenuEntry(t); e->CanBeSelected(false); return e; };
 
-        *es += pageLbl("Page 01"); // after "Display Stats"
+        *es += pageLbl(getLanguage->Get("ENEMY_PAGE_01")); // after "Display Stats"
         MenuEntry *page1[] = { g_esSlot, g_esSpecies, g_esGender, g_esLevel, g_esMaxHP, g_esShiny,
                                g_esPkrs, g_esNature, g_esAbility, g_esHiddenP, g_esItem, g_esMoves };
         for (MenuEntry *e : page1) { e->Enable(); *es += e; } // default ON
 
-        *es += pageLbl("Page 02"); // after "Show: Moves"
+        *es += pageLbl(getLanguage->Get("ENEMY_PAGE_02")); // after "Show: Moves"
         MenuEntry *page2[] = { g_esIVs, g_esEVs, g_esIVTotal, g_esEVTotal }; // column-major: each total below its stat
         for (MenuEntry *e : page2) { e->Enable(); *es += e; } // default ON
 
@@ -5400,32 +5444,32 @@ namespace CTRPluginFramework {
     }
 
     MenuFolder *CreateHudMenu(void) {
-        MenuFolder *hud = new MenuFolder("Config HUD", "A small overlay shown over the game (top screen).\n\nTurn it on, then pick what it shows and where.\n\nTip: favorite 'Display HUD' (press Y on it) so you can flip the overlay on and off in a tap.");
+        MenuFolder *hud = new MenuFolder(getLanguage->Get("MENU_HUD"), getLanguage->Get("NOTE_HUD"));
 
         // Names are short (no "Show:") for the 2-column layout; the Favorites alias keeps "Show: X".
-        g_hudMaster = new MenuEntry("Display HUD", HudNoop, "Master switch for the on-screen overlay.");
+        g_hudMaster = new MenuEntry(getLanguage->Get("MENU_HUD_DISPLAY"), HudNoop, getLanguage->Get("NOTE_HUD_DISPLAY"));
         g_hudMaster->SetGridFullWidth(true); // master spans the whole row
-        g_hudMaster->SetFavoriteAlias("Display HUD"); // the folder note tells the user to favorite this one
-        g_hudMoney  = new MenuEntry("Money", HudNoop, "Show how much money you have.");
-        g_hudMoney->SetFavoriteAlias("Show: Money");
-        g_hudClock  = new MenuEntry("Clock", HudNoop, "Show your play time.");
-        g_hudClock->SetFavoriteAlias("Show: Clock");
-        g_hudBP     = new MenuEntry("Battle Points", HudNoop, "Show your current Battle Points (BP).");
-        g_hudBP->SetFavoriteAlias("Show: Btl.Pts");
-        g_hudStatus = new MenuEntry("Status Condition", HudNoop, "Show your lead Pokémon's status during battle (PSN / BRN / SLP / PAR / FRZ).\nOnly visible when in battle.");
-        g_hudStatus->SetFavoriteAlias("Show: Status");
-        g_hudMiles  = new MenuEntry("Pokemiles", HudNoop, "Show your Pokemiles.");
-        g_hudMiles->SetFavoriteAlias("Show: Pokemiles");
-        g_hudParty  = new MenuEntry("Party count", HudNoop, "Show how many Pokemon are in your party.");
-        g_hudParty->SetFavoriteAlias("Show: Party");
-        g_hudXY     = new MenuEntry("X/Y pos", HudNoop, "Show your current map coordinates.");
-        g_hudXY->SetFavoriteAlias("Show: X/Y pos");
-        g_hudRepel  = new MenuEntry("Repel steps", HudNoop, "Show how many steps of Repel are left (0 = no Repel active).\nNot saved by the game, so it resets to 0 on reload.");
-        g_hudRepel->SetFavoriteAlias("Show: Repel");
-        g_hudMapId  = new MenuEntry("Map id", HudNoop, "Show the current map id, live (debug / for cataloging zones for 'you are here').");
-        g_hudMapId->SetFavoriteAlias("Show: Map id");
-        g_hudPanel  = new MenuEntry("Translucent panel", HudNoop, "A dark see-through box behind the text, for readability.");
-        g_hudPanel->SetFavoriteAlias("Panel");
+        g_hudMaster->SetFavoriteKey("FAV_HUD_DISPLAY"); g_hudMaster->SetFavoriteAlias(getLanguage->Get("FAV_HUD_DISPLAY")); // the folder note tells the user to favorite this one
+        g_hudMoney  = new MenuEntry(getLanguage->Get("MENU_HUD_MONEY"), HudNoop, getLanguage->Get("NOTE_HUD_MONEY"));
+        g_hudMoney->SetFavoriteKey("FAV_HUD_MONEY"); g_hudMoney->SetFavoriteAlias(getLanguage->Get("FAV_HUD_MONEY"));
+        g_hudClock  = new MenuEntry(getLanguage->Get("MENU_HUD_CLOCK"), HudNoop, getLanguage->Get("NOTE_HUD_CLOCK"));
+        g_hudClock->SetFavoriteKey("FAV_HUD_CLOCK"); g_hudClock->SetFavoriteAlias(getLanguage->Get("FAV_HUD_CLOCK"));
+        g_hudBP     = new MenuEntry(getLanguage->Get("MENU_HUD_BP"), HudNoop, getLanguage->Get("NOTE_HUD_BP"));
+        g_hudBP->SetFavoriteKey("FAV_HUD_BP"); g_hudBP->SetFavoriteAlias(getLanguage->Get("FAV_HUD_BP"));
+        g_hudStatus = new MenuEntry(getLanguage->Get("MENU_HUD_STATUS"), HudNoop, getLanguage->Get("NOTE_HUD_STATUS"));
+        g_hudStatus->SetFavoriteKey("FAV_HUD_STATUS"); g_hudStatus->SetFavoriteAlias(getLanguage->Get("FAV_HUD_STATUS"));
+        g_hudMiles  = new MenuEntry(getLanguage->Get("MENU_HUD_MILES"), HudNoop, getLanguage->Get("NOTE_HUD_MILES"));
+        g_hudMiles->SetFavoriteKey("FAV_HUD_MILES"); g_hudMiles->SetFavoriteAlias(getLanguage->Get("FAV_HUD_MILES"));
+        g_hudParty  = new MenuEntry(getLanguage->Get("MENU_HUD_PARTY"), HudNoop, getLanguage->Get("NOTE_HUD_PARTY"));
+        g_hudParty->SetFavoriteKey("FAV_HUD_PARTY"); g_hudParty->SetFavoriteAlias(getLanguage->Get("FAV_HUD_PARTY"));
+        g_hudXY     = new MenuEntry(getLanguage->Get("MENU_HUD_XY"), HudNoop, getLanguage->Get("NOTE_HUD_XY"));
+        g_hudXY->SetFavoriteKey("FAV_HUD_XY"); g_hudXY->SetFavoriteAlias(getLanguage->Get("FAV_HUD_XY"));
+        g_hudRepel  = new MenuEntry(getLanguage->Get("MENU_HUD_REPEL"), HudNoop, getLanguage->Get("NOTE_HUD_REPEL"));
+        g_hudRepel->SetFavoriteKey("FAV_HUD_REPEL"); g_hudRepel->SetFavoriteAlias(getLanguage->Get("FAV_HUD_REPEL"));
+        g_hudMapId  = new MenuEntry(getLanguage->Get("MENU_HUD_MAP_ID"), HudNoop, getLanguage->Get("NOTE_HUD_MAP_ID"));
+        g_hudMapId->SetFavoriteKey("FAV_HUD_MAP_ID"); g_hudMapId->SetFavoriteAlias(getLanguage->Get("FAV_HUD_MAP_ID"));
+        g_hudPanel  = new MenuEntry(getLanguage->Get("MENU_HUD_PANEL"), HudNoop, getLanguage->Get("NOTE_HUD_PANEL"));
+        g_hudPanel->SetFavoriteKey("FAV_HUD_PANEL"); g_hudPanel->SetFavoriteAlias(getLanguage->Get("FAV_HUD_PANEL"));
         g_hudPanel->SetGridFullWidth(true); // panel toggle spans the whole row
 
         *hud += g_hudMaster;
@@ -5439,13 +5483,13 @@ namespace CTRPluginFramework {
         *hud += g_hudRepel;
         *hud += g_hudMapId;
         *hud += g_hudPanel;
-        MenuEntry *hudOpac = new MenuEntry("Panel opacity", nullptr, HudSetOpacity, "Set how see-through the panel is (0-100%). Drag the bar; the top screen previews it live.");
+        MenuEntry *hudOpac = new MenuEntry(getLanguage->Get("MENU_HUD_OPACITY"), nullptr, HudSetOpacity, getLanguage->Get("NOTE_HUD_OPACITY"));
         hudOpac->SetGridPaired(true); // pair side-by-side in the 2-column layout
-        hudOpac->SetFavoriteAlias("Panel opacity");
+        hudOpac->SetFavoriteKey("FAV_HUD_OPACITY"); hudOpac->SetFavoriteAlias(getLanguage->Get("FAV_HUD_OPACITY"));
         *hud += hudOpac;
-        MenuEntry *hudPos = new MenuEntry("Set position", nullptr, HudSetPosition, "Choose which corner/area the overlay appears in.");
+        MenuEntry *hudPos = new MenuEntry(getLanguage->Get("MENU_HUD_SET_POSITION"), nullptr, HudSetPosition, getLanguage->Get("NOTE_HUD_SET_POSITION"));
         hudPos->SetGridPaired(true);
-        hudPos->SetFavoriteAlias("HUD position");
+        hudPos->SetFavoriteKey("FAV_HUD_SET_POSITION"); hudPos->SetFavoriteAlias(getLanguage->Get("FAV_HUD_SET_POSITION"));
         *hud += hudPos;
         hud->SetTwoColumns(true);
 

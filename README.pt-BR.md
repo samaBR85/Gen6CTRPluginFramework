@@ -1,4 +1,4 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.4.2
+# Gen6CTRPluginFrameworkOverhauled — v0.5.0
 
 [English](README.md) · **Português**
 
@@ -12,7 +12,7 @@ cem pequenas conveniências no meio do caminho.
 
 O pulo do gato: **foi feito pra ser entendido.** Cada recurso tem nome em linguagem simples, cada opção tem um botão
 de info que explica o que faz, e existe um guia de 23 páginas *dentro* do plugin que te conduz por tudo. Se você ama
-esses jogos mas nunca mexeu com homebrew, é exatamente pra você.
+esses jogos mas nunca mexeu com homebrew, é exatamente pra você. Os menus estão em **7 idiomas**.
 
 Você abre tudo com **SELECT**, e o menu aparece por cima do jogo:
 
@@ -20,9 +20,9 @@ Você abre tudo com **SELECT**, e o menu aparece por cima do jogo:
   <img src="Screenshots/v0.3.3/export/01_menu.png" width="330" alt="O menu do plugin sobre Pokémon Alpha Sapphire — lista de recursos em cima, botões embaixo" />
 </p>
 
-> 🎯 **Atenção — esta versão só tem conteúdo para Pokémon Alpha Sapphire** (Title ID `000400000011C500`). O
-> framework é feito para X, Y, Omega Ruby e Alpha Sapphire, mas até agora só o **Alpha Sapphire** foi desenvolvido.
-> **X, Y e Omega Ruby já estão a caminho!**
+> 🎯 **Funciona nos quatro jogos Gen 6.** X, Y, Omega Ruby e Alpha Sapphire têm conteúdo dedicado (guias + assets) na própria pasta de Title ID, e o mesmo `.3gx` detecta automaticamente qual jogo você está rodando.
+
+> 🌐 **Disponível em 7 idiomas**, alternáveis no plugin: 🇺🇸 Inglês · 🇫🇷 Francês · 🇩🇪 Alemão · 🇮🇹 Italiano · 🇯🇵 Japonês · 🇧🇷 Português (Brasil) · 🇪🇸 Espanhol.
 
 ## Feito por um jogador curioso, com o Claude
 
@@ -187,7 +187,7 @@ marcar mais de um). Tudo que você salva vai pra um **MyTeleport.txt** editável
 aos updates.
 
 <p align="center">
-  <img src="Screenshots/v0.4.1/export/teleport_map.png" width="330" alt="A aba Map — Mauville City no centro, suas rotas de ligação como tiles ao redor" />
+  <img src="Screenshots/v0.4.1/export/teleport_map.png" width="330" alt="A aba Map — Oldale Town no centro, suas rotas de ligação como tiles ao redor" />
   <img src="Screenshots/v0.4.1/export/teleport_overview.png" width="330" alt="O overview do Y na aba Map — grid com todos os lugares e chips de filtro embaixo" />
 </p>
 
@@ -218,13 +218,14 @@ Uma breve história, do mais antigo ao mais novo — sem detalhe, só o formato 
 - **v0.4.2** — o **Teletransporte** renasceu: um seletor de lugares em duas telas com um **Map** navegável e um
   grid-overview de todos os lugares, seus próprios **warp points** salvos (o `MyTeleport.txt` editável à mão), e as
   pastas do plugin organizadas em **Assets/**.
+- **v0.5.0** — **multi-jogo**: conteúdo dedicado para os quatro títulos Gen 6 (X, Y, Omega Ruby, Alpha Sapphire), um mapa de teleporte completo de Kalos, e a UI em **7 idiomas**.
 
 ## 📥 Instalando
 1. Atualize para o [Luma3DS](https://github.com/LumaTeam/Luma3DS/releases/latest) mais recente.
 2. Baixe a [versão](https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/latest) mais recente.
 3. Extraia o `.zip` na **raiz do seu cartão SD**, mantendo a estrutura de pastas. Ele adiciona duas pastas:
-   - `luma/` — o plugin em si, em `luma/plugins/000400000011C500/Gen6CTRPluginFramework.3gx` (junto com o App Guide e o Game Guide embutidos).
-   - `Gen6CTRPluginFramework/` — os dados do plugin, incluindo os **arquivos de idioma** (Inglês, Francês, Alemão, Italiano, Japonês, Espanhol). **Essa pasta fica na raiz do SD, ao lado de `luma/` — *não* dentro dela.** O plugin carrega o idioma daqui, então não pule essa pasta. (Seus `Theme.txt` e `HUD.txt` são criados nessa pasta automaticamente no primeiro uso.)
+   - `luma/` — o plugin, com uma pasta por jogo: `luma/plugins/0004000000055D00/` (X), `0004000000055E00/` (Y), `000400000011C400/` (Omega Ruby), `000400000011C500/` (Alpha Sapphire). O mesmo `Gen6CTRPluginFramework.3gx` (junto do App Guide e Game Guide embutidos) fica em cada uma; ele detecta seu jogo automaticamente.
+   - `Gen6CTRPluginFramework/` — os dados do plugin, incluindo os **arquivos de idioma** (Inglês, Francês, Alemão, Italiano, Japonês, Português (Brasil), Espanhol — 7 idiomas). **Essa pasta fica na raiz do SD, ao lado de `luma/` — *não* dentro dela.** O plugin carrega o idioma daqui, então não pule essa pasta. (Seus `Theme.txt` e `HUD.txt` são criados nessa pasta automaticamente no primeiro uso.)
 4. Garanta que `Gen6CTRPluginFramework.3gx` seja o único arquivo `.3gx` do título.
 5. Abra o menu do Rosalina (`L+Down+Select`) e deixe o **Plugin Loader** em **[ENABLED]**.
 6. Inicie seu jogo Gen 6 — o Luma3DS carrega o plugin na inicialização. Pressione **Select** no jogo pra abrir o menu, e então abra o **App Guide**.
@@ -272,19 +273,20 @@ Este projeto se apoia numa longa linha de trabalho voluntário — do primeirís
   [PokéAPI](https://pokeapi.co); **nomes de itens** do [PKHeX](https://github.com/kwsch/PKHeX/) (kwsch).
 - **Imagens de Locations & Routes** — as miniaturas de mapa/rota do Teleport e os dados de conexão de áreas vêm da
   [ORAS Wiki](https://oraswiki.com/locations/).
+- **Imagens de locais de Kalos (X/Y)** — da [Bulbapedia](https://bulbapedia.bulbagarden.net/).
 - Todas as imagens e nomes de Pokémon são **© Nintendo / Game Freak / The Pokémon Company.** Esses espelhos da
   comunidade são usados apenas pra construir esta ferramenta de fã, gratuita e não comercial.
 
 **O Game Guide embutido** — o guia do Professor Oak Challenge
 - **Mewlax** ([u/mewlax84](https://www.reddit.com/user/mewlax84), Instagram [@pokemewlax](https://www.instagram.com/pokemewlax/),
-  X [@Mewlax1](https://twitter.com/Mewlax1)) — autor do guia de ORAS, compartilhado pela comunidade
+  X [@Mewlax1](https://twitter.com/Mewlax1)) — autor dos **guias de ORAS e X/Y**, compartilhado pela comunidade
   [r/ProfessorOak](https://www.reddit.com/r/ProfessorOak/).
 - **Chamale** — inspirou primeiro o Professor Oak Challenge lá em 2018.
 - **Johnstone** e **Chaotic Meatball** — por ajudarem a comunidade r/ProfessorOak a crescer.
 - **Dynamite** — pela ordem das O-Powers; **Likemeon** — pela dica de chaining na Granite Cave.
 
 **Este fork**
-- Fork, repaginação e adições da v0.3.0 → v0.4.2 por [samaBR85](https://github.com/samaBR85), feitos em colaboração
+- Fork, repaginação e adições da v0.3.0 → v0.5.0 por [samaBR85](https://github.com/samaBR85), feitos em colaboração
   com o **Claude** (Anthropic).
 
 ## Licença

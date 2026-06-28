@@ -95,6 +95,15 @@ namespace CTRPluginFramework {
              */
             void SetFavoriteAlias(const string &alias) const;
             /**
+             * \brief Set a language-independent persistence id (e.g. the "FAV_X" lookup key) so the favorite
+             *        survives UI-language changes. Preferred over the translated alias for identity.
+             */
+            void SetFavoriteKey(const string &key) const;
+            /**
+             * \brief Flag this folder dangerous: when selected, its row gets a solid red warning background.
+             */
+            void SetDangerous(bool enable) const;
+            /**
              * \brief Render this folder's items in a 2-column grid (full-width rows for non-selectable
              *        labels and menu-func/folder entries; checkbox toggles pair into 2 columns).
              * \param enable Enable or disable the 2-column layout for this folder

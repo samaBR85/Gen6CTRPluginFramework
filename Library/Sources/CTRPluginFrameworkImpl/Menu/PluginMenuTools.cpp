@@ -26,16 +26,16 @@ namespace CTRPluginFramework {
 
     PluginMenuTools::PluginMenuTools(string &about, HexEditor &hexEditor) :
         _about(about),
-        _mainMenu("Tools"),
-        _miscellaneousMenu("Miscellaneous"),
-        _screenshotMenu("Screenshots"),
-        _settingsMenu("Settings"),
-        _hotkeysMenu("Hotkeys"),
-        _themesMenu("Change Theme"),
+        _mainMenu(FwText("FW_TOOLS", "Tools")),
+        _miscellaneousMenu(FwText("FW_MISC", "Miscellaneous")),
+        _screenshotMenu(FwText("FW_SCREENSHOTS", "Screenshots")),
+        _settingsMenu(FwText("FW_SETTINGS", "Settings")),
+        _hotkeysMenu(FwText("FW_HOTKEYS", "Hotkeys")),
+        _themesMenu(FwText("FW_CHANGE_THEME", "Change Theme")),
         _hexEditorEntry(nullptr),
         _hexEditor(hexEditor),
         _menu(&_mainMenu, nullptr),
-        _abouttb("About", _about, IntRect(30, 20, 340, 200)),
+        _abouttb(FwText("FW_ABOUT", "About"), _about, IntRect(30, 20, 340, 200)),
         _exit(false)
 
         {
@@ -509,52 +509,52 @@ namespace CTRPluginFramework {
 
     void PluginMenuTools::InitMenu(void) {
         // Main menu
-        _mainMenu.Append(new MenuEntryTools("About", [] {g_mode = ABOUT;}, Icon::DrawAbout));
-        _mainMenu.Append(new MenuEntryTools("Hotkeys", nullptr, Icon::DrawGameController, new u32(HOTKEYS)));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_ABOUT", "About"), [] {g_mode = ABOUT;}, Icon::DrawAbout));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_HOTKEYS", "Hotkeys"), nullptr, Icon::DrawGameController, new u32(HOTKEYS)));
         // Plugin-provided theme picker: opens a "Change Theme" sub-menu (one entry per theme, shown on the
         // top screen like Hotkeys/Settings). The sub-menu is filled lazily on first open because the plugin
         // registers its theme table (FwkSettings::ThemeCount/ThemeName/ApplyThemeByIndex) AFTER this menu is
         // built. Harmless no-op if no plugin registers a theme table.
-        _mainMenu.Append(new MenuEntryTools("Change Theme", nullptr, Icon::DrawSettings, new u32(THEMES)));
-        _mainMenu.Append(new MenuEntryTools("Settings", nullptr, Icon::DrawSettings, this));
-        _mainMenu.Append(new MenuEntryTools("Screenshots", nullptr, Icon::DrawUnsplash, new u32(SCREENSHOT)));
-        _hexEditorEntry = new MenuEntryTools("HexEditor", [] {g_mode = HEXEDITOR;}, Icon::DrawGrid);
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_CHANGE_THEME", "Change Theme"), nullptr, Icon::DrawSettings, new u32(THEMES)));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_SETTINGS", "Settings"), nullptr, Icon::DrawSettings, this));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_SCREENSHOTS", "Screenshots"), nullptr, Icon::DrawUnsplash, new u32(SCREENSHOT)));
+        _hexEditorEntry = new MenuEntryTools(FwText("FW_HEXEDITOR", "HexEditor"), [] {g_mode = HEXEDITOR;}, Icon::DrawGrid);
         _mainMenu.Append(_hexEditorEntry);
-        _mainMenu.Append(new MenuEntryTools("Gateway RAM Dumper", [] {g_mode = GWRAMDUMP;}, Icon::DrawRAM));
-        _mainMenu.Append(new MenuEntryTools("Miscellaneous", nullptr, Icon::DrawMore, new u32(MISCELLANEOUS)));
-        _mainMenu.Append(new MenuEntryTools("Reboot 3DS", Reboot, Icon::DrawRestart));
-        _mainMenu.Append(new MenuEntryTools("Power-off 3DS", Shutdown, Icon::DrawShutdown));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_RAM_DUMPER", "Gateway RAM Dumper"), [] {g_mode = GWRAMDUMP;}, Icon::DrawRAM));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_MISC", "Miscellaneous"), nullptr, Icon::DrawMore, new u32(MISCELLANEOUS)));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_REBOOT", "Reboot 3DS"), Reboot, Icon::DrawRestart));
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_POWEROFF", "Power-off 3DS"), Shutdown, Icon::DrawShutdown));
 
         // Miscellaneous menu
-        _miscellaneousMenu.Append(new MenuEntryTools("Export Loaded Game Files", _WriteLoadedFiles, true));
-        _miscellaneousMenu.Append(new MenuEntryTools("Display Loaded Game Files", _DisplayLoadedFiles, true));
-        _miscellaneousMenu.Append(new MenuEntryTools("Display Touch Cursor", [] {Preferences::Toggle(Preferences::DrawTouchCursor);}, true, Preferences::IsEnabled(Preferences::DrawTouchCursor)));
-        _miscellaneousMenu.Append(new MenuEntryTools("Display Touch Coordinates", [] {Preferences::Toggle(Preferences::DrawTouchPosition);}, true, Preferences::IsEnabled(Preferences::DrawTouchPosition)));
+        _miscellaneousMenu.Append(new MenuEntryTools(FwText("FW_MISC_EXPORT", "Export Loaded Game Files"), _WriteLoadedFiles, true));
+        _miscellaneousMenu.Append(new MenuEntryTools(FwText("FW_MISC_DISPLAY", "Display Loaded Game Files"), _DisplayLoadedFiles, true));
+        _miscellaneousMenu.Append(new MenuEntryTools(FwText("FW_MISC_CURSOR", "Display Touch Cursor"), [] {Preferences::Toggle(Preferences::DrawTouchCursor);}, true, Preferences::IsEnabled(Preferences::DrawTouchCursor)));
+        _miscellaneousMenu.Append(new MenuEntryTools(FwText("FW_MISC_COORDS", "Display Touch Coordinates"), [] {Preferences::Toggle(Preferences::DrawTouchPosition);}, true, Preferences::IsEnabled(Preferences::DrawTouchPosition)));
 
         // Screenshots menu
-        _screenshotMenu.Append(new MenuEntryTools("Config", ScreenshotMenuCallback, Icon::DrawSettings));
+        _screenshotMenu.Append(new MenuEntryTools(FwText("FW_SS_CONFIG", "Config"), ScreenshotMenuCallback, Icon::DrawSettings));
         _screenshotMenu.Append((g_screenshotEntry = new MenuEntryTools("Screenshot: " << Color::LimeGreen << KeysToString(Screenshot::Hotkeys) << "\x18, " << Color::Orange << "Both screens", Screenshot_Enabler, true)));
         // Include the plugin's on-screen overlays (HUD, See-Enemy-Stats, notifications) in the saved image.
-        _screenshotMenu.Append(new MenuEntryTools("Include overlays (HUD, stats, notifications)", [] {Screenshot::IncludeOverlays = !Screenshot::IncludeOverlays;}, true, Screenshot::IncludeOverlays));
+        _screenshotMenu.Append(new MenuEntryTools(FwText("FW_SS_OVERLAYS", "Include overlays (HUD, stats, notifications)"), [] {Screenshot::IncludeOverlays = !Screenshot::IncludeOverlays;}, true, Screenshot::IncludeOverlays));
         // Let the screenshot hotkey capture the plugin's own UI (this menu or a custom full-screen tool) on top of
         // the paused game, instead of doing nothing while a plugin UI is open.
-        _screenshotMenu.Append(new MenuEntryTools("Capture plugin UI (menu & tools)", [] {Screenshot::CapturePluginUI = !Screenshot::CapturePluginUI;}, true, Screenshot::CapturePluginUI));
+        _screenshotMenu.Append(new MenuEntryTools(FwText("FW_SS_CAPTUREUI", "Capture plugin UI (menu & tools)"), [] {Screenshot::CapturePluginUI = !Screenshot::CapturePluginUI;}, true, Screenshot::CapturePluginUI));
 
         // Hotkeys page — all 4 menu key binds grouped together (open the rebind screen on select)
-        _hotkeysMenu.Append(new MenuEntryTools("Open/Close Menu (default Select)", MenuHotkeyModifier, Icon::DrawGameController));
-        _hotkeysMenu.Append(new MenuEntryTools("Favorite item (default Y)", FavoriteHotkeyModifier, Icon::DrawGameController));
-        _hotkeysMenu.Append(new MenuEntryTools("Show item Info (default X)", InfoHotkeyModifier, Icon::DrawGameController));
-        _hotkeysMenu.Append(new MenuEntryTools("Open item Editor (default START)", KeyboardHotkeyModifier, Icon::DrawGameController));
-        _hotkeysMenu.Append(new MenuEntryTools("Card stat HIGHER/LOWER (default L)", CardStatHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools(FwText("FW_HK_MENU", "Open/Close Menu (default Select)"), MenuHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools(FwText("FW_HK_FAV", "Favorite item (default Y)"), FavoriteHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools(FwText("FW_HK_INFO", "Show item Info (default X)"), InfoHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools(FwText("FW_HK_EDIT", "Open item Editor (default START)"), KeyboardHotkeyModifier, Icon::DrawGameController));
+        _hotkeysMenu.Append(new MenuEntryTools(FwText("FW_HK_CARD", "Card stat HIGHER/LOWER (default L)"), CardStatHotkeyModifier, Icon::DrawGameController));
 
         // Settings menu — UpdateSettings() indexes the 5 checkbox entries by position (begin()+0 .. +4).
         // "Set Backlight" is a non-checkbox action entry and MUST stay last (UpdateSettings skips it).
-        _settingsMenu.Append(new MenuEntryTools("Save Favorites", [] {Preferences::Toggle(Preferences::AutoSaveFavorites);}, true, Preferences::IsEnabled(Preferences::AutoSaveFavorites)));
-        _settingsMenu.Append(new MenuEntryTools("Load Favorites at Start", [] {Preferences::Toggle(Preferences::AutoLoadFavorites);}, true, Preferences::IsEnabled(Preferences::AutoLoadFavorites)));
-        _settingsMenu.Append(new MenuEntryTools("Save Enabled Cheats", [] {Preferences::Toggle(Preferences::AutoSaveCheats);}, true, Preferences::IsEnabled(Preferences::AutoSaveCheats)));
-        _settingsMenu.Append(new MenuEntryTools("Load Enabled Cheats at Start", [] {Preferences::Toggle(Preferences::AutoLoadCheats);}, true, Preferences::IsEnabled(Preferences::AutoLoadCheats)));
-        _settingsMenu.Append(new MenuEntryTools("Show Floating Menu Button", [] {Preferences::Toggle(Preferences::UseFloatingBtn);}, true, Preferences::IsEnabled(Preferences::UseFloatingBtn)));
-        _settingsMenu.Append(new MenuEntryTools("Set Backlight (Experimental)", EditBacklight, false, false));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_SAVEFAV", "Save Favorites"), [] {Preferences::Toggle(Preferences::AutoSaveFavorites);}, true, Preferences::IsEnabled(Preferences::AutoSaveFavorites)));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_LOADFAV", "Load Favorites at Start"), [] {Preferences::Toggle(Preferences::AutoLoadFavorites);}, true, Preferences::IsEnabled(Preferences::AutoLoadFavorites)));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_SAVECHEATS", "Save Enabled Cheats"), [] {Preferences::Toggle(Preferences::AutoSaveCheats);}, true, Preferences::IsEnabled(Preferences::AutoSaveCheats)));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_LOADCHEATS", "Load Enabled Cheats at Start"), [] {Preferences::Toggle(Preferences::AutoLoadCheats);}, true, Preferences::IsEnabled(Preferences::AutoLoadCheats)));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_FLOATBTN", "Show Floating Menu Button"), [] {Preferences::Toggle(Preferences::UseFloatingBtn);}, true, Preferences::IsEnabled(Preferences::UseFloatingBtn)));
+        _settingsMenu.Append(new MenuEntryTools(FwText("FW_SET_BACKLIGHT", "Set Backlight (Experimental)"), EditBacklight, false, false));
     }
 
     bool PluginMenuTools::operator()(EventList &eventList, Time &delta) {
