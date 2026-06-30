@@ -711,7 +711,7 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Nintendo 3DS &amp; Azahar &bull; v0.6.1</div>
+  <div class="hero-badge">Nintendo 3DS &amp; Azahar &bull; v0.6.2</div>
   <h1>
     <span class="hl">Gen6</span> CTRPlugin<br/>
     <span class="hl2">Framework</span> Overhauled
@@ -747,7 +747,7 @@
       <div class="stat-label" data-i18n="stat_dl">Total Downloads</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">v0.6.1</div>
+      <div class="stat-num">v0.6.2</div>
       <div class="stat-label" data-i18n="stat_version">Latest Version</div>
     </div>
     <div class="stat-item">
@@ -998,9 +998,9 @@
     </div>
     <div class="screenshots-grid">
       <div class="screenshot-item fade-in" onclick="openLightbox(this)">
-        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.6.1/rng_hud.png"
-             alt="RNG Tracking — live seed, frame, TSV and egg seed on the HUD" loading="lazy" />
-        <div class="screenshot-caption">RNG Tracking (new in v0.6.1)</div>
+        <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.6.2/rng_hud.png"
+             alt="RNG Tracking++ — initial seed, frame, target frame, TinyMT and TSV/TRV on the HUD" loading="lazy" />
+        <div class="screenshot-caption">RNG Tracking++ (new in v0.6.2)</div>
       </div>
       <div class="screenshot-item fade-in" onclick="openLightbox(this)">
         <img src="https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/Screenshots/v0.6.0/o_power_center.png"
@@ -1223,15 +1223,15 @@
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
           Latest Release
         </div>
-        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.6.1</div>
+        <div class="dl-title">Gen6CTRPluginFrameworkOverhauled v0.6.2</div>
         <div class="dl-meta">
           Released <span>June 30, 2026</span> &bull;
           Platform <span>Nintendo 3DS (3gx)</span> &bull;
           License <span>GNU GPL-3.0</span>
         </div>
         <div class="dl-buttons">
-          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.6.1/Gen6CTRPluginFramework-v0.6.1.zip" target="_blank" rel="noopener">
-            ⬇ Download v0.6.1 (.zip)
+          <a class="btn-primary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.6.2/Gen6CTRPluginFramework-v0.6.2.zip" target="_blank" rel="noopener">
+            ⬇ Download v0.6.2 (.zip)
           </a>
           <a class="btn-secondary" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases" target="_blank" rel="noopener">
             All Releases
@@ -1245,6 +1245,12 @@
     </div>
 
     <div class="releases-list fade-in">
+      <div class="release-row">
+        <span class="release-tag">v0.6.2</span>
+        <span class="release-date">Jun 30, 2026</span>
+        <span class="release-downloads" id="dl-v062">Loading…</span>
+        <a class="release-link" href="https://github.com/samaBR85/Gen6CTRPFrameworkOverhauled/releases/download/v0.6.2/Gen6CTRPluginFramework-v0.6.2.zip" target="_blank" rel="noopener">Download</a>
+      </div>
       <div class="release-row">
         <span class="release-tag">v0.6.1</span>
         <span class="release-date">Jun 30, 2026</span>
@@ -1422,6 +1428,7 @@
         release.assets.forEach(asset => { total += asset.download_count; });
       });
 
+      const v062 = data.find(r => r.tag_name === 'v0.6.2');
       const v061 = data.find(r => r.tag_name === 'v0.6.1');
       const v060 = data.find(r => r.tag_name === 'v0.6.0');
       const v050 = data.find(r => r.tag_name === 'v0.5.0');
@@ -1432,6 +1439,7 @@
       const v021 = data.find(r => r.tag_name === 'v0.2.1');
       const v020 = data.find(r => r.tag_name === 'v0.2.0');
 
+      const count062 = v062 ? v062.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count061 = v061 ? v061.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count060 = v060 ? v060.assets.reduce((s, a) => s + a.download_count, 0) : 0;
       const count050 = v050 ? v050.assets.reduce((s, a) => s + a.download_count, 0) : 0;
@@ -1445,6 +1453,7 @@
       animateCount('total-downloads', total);
       animateCount('download-count', total);
 
+      const el062 = document.getElementById('dl-v062');
       const el061 = document.getElementById('dl-v061');
       const el060 = document.getElementById('dl-v060');
       const el050 = document.getElementById('dl-v050');
@@ -1454,6 +1463,7 @@
       const el030 = document.getElementById('dl-v030');
       const el021 = document.getElementById('dl-v021');
       const el020 = document.getElementById('dl-v020');
+      if (el062) el062.textContent = count062 + ' downloads';
       if (el061) el061.textContent = count061 + ' downloads';
       if (el060) el060.textContent = count060 + ' downloads';
       if (el050) el050.textContent = count050 + ' downloads';
