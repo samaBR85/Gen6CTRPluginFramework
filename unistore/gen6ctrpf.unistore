@@ -8,7 +8,7 @@
     "sheet": "gen6ctrpf.t3x",
     "sheetURL": "https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/unistore/gen6ctrpf.t3x",
     "version": 4,
-    "revision": 6
+    "revision": 7
   },
   "storeContent": [
     {
@@ -42,6 +42,40 @@
         {
           "type": "deleteFile",
           "file": "sdmc:/gen6ctrpf.zip",
+          "message": "Cleaning up..."
+        }
+      ]
+    },
+    {
+      "info": {
+        "title": "Test File",
+        "author": "samaBR85",
+        "description": "Light install test - drops two empty test.txt to check folder placement on the SD. Safe: adds files only, deletes nothing of yours.",
+        "category": ["game"],
+        "console": ["3DS"],
+        "icon_index": 0,
+        "sheet_index": 0,
+        "last_updated": "2026-06-30",
+        "license": "gpl-3.0",
+        "version": "test"
+      },
+      "Download": [
+        {
+          "type": "downloadFile",
+          "file": "https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/unistore/test.zip",
+          "output": "sdmc:/gen6ctrpf-test.zip",
+          "message": "Downloading test files..."
+        },
+        {
+          "type": "extractFile",
+          "file": "sdmc:/gen6ctrpf-test.zip",
+          "input": "",
+          "output": "sdmc:/",
+          "message": "Extracting test files to the SD root..."
+        },
+        {
+          "type": "deleteFile",
+          "file": "sdmc:/gen6ctrpf-test.zip",
           "message": "Cleaning up..."
         }
       ]
