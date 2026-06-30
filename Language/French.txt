@@ -389,20 +389,85 @@ SPAWNER_INVALID :: Espèce sélectionnée invalide
 SPAWNER_SPAWNING :: Apparition :
 
 # --- O-Power Center (visual panel) ---
-PSS_O_POWER_CENTER :: O-Power Center
-NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
-OPC_TITLE :: O-Power Center
-OPC_GAUGE :: Gauge:
+PSS_O_POWER_CENTER :: Centre Pouvoir-O
+NOTE_PSS_O_POWER_CENTER :: Centre Pouvoir-O - un tableau visuel des 18 Pouvoirs-O et de votre jauge de charge.\n\nÉcran du haut :\n- D-Pad : choisir un pouvoir\n- L / R : changer son niveau (A pour boucler)\n- Y : vue brute (avancé)\n\nBoutons :\n- Tout au max : chaque Pouvoir-O à son niveau max\n- Débloquer : chaque Pouvoir-O au niveau 1\n- Verrouiller : tout reverrouiller (retour au niveau 0)\n- Recharger : recharger la jauge à fond maintenant (à tout moment)\n- Garder : garder la jauge toujours pleine (aucune attente)\n\nSauvegardez la partie pour conserver les changements.
+OPC_TITLE :: Centre Pouvoir-O
+OPC_GAUGE :: Jauge :
 OPC_LOCKED :: --
-OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
-OPC_RAW_HDR :: Raw block (position = index):
+OPC_NAMES :: Pouvoir-O Attaque :: Pouvoir-O Défense :: Pouvoir-O Atq. Spé. :: Pouvoir-O Déf. Spé. :: Pouvoir-O Vitesse :: Pouvoir-O Précision :: Pouvoir-O Critique :: Pouvoir-O Soin PV :: Pouvoir-O Soin PP :: Pouvoir-O Rencontre :: Pouvoir-O Discrétion :: Pouvoir-O Exp. :: Pouvoir-O Prime :: Pouvoir-O Capture :: Pouvoir-O Éclosion :: Pouvoir-O Négociation :: Pouvoir-O Lien :: Pouvoir-O Guérison
+OPC_RAW_HDR :: Bloc brut (position = index) :
 OPC_RAW_IDX :: Index
-OPC_HINT_NAV :: D-Pad: select    Y: raw view
-OPC_HINT_LVL :: L / R: change level    A: cycle
-OPC_HINT_RAW :: B: back    SELECT: close plugin
-OPC_BTN_MAXALL :: Max All
-OPC_BTN_UNLOCKALL :: Unlock
-OPC_BTN_LOCKALL :: Lock
-OPC_BTN_FILLGAUGE :: Refill
-OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
-OPC_BTN_KEEPFULL :: Keep
+OPC_HINT_NAV :: D-Pad : sélectionner    Y : vue brute
+OPC_HINT_LVL :: L / R : changer le niveau    A : boucler
+OPC_HINT_RAW :: B : retour    SELECT : fermer le plugin
+OPC_BTN_MAXALL :: Tout au max
+OPC_BTN_UNLOCKALL :: Débloquer
+OPC_BTN_LOCKALL :: Verrouiller
+OPC_BTN_FILLGAUGE :: Recharger
+OPC_HINT_KEEP :: Garder : jauge toujours pleine, sans attente
+OPC_BTN_KEEPFULL :: Garder
+
+
+REFILL_DONE :: Équipe rechargée !
+
+MENU_HEALTH_MANA :: Santé et Mana
+NOTE_HEALTH_MANA :: Faites le plein ou bloquez les PV et PP de votre équipe.\n\nToujours au MAX (bascules) : maintient les PV/PP au max pendant le combat - aucun K.O., aucune panne de PP.\nRecharge instantanée (bascules) : activez-en une pour armer son raccourci, puis appuyez pour recharger une fois (OFF par défaut - optionnel ; OFF libère le bouton). La recharge PV fonctionne dans l'overworld ; en combat, utilisez Santé Infinie.
+HM_HDR_ALWAYS_MAX :: Toujours au MAX
+HM_HDR_BIND :: Recharge instantanée / appui bouton
+INFINITE_HEALTH :: Santé Infinie (HP)
+NOTE_INFINITE_HEALTH :: Gardez ceci sur ON en combat pour maintenir les PV de votre équipe au max - la barre se remplit au prochain coup et ils ne tombent jamais K.O.
+INFINITE_MANA :: Mana Infini (PP)
+NOTE_INFINITE_MANA :: Gardez ceci sur ON en combat pour maintenir les PP de chaque capacité au max - vos capacités ne s'épuisent jamais.
+REFILL_HEALTH :: Recharger Santé (HP)
+NOTE_REFILL_HEALTH :: Rechargez les PV de toute votre équipe.\n\n- ON : arme le raccourci (ZL par défaut).\n- OFF : libère le bouton.\n\nOverworld : appuyez sur le raccourci pour soigner toute l'équipe à fond.\nCombat : en direct seulement - quand vous subissez un coup, appuyez sur le raccourci pendant l'animation de la barre de PV et la barre se remplit au lieu de se vider. Pour des PV toujours pleins, utilisez Santé Infinie.\n\nRéaffectez-le dans le menu Raccourcis.
+REFILL_MANA :: Recharger Mana (PP)
+NOTE_REFILL_MANA :: Rechargez les PP de toute votre équipe.\n\n- ON : arme le raccourci (ZR par défaut).\n- Appuyez sur le raccourci : recharge maintenant.\n- OFF : libère le bouton.\n\nFonctionne en combat et dans l'overworld.\n\nRéaffectez-le dans le menu Raccourcis.
+HOTKEY_REFILL_HEALTH :: Recharger Santé
+HOTKEY_REFILL_MANA :: Recharger Mana
+FAV_INFINITE_HEALTH :: HP Infinis
+FAV_INFINITE_MANA :: PP Infinis
+FAV_REFILL_HEALTH :: Rech. HP
+FAV_REFILL_MANA :: Rech. PP
+FAV_HEALTH_MANA :: Santé et Mana
+DEXNAV_MAX_SEARCH :: Niv. Rech. DexNav max
+NOTE_DEXNAV_MAX_SEARCH :: Met au max le niveau de recherche DexNav des 721 espèces (ORAS uniquement).\n\nUn niveau de recherche plus élevé augmente les chances de Pokémon chromatiques, de Talent Caché, de capacités d'oeuf et de Pokémon cachés plus rares dans le DexNav.\n\nUnique : sélectionnez pour appliquer ; c'est sauvegardé avec votre partie.\n\nATTENTION : ceci est irréversible.
+FAV_DEXNAV_MAX_SEARCH :: DexNav Max
+DEXNAV_MAX_DONE :: Niveaux de recherche DexNav au max !
+DEXNAV_CONFIRM_BODY :: Ceci met au max le\nniveau de recherche\nDexNav des 721 espèces.\nC'est sauvegardé et\nirréversible.
+
+FW_LANGUAGE :: Langue
+MENU_HUD_ITEM :: Objet tenu
+FAV_HUD_ITEM :: Objet tenu
+MENU_HUD_ENC :: Rencontres
+FAV_HUD_ENC :: Rencontres
+MENU_HUD_STEPS :: Pas
+FAV_HUD_STEPS :: Pas
+HUD_ITEM :: Objet: %s
+HUD_ENC :: Renc: %lu
+HUD_STEPS :: Pas: %lu
+HUD_RESET_DONE :: Compteur remis a zero
+NOTE_HUD_ITEM :: Affiche l'objet tenu par votre Pokémon de tête sur le HUD ('-' si aucun).
+NOTE_HUD_ENC :: Compte les combats engagés cette session - pratique pour la chasse aux chromatiques.\n\nAppuyez sur le raccourci d'édition (START par défaut) sur cette entrée pour remettre à zéro.
+NOTE_HUD_STEPS :: Compte les pas effectués cette session.\n\nAppuyez sur le raccourci d'édition (START par défaut) sur cette entrée pour remettre à zéro.
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: La "initial seed" du démarrage ne peut pas être lue en direct sur la 3DS (affiche ----). Lis plutôt "Current seed" et laisse 3DSTimeFinder / 3DSRNGTool la trouver sur PC.
+NOTE_HUD_FRAME :: La valeur du RNG en ce moment (la "current seed"). Elle change quand le jeu avance, et reste fixe quand tu ne bouges pas.
+NOTE_HUD_ADV :: La "frame" RNG actuelle (de combien elle a avancé depuis que tu observes). Le RNG consiste à viser une frame cible.
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: La "egg seed" - l'instantané RNG de la sauvegarde, pour le RNG d'élevage / Pension (ex. PKSeed). Mise à jour quand tu sauvegardes.
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: Ton "TSV" (Trainer Shiny Value). Un œuf ou une rencontre est chromatique pour toi quand son PSV correspond. Indispensable au RNG.

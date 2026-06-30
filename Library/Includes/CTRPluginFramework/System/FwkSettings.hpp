@@ -113,6 +113,10 @@ namespace CTRPluginFramework {
         static const char *(*ThemeName)(int idx); // menu label for theme idx (name + color preview)
         static void (*ApplyThemeByIndex)(int idx);// apply + save + notify theme idx
 
+        // Optional plugin hook for the Tools-screen "Language" entry (sits under "Settings"). The framework
+        // always shows the entry; if this is null the click is a no-op. The plugin owns the language reset.
+        static void (*OnLanguage)(void);
+
         /**
          * \brief Reset all colors to their default values
          */

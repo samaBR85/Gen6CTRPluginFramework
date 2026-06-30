@@ -50,6 +50,7 @@ namespace CTRPluginFramework {
     void AlwaysShiny(MenuEntry *entry);
     void DisableShinyLock(MenuEntry *entry);
     void CaptureRate(MenuEntry *entry);
+    void MaxDexNavSearchLevel(MenuEntry *entry); // ORAS-only one-shot: max DexNav search level (all 721 species)
     void CatchTrainerPokemon(MenuEntry *entry);
     void ApplyBattleMusic(MenuEntry *entry);
     void SetBattleMusic(MenuEntry *entry);
@@ -86,6 +87,7 @@ namespace CTRPluginFramework {
 
     // HUD overlay (Slice 3): a small optional on-screen display during gameplay
     MenuFolder *CreateHudMenu(void);
+    MenuEntry *HudMasterEntry(void); // "Display HUD" master toggle (lives in Screen Overlays, not Config HUD)
     bool HudCallback(const Screen &screen);
     void LoadHudConfig(void);
 }

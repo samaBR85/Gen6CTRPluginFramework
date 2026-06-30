@@ -243,7 +243,7 @@ KB_PSS_PROFILE_HISTORY :: Histór.
 KB_PSS_PROFILE_ICONS :: Ícone
 KB_PSS_PROFILE_LINKS :: Links
 KB_PSS_PROFILE_MESSAGE :: Mensag.:
-KB_PSS_PROFILE_MESSAGE_2 :: Mensag.
+KB_PSS_PROFILE_MESSAGE_2 :: Mensagem
 KB_PSS_PROFILE_MINI_SURVEY :: Mini Enq.
 KB_PSS_PROFILE_NICES :: Nices
 KB_PSS_PROFILE_WISHES :: Desejo
@@ -945,7 +945,7 @@ MENU_ENEMY_EV_TOTAL :: Total EV
 NOTE_ENEMY_EV_TOTAL :: Na página IV/EV, mostra o total de EV (de 510).
 FAV_ENEMY_EV_TOTAL :: Ver: Total EV
 MENU_HUD :: Config HUD
-NOTE_HUD :: Uma pequena sobreposição mostrada sobre o jogo (tela superior).\n\nLigue, depois escolha o que ela mostra e onde.\n\nDica: favorite 'Mostrar HUD' (aperte Y nele) para ligar e desligar a sobreposição num toque.
+NOTE_HUD :: Escolha o que o HUD mostra e onde (tela superior).\n\nA sobreposição inteira liga e desliga em 'Mostrar HUD', um nível acima.\n\nDica: favorite 'Mostrar HUD' (aperte Y nele) para ligar e desligar num toque.
 MENU_HUD_DISPLAY :: Mostrar HUD
 NOTE_HUD_DISPLAY :: Interruptor mestre da sobreposição na tela.
 FAV_HUD_DISPLAY :: Mostrar HUD
@@ -998,6 +998,7 @@ FW_ABOUT :: Sobre
 FW_HOTKEYS :: Hotkeys
 FW_CHANGE_THEME :: Mudar Tema
 FW_SETTINGS :: Config.
+FW_LANGUAGE :: Idioma
 FW_SCREENSHOTS :: Capturas
 FW_HEXEDITOR :: HexEditor
 FW_RAM_DUMPER :: Gateway RAM Dumper
@@ -1029,20 +1030,83 @@ FW_GUIDE_HINT2 :: Ele abre aqui, na tela de cima.
 FW_GUIDE_HINT3 :: Ao ler: Cima/Baixo rola, B volta.
 
 # --- O-Power Center (visual panel) ---
-PSS_O_POWER_CENTER :: O-Power Center
-NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
-OPC_TITLE :: O-Power Center
-OPC_GAUGE :: Gauge:
+PSS_O_POWER_CENTER :: Central de O-Powers
+NOTE_PSS_O_POWER_CENTER :: Central de O-Powers - um painel visual de todos os 18 O-Powers e seu medidor de carga.\n\nTela superior:\n- D-Pad: escolha um poder\n- L / R: altere o nível dele (A alterna)\n- Y: visão bruta (avançado)\n\nBotões:\n- Maximizar Tudo: cada O-Power no nível máximo\n- Desbloquear: cada O-Power no nível 1\n- Bloquear: rebloquear tudo (volta ao nível 0)\n- Reabastecer: reabasteça o medidor agora (toque a qualquer momento)\n- Manter: mantenha o medidor sempre cheio (sem espera de recarga)\n\nSalve o jogo para manter as mudanças.
+OPC_TITLE :: Central de O-Powers
+OPC_GAUGE :: Medidor:
 OPC_LOCKED :: --
-OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
-OPC_RAW_HDR :: Raw block (position = index):
-OPC_RAW_IDX :: Index
-OPC_HINT_NAV :: D-Pad: select    Y: raw view
-OPC_HINT_LVL :: L / R: change level    A: cycle
-OPC_HINT_RAW :: B: back    SELECT: close plugin
-OPC_BTN_MAXALL :: Max All
-OPC_BTN_UNLOCKALL :: Unlock
-OPC_BTN_LOCKALL :: Lock
-OPC_BTN_FILLGAUGE :: Refill
-OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
-OPC_BTN_KEEPFULL :: Keep
+OPC_NAMES :: Poder de Ataque :: Poder de Defesa :: Poder de Atq. Esp. :: Poder de Def. Esp. :: Poder de Velocidade :: Poder de Precisão :: Poder Crítico :: Restauração de HP :: Restauração de PP :: Poder de Encontro :: Poder Furtivo :: Pontos de Exp. :: Dinheiro de Prêmio :: Poder de Captura :: Poder de Choco :: Poder de Pechincha :: Amizade :: Recuperação Total
+OPC_RAW_HDR :: Bloco bruto (posição = índice):
+OPC_RAW_IDX :: Índice
+OPC_HINT_NAV :: D-Pad: selecionar    Y: visão bruta
+OPC_HINT_LVL :: L / R: mudar nível    A: alternar
+OPC_HINT_RAW :: B: voltar    SELECT: fechar plugin
+OPC_BTN_MAXALL :: Maximizar Tudo
+OPC_BTN_UNLOCKALL :: Desbloquear
+OPC_BTN_LOCKALL :: Bloquear
+OPC_BTN_FILLGAUGE :: Reabastecer
+OPC_HINT_KEEP :: Manter: medidor sempre cheio, sem espera
+OPC_BTN_KEEPFULL :: Manter
+
+
+REFILL_DONE :: Equipe reabastecida!
+
+MENU_HEALTH_MANA :: Vida e Mana
+NOTE_HEALTH_MANA :: Encha ou trave o HP e o PP da sua equipe.\n\nSempre no MAX (alterna): mantenha HP/PP fixos no máximo durante a batalha - sem desmaiar, sem ficar sem PP.\nReabastecimento Instantâneo (alterna): ligue um para armar seu atalho e pressione-o para reabastecer uma vez (padrão DESLIGADO - opcional; DESLIGADO libera o botão). O reabastecimento de HP funciona no mapa; em batalha use Vida Infinita.
+HM_HDR_ALWAYS_MAX :: Sempre no MAX
+HM_HDR_BIND :: Reabast. Instant. / pressionar botão
+INFINITE_HEALTH :: Vida Infinita (HP)
+NOTE_INFINITE_HEALTH :: Mantenha isto LIGADO em batalha para segurar o HP da sua equipe no máximo - a barra se enche no próximo golpe e eles nunca desmaiam.
+INFINITE_MANA :: Mana Infinita (PP)
+NOTE_INFINITE_MANA :: Mantenha isto LIGADO em batalha para segurar o PP de cada golpe no máximo - seus golpes nunca acabam.
+REFILL_HEALTH :: Reabastecer Vida (HP)
+NOTE_REFILL_HEALTH :: Reabasteça o HP de toda a sua equipe.\n\n- LIGADO: arma o atalho (padrão ZL).\n- DESLIGADO: libera o botão.\n\nMapa: pressione o atalho para curar toda a equipe totalmente.\nBatalha: ao vivo apenas - quando levar um golpe, pressione o atalho durante a animação da barra de HP e a barra se enche em vez de esvaziar. Para HP sempre cheio, use Vida Infinita.\n\nRemapeie no menu de Atalhos.
+REFILL_MANA :: Reabastecer Mana (PP)
+NOTE_REFILL_MANA :: Reabasteça o PP de toda a sua equipe.\n\n- LIGADO: arma o atalho (padrão ZR).\n- Pressione o atalho: reabastece agora.\n- DESLIGADO: libera o botão.\n\nFunciona em batalha e no mapa.\n\nRemapeie no menu de Atalhos.
+HOTKEY_REFILL_HEALTH :: Reabastecer Vida
+HOTKEY_REFILL_MANA :: Reabastecer Mana
+FAV_INFINITE_HEALTH :: HP Infinito
+FAV_INFINITE_MANA :: PP Infinito
+FAV_REFILL_HEALTH :: Reabast. HP
+FAV_REFILL_MANA :: Reabast. PP
+FAV_HEALTH_MANA :: Vida e Mana
+DEXNAV_MAX_SEARCH :: Max Nv. Busca DexNav
+NOTE_DEXNAV_MAX_SEARCH :: Maximiza o nível de busca do DexNav de todas as 721 espécies (somente ORAS).\n\nUm nível de busca maior aumenta as chances de shiny, Habilidade Oculta, golpes-ovo e Pokémon ocultos mais raros no DexNav.\n\nÚnica vez: selecione para aplicar; é salvo com seu jogo.\n\nAVISO: isto não pode ser desfeito.
+FAV_DEXNAV_MAX_SEARCH :: DexNav Max
+DEXNAV_MAX_DONE :: Níveis de busca do DexNav maximizados!
+DEXNAV_CONFIRM_BODY :: Isto maximiza o nível\nde busca do DexNav de\ntodas as 721 espécies.\nÉ salvo no seu jogo e\nnão pode ser desfeito.
+MENU_HUD_ITEM :: Item
+FAV_HUD_ITEM :: Item
+MENU_HUD_ENC :: Encontros
+FAV_HUD_ENC :: Encontros
+MENU_HUD_STEPS :: Passos
+FAV_HUD_STEPS :: Passos
+HUD_ITEM :: Item: %s
+HUD_ENC :: Enc: %lu
+HUD_STEPS :: Passos: %lu
+HUD_RESET_DONE :: Contador zerado
+NOTE_HUD_ITEM :: Mostra o item segurado pelo Pokémon líder no HUD ('-' se nenhum).
+NOTE_HUD_ENC :: Conta as batalhas iniciadas nesta sessão - útil para shiny hunting.\n\nAperte o atalho de edição (START padrão) nesta entrada para zerar.
+NOTE_HUD_STEPS :: Conta os passos dados nesta sessão.\n\nAperte o atalho de edição (START padrão) nesta entrada para zerar.
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: A "initial seed" do boot não dá pra ler ao vivo no 3DS (mostra ----). Leia o "Current seed" e deixe o 3DSTimeFinder / 3DSRNGTool achar ela no PC.
+NOTE_HUD_FRAME :: O valor do RNG agora (a "current seed"). Muda conforme o jogo avança e fica parado quando você fica parado.
+NOTE_HUD_ADV :: A "frame" RNG atual (quanto avançou desde que você começou a olhar). No RNG você cronometra a ação numa frame-alvo.
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: A "egg seed" - o snapshot de RNG do save, pra RNG de ovo / Daycare (ex. PKSeed). Atualiza quando você salva.
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: Seu "TSV" (Trainer Shiny Value). Um ovo ou encontro é shiny pra você quando o PSV dele bate com isto. Essencial pro RNG.

@@ -1226,6 +1226,93 @@ namespace CTRPluginFramework {
             return h == 1 || (h > DELAY && (h - DELAY) % RATE == 0);
         }
 
+        // ===== Health & Mana — Infinite (per-frame freeze) toggles + Refill (one-shot) actions. ================
+        // HW lesson: in battle the engine recomputes the active mon's HP every frame and the HP bar is a cached
+        // sprite (redraws only on an HP event), so HP can't be a one-shot — only a per-frame FREEZE holds it
+        // (Infinite Health). PP and overworld are normal one-shots. A single always-on poller drives the binds
+        // SAFELY (it never Enable/Disables from inside the execute loop -> no iterator invalidation).
+
+        // Max PP for a move id with `ups` PP-Ups (0..3). Same formula as the editor's "PP restored".
+        static u8 RefillMaxPP(u16 moveId, int ups) {
+            if (moveId < 1 || moveId > 621) return 0;
+            int base = gMoveExtra[moveId - 1][2];
+            if (ups > 3) ups = 3; if (ups < 0) ups = 0;
+            return (u8)(base * (5 + ups) / 5);
+        }
+
+        // Validated battle write for all active battlers. battleOffset[i] is a table of battler pointers; deref +
+        // RANGE/species check before touching a struct (some slots hold garbage like 0x41F4 -> +0xE data-aborts).
+        static void RefillBattleWrite(bool doHP, bool doPP) {
+            if (!IfInBattle() || battleOffset.empty()) return;
+            for (size_t i = 0; i < battleOffset.size(); ++i) {
+                for (int slot = 0; slot < 6; ++slot) {
+                    u32 loc = Process::Read32(battleOffset[i] + (u32)slot * sizeof(u32));
+                    if (loc < 0x07000000 || loc >= 0x0F000000) continue;  // null/garbage pointer -> skip (no abort)
+                    u16 sp = Process::Read16(loc + 0xC);                   // species (absolute)
+                    if (sp < 1 || sp > 721) continue;                     // not a real battler -> skip
+                    if (doHP) { u16 maxHP = Process::Read16(loc + 0xE); if (maxHP) Process::Write16(loc + 0x10, maxHP); }
+                    if (doPP) {
+                        for (int m = 0; m < 4; ++m) {
+                            u16 mv = Process::Read16(loc + 0x11C + m * 0xE);
+                            u8 pp = RefillMaxPP(mv, 0); // PP-Ups aren't in the battle struct -> base max PP
+                            if (pp) Process::Write16(loc + 0x11E + m * 0xE, (u16)((pp << 8) | pp));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Overworld one-shot: the located party block (0x104 stride). HP in the plaintext party-stat tail; PP in the
+        // (maybe encrypted) PK6 body -> Get/SetPokemon.
+        static void RefillPartyOverworld(bool doHP, bool doPP) {
+            u32 base = FindPartyBase();
+            if (!base) return;
+            for (int i = 0; i < 6; ++i) {
+                u32 p = base + (u32)i * 0x104;
+                PK6 pk;
+                bool ok = gPartyEncrypted ? GetPokemon(p, &pk) : GetPokemonRaw(p, &pk);
+                if (!ok || pk.species < 1 || pk.species > 721) continue;
+                if (doHP) {
+                    u16 maxHP = Process::Read16(p + 0xF2);         // party-stat tail (plaintext, absolute): max HP
+                    if (maxHP) Process::Write16(p + 0xF0, maxHP);  // current = max
+                }
+                if (doPP) {
+                    for (int m = 0; m < 4; ++m) pk.movePP[m] = RefillMaxPP(pk.move[m], pk.movePPUp[m]);
+                    PK6 scratch = pk; // SetPokemon mutates the buffer in place — keep our copy intact
+                    if (gPartyEncrypted) SetPokemon(p, &scratch); else SetPokemonRaw(p, &scratch);
+                }
+            }
+        }
+
+        // --- Infinite (checkbox toggles): freeze HP/PP at max every frame while ON (battle). ---
+        void InfiniteHealth(MenuEntry *e) { if (e->IsActivated()) RefillBattleWrite(true,  false); }
+        void InfiniteMana(MenuEntry *e)   { if (e->IsActivated()) RefillBattleWrite(false, true);  }
+
+        // --- Refill (opt-in toggles): ON = the bound hotkey is ARMED; press it to refill instantly. OFF = the
+        // button is free. Default OFF (nothing fires until the user enables it). Same pattern as FastWalkRun
+        // (checkbox toggle whose gameFunc polls its own hotkey). In battle the write is re-applied for ~60 frames
+        // so a hit landing in that window redraws the bar full (PP sticks; for guaranteed HP use Infinite Health).
+        void RefillHealthBind(MenuEntry *e) {
+            if (!e->IsActivated()) return;
+            static int frames = 0;
+            if (e->Hotkeys.Count() && e->Hotkeys[0].IsPressed()) {
+                OSD::Notify(getLanguage->Get("REFILL_DONE"));
+                if (IfInBattle()) frames = 60;
+                else RefillPartyOverworld(true, false);
+            }
+            if (frames > 0) { if (IfInBattle()) RefillBattleWrite(true, false); --frames; }
+        }
+        void RefillManaBind(MenuEntry *e) {
+            if (!e->IsActivated()) return;
+            static int frames = 0;
+            if (e->Hotkeys.Count() && e->Hotkeys[0].IsPressed()) {
+                OSD::Notify(getLanguage->Get("REFILL_DONE"));
+                if (IfInBattle()) frames = 60;
+                else RefillPartyOverworld(false, true);
+            }
+            if (frames > 0) { if (IfInBattle()) RefillBattleWrite(false, true); --frames; }
+        }
+
         void ViewPartyInfo(MenuEntry *entry) {
             (void)entry;
             u32 base = FindPartyBase();

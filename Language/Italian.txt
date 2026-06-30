@@ -389,20 +389,85 @@ SPAWNER_INVALID :: Specie selezionata non valida
 SPAWNER_SPAWNING :: Generazione:
 
 # --- O-Power Center (visual panel) ---
-PSS_O_POWER_CENTER :: O-Power Center
-NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
-OPC_TITLE :: O-Power Center
-OPC_GAUGE :: Gauge:
+PSS_O_POWER_CENTER :: Centro Forza-O
+NOTE_PSS_O_POWER_CENTER :: Centro Forza-O - una tavola visiva di tutte le 18 Forze-O e del tuo indicatore di carica.\n\nSchermo superiore:\n- D-Pad: scegli una forza\n- L / R: cambia il suo livello (A scorre)\n- Y: vista grezza (avanzata)\n\nPulsanti:\n- Max Tutte: ogni Forza-O al livello massimo\n- Sblocca: ogni Forza-O al livello 1\n- Blocca: riblocca tutte (torna al livello 0)\n- Ricarica: ricarica subito l'indicatore al massimo (tocca quando vuoi)\n- Mantieni: tieni l'indicatore sempre pieno (nessuna attesa di ricarica)\n\nSalva la partita per mantenere le modifiche.
+OPC_TITLE :: Centro Forza-O
+OPC_GAUGE :: Indicatore:
 OPC_LOCKED :: --
-OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
-OPC_RAW_HDR :: Raw block (position = index):
-OPC_RAW_IDX :: Index
-OPC_HINT_NAV :: D-Pad: select    Y: raw view
-OPC_HINT_LVL :: L / R: change level    A: cycle
-OPC_HINT_RAW :: B: back    SELECT: close plugin
-OPC_BTN_MAXALL :: Max All
-OPC_BTN_UNLOCKALL :: Unlock
-OPC_BTN_LOCKALL :: Lock
-OPC_BTN_FILLGAUGE :: Refill
-OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
-OPC_BTN_KEEPFULL :: Keep
+OPC_NAMES :: Forza Attacco :: Forza Difesa :: Forza Att. Sp. :: Forza Dif. Sp. :: Forza Velocità :: Forza Precisione :: Forza Critico :: Recupero PS :: Recupero PP :: Forza Incontri :: Forza Invisibilità :: Forza Esperienza :: Forza Vincita :: Forza Cattura :: Forza Schiusa :: Forza Affari :: Forza Affetto :: Recupero Totale
+OPC_RAW_HDR :: Blocco grezzo (posizione = indice):
+OPC_RAW_IDX :: Indice
+OPC_HINT_NAV :: D-Pad: seleziona    Y: vista grezza
+OPC_HINT_LVL :: L / R: cambia livello    A: scorri
+OPC_HINT_RAW :: B: indietro    SELECT: chiudi plugin
+OPC_BTN_MAXALL :: Max Tutte
+OPC_BTN_UNLOCKALL :: Sblocca
+OPC_BTN_LOCKALL :: Blocca
+OPC_BTN_FILLGAUGE :: Ricarica
+OPC_HINT_KEEP :: Mantieni: indicatore sempre pieno, nessuna attesa
+OPC_BTN_KEEPFULL :: Mantieni
+
+
+REFILL_DONE :: Squadra ricaricata!
+
+MENU_HEALTH_MANA :: Salute e Mana
+NOTE_HEALTH_MANA :: Riempi o blocca i PS e i PP della tua squadra.\n\nSempre MAX (interruttori): tieni PS/PP fissi al massimo durante la lotta - nessuno svenimento, nessun esaurimento di PP.\nRicarica Istantanea (interruttori): attivane uno per armare la sua scorciatoia, poi premila per ricaricare una volta (predefinito OFF - opzionale; OFF libera il pulsante). La ricarica PS funziona nell'esplorazione; in lotta usa Salute Infinita.
+HM_HDR_ALWAYS_MAX :: Sempre MAX
+HM_HDR_BIND :: Ricarica Istantanea / pressione pulsante
+INFINITE_HEALTH :: Salute Infinita (HP)
+NOTE_INFINITE_HEALTH :: Tieni questo su ON in lotta per mantenere i PS della tua squadra al massimo - la barra si riempie al colpo successivo e non svengono mai.
+INFINITE_MANA :: Mana Infinito (PP)
+NOTE_INFINITE_MANA :: Tieni questo su ON in lotta per mantenere i PP di ogni mossa al massimo - le tue mosse non si esauriscono mai.
+REFILL_HEALTH :: Ricarica Salute (HP)
+NOTE_REFILL_HEALTH :: Ricarica i PS dell'intera squadra.\n\n- ON: arma la scorciatoia (predefinito ZL).\n- OFF: libera il pulsante.\n\nEsplorazione: premi la scorciatoia per curare completamente tutta la squadra.\nLotta: solo in tempo reale - quando subisci un colpo, premi la scorciatoia durante l'animazione della barra PS e la barra si riempie invece di svuotarsi. Per PS sempre al massimo, usa Salute Infinita.\n\nRiassegna nel menu Scorciatoie.
+REFILL_MANA :: Ricarica Mana (PP)
+NOTE_REFILL_MANA :: Ricarica i PP dell'intera squadra.\n\n- ON: arma la scorciatoia (predefinito ZR).\n- Premi la scorciatoia: ricarica ora.\n- OFF: libera il pulsante.\n\nFunziona in lotta e nell'esplorazione.\n\nRiassegna nel menu Scorciatoie.
+HOTKEY_REFILL_HEALTH :: Ricarica Salute
+HOTKEY_REFILL_MANA :: Ricarica Mana
+FAV_INFINITE_HEALTH :: PS Infiniti
+FAV_INFINITE_MANA :: PP Infiniti
+FAV_REFILL_HEALTH :: Ricarica PS
+FAV_REFILL_MANA :: Ricarica PP
+FAV_HEALTH_MANA :: Salute e Mana
+DEXNAV_MAX_SEARCH :: Liv. Ricerca DexNav Max
+NOTE_DEXNAV_MAX_SEARCH :: Porta al massimo il livello di ricerca DexNav di tutte le 721 specie (solo ORAS).\n\nUn livello di ricerca più alto aumenta le probabilità di cromatici, Abilità Speciale, mosse delle uova e Pokémon nascosti più rari nel DexNav.\n\nUna sola volta: seleziona per applicare; viene salvato con la tua partita.\n\nATTENZIONE: non può essere annullato.
+FAV_DEXNAV_MAX_SEARCH :: DexNav Max
+DEXNAV_MAX_DONE :: Livelli ricerca DexNav al massimo!
+DEXNAV_CONFIRM_BODY :: Porta al massimo il\nlivello ricerca DexNav\ndi tutte le 721 specie.\nÈ salvato nella partita\ne non si può annullare.
+
+FW_LANGUAGE :: Lingua
+MENU_HUD_ITEM :: Strumento
+FAV_HUD_ITEM :: Strumento
+MENU_HUD_ENC :: Incontri
+FAV_HUD_ENC :: Incontri
+MENU_HUD_STEPS :: Passi
+FAV_HUD_STEPS :: Passi
+HUD_ITEM :: Ogg.: %s
+HUD_ENC :: Inc: %lu
+HUD_STEPS :: Passi: %lu
+HUD_RESET_DONE :: Contatore azzerato
+NOTE_HUD_ITEM :: Mostra lo strumento del primo Pokémon sull'HUD ('-' se nessuno).
+NOTE_HUD_ENC :: Conta le lotte iniziate in questa sessione - utile per lo shiny hunting.\n\nPremi il tasto editor (START predefinito) su questa voce per azzerare.
+NOTE_HUD_STEPS :: Conta i passi fatti in questa sessione.\n\nPremi il tasto editor (START predefinito) su questa voce per azzerare.
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: La "initial seed" di avvio non è leggibile dal vivo sul 3DS (mostra ----). Leggi invece "Current seed" e lascia che 3DSTimeFinder / 3DSRNGTool la trovi su PC.
+NOTE_HUD_FRAME :: Il valore del RNG adesso (la "current seed"). Cambia mentre il gioco avanza e resta fermo se stai fermo.
+NOTE_HUD_ADV :: La "frame" RNG attuale (di quanto è avanzata da quando guardi). Nel RNG si cronometra l'azione su una frame obiettivo.
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: La "egg seed" - l'istantanea RNG del salvataggio, per il RNG di allevamento / Pensione (es. PKSeed). Si aggiorna quando salvi.
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: Il tuo "TSV" (Trainer Shiny Value). Un uovo o un incontro è shiny per te quando il suo PSV coincide. Serve per il RNG.

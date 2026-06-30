@@ -517,6 +517,10 @@ namespace CTRPluginFramework {
         // built. Harmless no-op if no plugin registers a theme table.
         _mainMenu.Append(new MenuEntryTools(FwText("FW_CHANGE_THEME", "Change Theme"), nullptr, Icon::DrawSettings, new u32(THEMES)));
         _mainMenu.Append(new MenuEntryTools(FwText("FW_SETTINGS", "Settings"), nullptr, Icon::DrawSettings, this));
+        // Plugin-provided "Language" entry (sits right under Settings). Calls FwkSettings::OnLanguage if the
+        // plugin registered it; no-op otherwise. Appended unconditionally because the hook is registered after
+        // this menu is built (same lazy pattern as the theme picker above).
+        _mainMenu.Append(new MenuEntryTools(FwText("FW_LANGUAGE", "Language"), [] { if (FwkSettings::OnLanguage) FwkSettings::OnLanguage(); }, Icon::DrawSettings));
         _mainMenu.Append(new MenuEntryTools(FwText("FW_SCREENSHOTS", "Screenshots"), nullptr, Icon::DrawUnsplash, new u32(SCREENSHOT)));
         _hexEditorEntry = new MenuEntryTools(FwText("FW_HEXEDITOR", "HexEditor"), [] {g_mode = HEXEDITOR;}, Icon::DrawGrid);
         _mainMenu.Append(_hexEditorEntry);

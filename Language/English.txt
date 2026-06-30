@@ -243,6 +243,7 @@ KB_PSS_PROFILE_HISTORY :: History
 KB_PSS_PROFILE_ICONS :: Icons
 KB_PSS_PROFILE_LINKS :: Links
 KB_PSS_PROFILE_MESSAGE :: Message:
+KB_PSS_PROFILE_MESSAGE_2 :: Message
 KB_PSS_PROFILE_MESSAGE_2:: Message
 KB_PSS_PROFILE_MINI_SURVEY :: Mini Survey
 KB_PSS_PROFILE_NICES :: Nices
@@ -406,3 +407,68 @@ OPC_BTN_LOCKALL :: Lock
 OPC_BTN_FILLGAUGE :: Refill
 OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
 OPC_BTN_KEEPFULL :: Keep
+
+
+REFILL_DONE :: Party refilled!
+
+MENU_HEALTH_MANA :: Health & Mana
+NOTE_HEALTH_MANA :: Top up or lock your party's HP and PP.\n\nAlways MAX (toggles): keep HP/PP pinned at full during battle - no faint, no PP-out.\nInstant Refill (toggles): turn one ON to arm its hotkey, then press it to refill once (default OFF - opt-in; OFF frees the button). HP refill works in the overworld; in battle use Infinite Health.
+HM_HDR_ALWAYS_MAX :: Always MAX
+HM_HDR_BIND :: Instant Refill / button press
+INFINITE_HEALTH :: Infinite Health (HP)
+NOTE_INFINITE_HEALTH :: Keep this ON in battle to hold your team's HP at max - the bar refills on the next hit and they never faint.
+INFINITE_MANA :: Infinite Mana (PP)
+NOTE_INFINITE_MANA :: Keep this ON in battle to hold every move's PP at max - your moves never run out.
+REFILL_HEALTH :: Refill Health (HP)
+NOTE_REFILL_HEALTH :: Refill your whole party's HP.\n\n- ON: arms the hotkey (default ZL).\n- OFF: frees the button.\n\nOverworld: press the hotkey to heal the whole party fully.\nBattle: live only — when you take a hit, press the hotkey during the HP-bar animation and the bar fills up instead of draining. For always-full HP, use Infinite Health.\n\nRebind in the Hotkeys menu.
+REFILL_MANA :: Refill Mana (PP)
+NOTE_REFILL_MANA :: Refill your whole party's PP.\n\n- ON: arms the hotkey (default ZR).\n- Press the hotkey: refills now.\n- OFF: frees the button.\n\nWorks in battle and the overworld.\n\nRebind in the Hotkeys menu.
+HOTKEY_REFILL_HEALTH :: Refill Health
+HOTKEY_REFILL_MANA :: Refill Mana
+FAV_INFINITE_HEALTH :: Infinite HP
+FAV_INFINITE_MANA :: Infinite PP
+FAV_REFILL_HEALTH :: Refill HP
+FAV_REFILL_MANA :: Refill PP
+FAV_HEALTH_MANA :: Health & Mana
+DEXNAV_MAX_SEARCH :: Max DexNav Search Lv.
+NOTE_DEXNAV_MAX_SEARCH :: Maxes the DexNav search level of all 721 species (ORAS only).\n\nHigher search level raises the odds of shiny, Hidden Ability, egg moves and rarer hidden Pokémon in the DexNav.\n\nOne-shot: select to apply; it's saved with your game.\n\nWARNING: this can't be undone.
+FAV_DEXNAV_MAX_SEARCH :: DexNav Max
+DEXNAV_MAX_DONE :: DexNav search levels maxed!
+DEXNAV_CONFIRM_BODY :: This maxes the DexNav\nsearch level of all 721\nspecies. It's saved to\nyour game and can't\nbe undone.
+
+FW_LANGUAGE :: Language
+MENU_HUD_ITEM :: Held item
+FAV_HUD_ITEM :: Held item
+MENU_HUD_ENC :: Encounters
+FAV_HUD_ENC :: Encounters
+MENU_HUD_STEPS :: Steps
+FAV_HUD_STEPS :: Steps
+HUD_ITEM :: Item: %s
+HUD_ENC :: Enc: %lu
+HUD_STEPS :: Steps: %lu
+HUD_RESET_DONE :: Counter reset
+NOTE_HUD_ITEM :: Shows your lead Pokémon's held item on the HUD ('-' if none).
+NOTE_HUD_ENC :: Counts battles entered this session - handy for shiny hunting.\n\nPress the editor hotkey (default START) on this entry to reset.
+NOTE_HUD_STEPS :: Counts steps walked this session.\n\nPress the editor hotkey (default START) on this entry to reset.
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: The boot "initial seed" can't be read live on the 3DS (shows ----). Read "Current seed" instead and let 3DSTimeFinder / 3DSRNGTool find it on PC.
+NOTE_HUD_FRAME :: The RNG value right now (the "current seed"). It changes as the game advances, and holds still when you stand still.
+NOTE_HUD_ADV :: The current RNG "frame" (how far it has advanced since you started watching). RNG hunters time their action to a target frame.
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: The "egg seed" - the save's RNG snapshot, used for breeding / Daycare RNG (e.g. PKSeed). Updates when you save.
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: Your "TSV" (Trainer Shiny Value). An egg or encounter is shiny for you when its PSV matches this. RNG hunters need it.

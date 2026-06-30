@@ -5,6 +5,7 @@ namespace CTRPluginFramework {
     int  (*FwkSettings::ThemeCount)(void) = nullptr;
     const char *(*FwkSettings::ThemeName)(int) = nullptr;
     void (*FwkSettings::ApplyThemeByIndex)(int) = nullptr;
+    void (*FwkSettings::OnLanguage)(void) = nullptr;
 
     FwkSettings &FwkSettings::Get(void) {
         return Preferences::Settings;

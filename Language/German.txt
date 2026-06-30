@@ -243,6 +243,7 @@ KB_PSS_PROFILE_HISTORY :: Verlauf
 KB_PSS_PROFILE_ICONS :: Symbole
 KB_PSS_PROFILE_LINKS :: Verbindungen
 KB_PSS_PROFILE_MESSAGE :: Nachricht:
+KB_PSS_PROFILE_MESSAGE_2 :: Nachricht
 KB_PSS_PROFILE_MESSAGE_2:: Nachricht
 KB_PSS_PROFILE_MINI_SURVEY :: Mini-Umfrage
 KB_PSS_PROFILE_NICES :: Gefällt mir
@@ -389,20 +390,85 @@ SPAWNER_INVALID :: Ungültige Spezies ausgewählt
 SPAWNER_SPAWNING :: Erscheint:
 
 # --- O-Power Center (visual panel) ---
-PSS_O_POWER_CENTER :: O-Power Center
-NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
-OPC_TITLE :: O-Power Center
-OPC_GAUGE :: Gauge:
+PSS_O_POWER_CENTER :: O-Kraft-Zentrale
+NOTE_PSS_O_POWER_CENTER :: O-Kraft-Zentrale - eine Übersicht aller 18 O-Kräfte und deiner Ladeanzeige.\n\nOberer Bildschirm:\n- D-Pad: Kraft wählen\n- L / R: Stufe ändern (A wechselt durch)\n- Y: Rohansicht (fortgeschritten)\n\nTasten:\n- Alle Max: jede O-Kraft auf Maximalstufe\n- Freischalten: jede O-Kraft auf Stufe 1\n- Sperren: alle wieder sperren (zurück auf Stufe 0)\n- Auffüllen: Anzeige jetzt voll auffüllen (jederzeit antippen)\n- Halten: Anzeige immer voll halten (keine Wartezeit)\n\nSpeichere das Spiel, um Änderungen zu behalten.
+OPC_TITLE :: O-Kraft-Zentrale
+OPC_GAUGE :: Anzeige:
 OPC_LOCKED :: --
-OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
-OPC_RAW_HDR :: Raw block (position = index):
+OPC_NAMES :: Angriffs-O-Kraft :: Vert.-O-Kraft :: Sp.-Ang.-O-Kraft :: Sp.-Vert.-O-Kraft :: Init.-O-Kraft :: Genau.-O-Kraft :: Volltreffer-O-Kraft :: KP-Heil-O-Kraft :: AP-Heil-O-Kraft :: Begegnungs-O-Kraft :: Tarn-O-Kraft :: E-Punkte-O-Kraft :: Preisgeld-O-Kraft :: Fang-O-Kraft :: Brut-O-Kraft :: Rabatt-O-Kraft :: Freundschafts-O-Kraft :: Vollheilungs-O-Kraft
+OPC_RAW_HDR :: Rohblock (Position = Index):
 OPC_RAW_IDX :: Index
-OPC_HINT_NAV :: D-Pad: select    Y: raw view
-OPC_HINT_LVL :: L / R: change level    A: cycle
-OPC_HINT_RAW :: B: back    SELECT: close plugin
-OPC_BTN_MAXALL :: Max All
-OPC_BTN_UNLOCKALL :: Unlock
-OPC_BTN_LOCKALL :: Lock
-OPC_BTN_FILLGAUGE :: Refill
-OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
-OPC_BTN_KEEPFULL :: Keep
+OPC_HINT_NAV :: D-Pad: wählen    Y: Rohansicht
+OPC_HINT_LVL :: L / R: Stufe ändern    A: wechseln
+OPC_HINT_RAW :: B: zurück    SELECT: Plugin schließen
+OPC_BTN_MAXALL :: Alle Max
+OPC_BTN_UNLOCKALL :: Freischalten
+OPC_BTN_LOCKALL :: Sperren
+OPC_BTN_FILLGAUGE :: Auffüllen
+OPC_HINT_KEEP :: Halten: Anzeige bleibt voll, kein Warten
+OPC_BTN_KEEPFULL :: Halten
+
+
+REFILL_DONE :: Team aufgefüllt!
+
+MENU_HEALTH_MANA :: Gesundheit & Mana
+NOTE_HEALTH_MANA :: Fülle die KP und AP deines Teams auf oder fixiere sie.\n\nImmer MAX (Schalter): KP/AP im Kampf dauerhaft voll halten - keiner wird besiegt, keine AP gehen aus.\nSofort-Auffüllen (Schalter): einen einschalten, um sein Tastenkürzel zu aktivieren, dann drücken, um einmal aufzufüllen (Standard AUS - optional; AUS gibt die Taste frei). KP-Auffüllen funktioniert in der Oberwelt; im Kampf nutze Unendliche Gesundheit.
+HM_HDR_ALWAYS_MAX :: Immer MAX
+HM_HDR_BIND :: Sofort-Auffüllen / Tastendruck
+INFINITE_HEALTH :: Unendliche Gesundheit (HP)
+NOTE_INFINITE_HEALTH :: Lass dies im Kampf AN, um die KP deines Teams auf Maximum zu halten - die Leiste füllt sich beim nächsten Treffer und keiner wird besiegt.
+INFINITE_MANA :: Unendliches Mana (PP)
+NOTE_INFINITE_MANA :: Lass dies im Kampf AN, um die AP jeder Attacke auf Maximum zu halten - deine Attacken gehen nie aus.
+REFILL_HEALTH :: Gesundheit auffüllen (HP)
+NOTE_REFILL_HEALTH :: Fülle die KP deines gesamten Teams auf.\n\n- AN: aktiviert das Tastenkürzel (Standard ZL).\n- AUS: gibt die Taste frei.\n\nOberwelt: drücke das Tastenkürzel, um das ganze Team voll zu heilen.\nKampf: nur live - wenn du einen Treffer kassierst, drücke das Tastenkürzel während der KP-Leisten-Animation, und die Leiste füllt sich, statt zu sinken. Für stets volle KP nutze Unendliche Gesundheit.\n\nNeu belegen im Menü Tastenkürzel.
+REFILL_MANA :: Mana auffüllen (PP)
+NOTE_REFILL_MANA :: Fülle die AP deines gesamten Teams auf.\n\n- AN: aktiviert das Tastenkürzel (Standard ZR).\n- Tastenkürzel drücken: füllt jetzt auf.\n- AUS: gibt die Taste frei.\n\nFunktioniert im Kampf und in der Oberwelt.\n\nNeu belegen im Menü Tastenkürzel.
+HOTKEY_REFILL_HEALTH :: Gesundheit auffüllen
+HOTKEY_REFILL_MANA :: Mana auffüllen
+FAV_INFINITE_HEALTH :: Unendl. HP
+FAV_INFINITE_MANA :: Unendl. PP
+FAV_REFILL_HEALTH :: HP auffüllen
+FAV_REFILL_MANA :: PP auffüllen
+FAV_HEALTH_MANA :: Ges. & Mana
+DEXNAV_MAX_SEARCH :: Max. DexNav-Suchstufe
+NOTE_DEXNAV_MAX_SEARCH :: Maximiert die DexNav-Suchstufe aller 721 Spezies (nur ORAS).\n\nEine höhere Suchstufe erhöht die Chance auf schillernde Pokémon, Versteckte Fähigkeiten, Ei-Attacken und seltenere versteckte Pokémon im DexNav.\n\nEinmalig: zum Anwenden auswählen; wird mit deinem Spiel gespeichert.\n\nWARNUNG: dies kann nicht rückgängig gemacht werden.
+FAV_DEXNAV_MAX_SEARCH :: DexNav Max
+DEXNAV_MAX_DONE :: DexNav-Suchstufen maximiert!
+DEXNAV_CONFIRM_BODY :: Dies maximiert die\nDexNav-Suchstufe aller\n721 Spezies. Wird im\nSpiel gespeichert, nicht\numkehrbar.
+
+FW_LANGUAGE :: Sprache
+MENU_HUD_ITEM :: Item
+FAV_HUD_ITEM :: Item
+MENU_HUD_ENC :: Begegnungen
+FAV_HUD_ENC :: Begegnungen
+MENU_HUD_STEPS :: Schritte
+FAV_HUD_STEPS :: Schritte
+HUD_ITEM :: Item: %s
+HUD_ENC :: Beg: %lu
+HUD_STEPS :: Schritte: %lu
+HUD_RESET_DONE :: Zahler zuruckgesetzt
+NOTE_HUD_ITEM :: Zeigt das getragene Item deines ersten Pokémon im HUD ('-' wenn keins).
+NOTE_HUD_ENC :: Zählt die in dieser Sitzung begonnenen Kämpfe - praktisch für die Schillernd-Jagd.\n\nDrücke das Editor-Tastenkürzel (Standard START) auf diesem Eintrag zum Zurücksetzen.
+NOTE_HUD_STEPS :: Zählt die in dieser Sitzung gelaufenen Schritte.\n\nDrücke das Editor-Tastenkürzel (Standard START) auf diesem Eintrag zum Zurücksetzen.
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: Der "Initial Seed" beim Start lässt sich auf dem 3DS nicht live auslesen (zeigt ----). Lies stattdessen "Current seed" und lass ihn von 3DSTimeFinder / 3DSRNGTool am PC finden.
+NOTE_HUD_FRAME :: Der RNG-Wert gerade jetzt (der "current seed"). Er ändert sich, wenn das Spiel weiterzählt, und bleibt stehen, wenn du stehst.
+NOTE_HUD_ADV :: Die aktuelle RNG-"Frame" (wie weit sie seit Beobachtungsbeginn gezählt hat). Beim RNG triffst du eine Ziel-Frame.
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: Der "Egg Seed" - der RNG-Schnappschuss des Spielstands, für Zucht- / Pensions-RNG (z. B. PKSeed). Aktualisiert beim Speichern.
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: Dein "TSV" (Trainer Shiny Value). Ein Ei oder Treffen ist für dich schillernd, wenn sein PSV passt. Wichtig fürs RNG.

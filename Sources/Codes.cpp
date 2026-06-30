@@ -3497,6 +3497,28 @@ namespace CTRPluginFramework {
         }
     }
 
+    // Defined further down (after the Fly-Map helpers); forward-declared so the DexNav action can reuse it.
+    static bool DangerConfirm(const string &heading, const string &body, const string &question);
+
+    // One-shot action (ORAS only): max the DexNav "search level" of all 721 species, so the DexNav's
+    // shiny / Hidden Ability / egg-move / rare-spawn odds are at their best for every Pokemon. The search
+    // level array lives in the decrypted save buffer (721 entries, 2 bytes apart); we mirror the AR code
+    // and write 0xFF (255) to the low byte of each. It's saved with the game and can't be undone, so the
+    // entry is flagged dangerous (red row) AND asks for confirmation. XY has no DexNav -> ORAS-only entry.
+    void MaxDexNavSearchLevel(MenuEntry *entry) {
+        (void)entry;
+        if (currGameSeries != GameSeries::ORAS)
+            return;
+        if (!DangerConfirm(getLanguage->Get("DLG_DANGER_HEADING"),
+                           getLanguage->Get("DEXNAV_CONFIRM_BODY"),
+                           getLanguage->Get("DLG_DANGER_APPLY_Q")))
+            return; // user cancelled
+        static const u32 base = 0x08C82668; // DexNav search-level array base (ORAS, OR==AS)
+        for (int i = 0; i < 721; ++i)
+            Process::Write8(base + i * 2, 0xFF);
+        OSD::Notify(getLanguage->Get("DEXNAV_MAX_DONE"));
+    }
+
     void CatchTrainerPokemon(MenuEntry *entry) {
         static bool s_was = false; NotifyToggle(entry, s_was);
         static const u32 address = AutoGameSet(0x8075474, 0x8075858);
@@ -5172,12 +5194,45 @@ namespace CTRPluginFramework {
     static MenuEntry *g_hudRepel  = nullptr;   // Show: Repel steps remaining
     static MenuEntry *g_hudMapId  = nullptr;   // Show: current (fine) map id - debug / zone cataloging
     static MenuEntry *g_hudPanel  = nullptr;
+    static MenuEntry *g_hudItem   = nullptr;   // Show: lead's held item
+    static MenuEntry *g_hudEnc    = nullptr;   // Show: encounter counter (battles entered this session)
+    static MenuEntry *g_hudSteps  = nullptr;   // Show: steps walked this session
+    static MenuEntry *g_hudTsv    = nullptr;   // RNG: TSV (Trainer Shiny Value = (TID^SID)>>4, static)
+    static MenuEntry *g_hudFrame  = nullptr;   // RNG: current seed (live MT Status word)
+    static MenuEntry *g_hudAdv    = nullptr;   // RNG: frame counter (live, relative)
+    static MenuEntry *g_hudEgg    = nullptr;   // RNG: egg / save seed (Main MT snapshot, static)
     static int  g_hudPosition = 0;             // 0..8 anchors (3x3)
     static int  g_hudOpacity  = 50;            // panel opacity 0..100 (step 10), via ordered dither
+
+    // Session counters (reset on reboot, or via the editor hotkey/START on the Encounters/Steps entry).
+    static u32  g_encCount  = 0;
+    static u32  g_stepCount = 0;
+    static bool s_wasInBattle = false;
+    static int  s_lastTX = 0, s_lastTY = 0;
+    static bool s_haveTile = false;
+
+    // RNG Tracking (Gen 6). Live MT addresses from the 3DSRNGTool source (Util/NTRSeedAPI.cs) - same address space as
+    // our other Process::Read calls. The MT struct holds [u16 Index @ +0][u32 Status (_mt[Index]) @ +4]; the Index
+    // advances 0..623 on every MT call, then twists back to 0:
+    //   MT state : AutoGameSet(0x8C52848 XY, 0x8C59E44 ORAS)   (Index @ +0, Status @ +4)
+    //   Egg seed : AutoGameSet(0x8C6A6A4 XY, 0x8C71DB8 ORAS)   (Main MT save snapshot, static)
+    // Advances = relative MT frame since tracking started (accumulate the wrap-aware Index delta). The ABSOLUTE boot
+    // "initial seed" has no static RAM address (3DSRNGTool catches it at a boot code breakpoint) - that's a follow-up.
+    static u16  g_mtLastIdx = 0;   // last MT Index seen
+    static u32  g_mtAdv     = 0;   // relative advances since tracking started (reset on reboot)
+    static bool g_mtHave    = false;
 
     // No-op GameFunc: these entries exist only as persisted checkboxes (state read in HudCallback)
     static void HudNoop(MenuEntry *entry) {
         (void)entry;
+    }
+
+    // MenuFunc for the Encounters/Steps entries: pressing the editor hotkey (default START) on the highlighted
+    // entry zeroes its own counter. No separate "reset" button needed.
+    void HudResetCounter(MenuEntry *entry) {
+        if (entry == g_hudEnc)        g_encCount  = 0;
+        else if (entry == g_hudSteps) g_stepCount = 0;
+        OSD::Notify(getLanguage->Get("HUD_RESET_DONE"));
     }
 
     // 9 positions, reading order: 0=TL 1=TC 2=TR 3=ML 4=C 5=MR 6=BL 7=BC 8=BR
@@ -5235,6 +5290,47 @@ namespace CTRPluginFramework {
             return false;
 
         vector<string> lines;
+
+        // Session counters: run while the HUD master is on, regardless of which fields are shown. Encounters =
+        // rising edge of IfInBattle(); Steps = Manhattan tile delta from the X/Y floats, clamped to drop the
+        // big jumps from teleports / map loads. Reset on reboot or via START on the Encounters/Steps entry.
+        bool nowBattle = IfInBattle();
+        if (nowBattle && !s_wasInBattle) g_encCount++;
+        s_wasInBattle = nowBattle;
+        {
+            // World coords are fine units (HW-measured: 1 tile = 18 units on ORAS). Quantize to a TILE INDEX and
+            // count the change of the index, so 1 tile = +1 at any speed; sub-tile drift doesn't count; warps clamp out.
+            const float UPT = 18.0f;
+            u32 rx = 0, ry = 0;
+            Process::Read32(AutoGameSet(0x8C671A0, 0x8C6E894), rx);
+            Process::Read32(AutoGameSet(0x8C671A8, 0x8C6E89C), ry);
+            float qx = *reinterpret_cast<float*>(&rx) / UPT;
+            float qy = *reinterpret_cast<float*>(&ry) / UPT;
+            int tx = (int)qx; if (qx < 0 && (float)tx != qx) tx--; // floor (handles negative coords)
+            int ty = (int)qy; if (qy < 0 && (float)ty != qy) ty--;
+            if (s_haveTile) {
+                int dx = tx - s_lastTX; if (dx < 0) dx = -dx;
+                int dy = ty - s_lastTY; if (dy < 0) dy = -dy;
+                int d = dx + dy;
+                if (d > 0 && d <= 4) g_stepCount += (u32)d; // d>4 = teleport/map load -> resync without counting
+            }
+            s_lastTX = tx; s_lastTY = ty; s_haveTile = true;
+        }
+
+        // RNG: the MT Index (u16 @ MTOffset) advances 0..623 per MT call, then twists to 0. Accumulate the wrap-aware
+        // delta for a live "advances" counter (relative to when tracking started). Runs while the master is on.
+        {
+            u16 idx = 0;
+            Process::Read16(AutoGameSet(0x8C52848, 0x8C59E44), idx);
+            if (idx < 624) {
+                if (g_mtHave) {
+                    int d = (int)idx - (int)g_mtLastIdx;
+                    if (d < 0) d += 624;       // index wrapped on a twist
+                    g_mtAdv += (u32)d;
+                }
+                g_mtLastIdx = idx; g_mtHave = true;
+            }
+        }
 
         if (g_hudMoney != nullptr && g_hudMoney->IsActivated()) {
             u32 money = 0;
@@ -5316,6 +5412,42 @@ namespace CTRPluginFramework {
             u16 mid = 0;
             Process::Read16(AutoGameSet(0x8C67190, 0x8C6E884), mid);   // XY, ORAS - current (fine) map id
             lines.push_back(Utils::Format(getLanguage->Get("HUD_MAP_ID").c_str(), (unsigned)mid, (unsigned)mid));
+        }
+
+        if (g_hudItem != nullptr && g_hudItem->IsActivated()) {
+            u16 it = 0;
+            Process::Read16(AutoGameSet(0x81FF744, 0x81FEEC8) + 0x0A, it); // lead's held item (plaintext mirror, slot 0)
+            const char *nm = (it > 0 && it < 801) ? bagItemName[it] : "-";
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_ITEM").c_str(), nm));
+        }
+
+        if (g_hudEnc != nullptr && g_hudEnc->IsActivated())
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_ENC").c_str(), (unsigned long)g_encCount));
+
+        if (g_hudSteps != nullptr && g_hudSteps->IsActivated())
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_STEPS").c_str(), (unsigned long)g_stepCount));
+
+        if (g_hudTsv != nullptr && g_hudTsv->IsActivated()) {
+            u32 id = 0;
+            Process::Read32(AutoGameSet(0x8C79C3C, 0x8C81340), id);   // [TID u16 @ +0][SID u16 @ +2]
+            u16 tid = (u16)(id & 0xFFFF), sid = (u16)(id >> 16);
+            u16 tsv = (u16)((tid ^ sid) >> 4);                        // Trainer Shiny Value (0..4095)
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_TSV").c_str(), (unsigned)tsv));
+        }
+
+        if (g_hudFrame != nullptr && g_hudFrame->IsActivated()) {
+            u32 v = 0;
+            Process::Read32(AutoGameSet(0x8C5284C, 0x8C59E48), v);   // current seed = MT Status word (_mt[Index] @ +4)
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_FRAME").c_str(), (unsigned)v));
+        }
+
+        if (g_hudAdv != nullptr && g_hudAdv->IsActivated())
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_ADV").c_str(), (unsigned long)g_mtAdv)); // relative MT frame
+
+        if (g_hudEgg != nullptr && g_hudEgg->IsActivated()) {
+            u32 v = 0;
+            Process::Read32(AutoGameSet(0x8C6A6A4, 0x8C71DB8), v);   // egg / save seed (Main MT snapshot, static)
+            lines.push_back(Utils::Format(getLanguage->Get("HUD_EGG").c_str(), (unsigned)v));
         }
 
         if (lines.empty())
@@ -5688,11 +5820,35 @@ namespace CTRPluginFramework {
         g_hudRepel->SetFavoriteKey("FAV_HUD_REPEL"); g_hudRepel->SetFavoriteAlias(getLanguage->Get("FAV_HUD_REPEL"));
         g_hudMapId  = new MenuEntry(getLanguage->Get("MENU_HUD_MAP_ID"), HudNoop, getLanguage->Get("NOTE_HUD_MAP_ID"));
         g_hudMapId->SetFavoriteKey("FAV_HUD_MAP_ID"); g_hudMapId->SetFavoriteAlias(getLanguage->Get("FAV_HUD_MAP_ID"));
+        g_hudItem   = new MenuEntry(getLanguage->Get("MENU_HUD_ITEM"), HudNoop, getLanguage->Get("NOTE_HUD_ITEM"));
+        g_hudItem->SetFavoriteKey("FAV_HUD_ITEM"); g_hudItem->SetFavoriteAlias(getLanguage->Get("FAV_HUD_ITEM"));
+        // Encounters / Steps are checkboxes (A = show/hide) WITH a menuFunc: the editor hotkey (default START)
+        // on the highlighted entry zeroes that counter — no separate reset button.
+        g_hudEnc    = new MenuEntry(getLanguage->Get("MENU_HUD_ENC"), HudNoop, HudResetCounter, getLanguage->Get("NOTE_HUD_ENC"));
+        g_hudEnc->SetFavoriteKey("FAV_HUD_ENC"); g_hudEnc->SetFavoriteAlias(getLanguage->Get("FAV_HUD_ENC"));
+        g_hudSteps  = new MenuEntry(getLanguage->Get("MENU_HUD_STEPS"), HudNoop, HudResetCounter, getLanguage->Get("NOTE_HUD_STEPS"));
+        g_hudSteps->SetFavoriteKey("FAV_HUD_STEPS"); g_hudSteps->SetFavoriteAlias(getLanguage->Get("FAV_HUD_STEPS"));
+        // RNG Tracking: a non-selectable "RNG Tracking" header (D-pad skips it; spans the full grid row) + 3 read-only
+        // fields. Reads the game's RNG so the player can plan a shiny with 3DSRNGTool on PC.
+        MenuEntry *rngHdr = new MenuEntry(getLanguage->Get("MENU_HUD_RNGHDR"));
+        rngHdr->CanBeSelected(false);
+        rngHdr->SetGridFullWidth(true);
+        rngHdr->UseTopSeparator(Separator::Stippled);
+        g_hudTsv    = new MenuEntry(getLanguage->Get("MENU_HUD_TSV"), HudNoop, getLanguage->Get("NOTE_HUD_TSV"));
+        g_hudTsv->SetFavoriteKey("FAV_HUD_TSV"); g_hudTsv->SetFavoriteAlias(getLanguage->Get("FAV_HUD_TSV"));
+        g_hudFrame  = new MenuEntry(getLanguage->Get("MENU_HUD_FRAME"), HudNoop, getLanguage->Get("NOTE_HUD_FRAME"));
+        g_hudFrame->SetFavoriteKey("FAV_HUD_FRAME"); g_hudFrame->SetFavoriteAlias(getLanguage->Get("FAV_HUD_FRAME"));
+        g_hudAdv    = new MenuEntry(getLanguage->Get("MENU_HUD_ADV"), HudNoop, getLanguage->Get("NOTE_HUD_ADV"));
+        g_hudAdv->SetFavoriteKey("FAV_HUD_ADV"); g_hudAdv->SetFavoriteAlias(getLanguage->Get("FAV_HUD_ADV"));
+        g_hudEgg    = new MenuEntry(getLanguage->Get("MENU_HUD_EGG"), HudNoop, getLanguage->Get("NOTE_HUD_EGG"));
+        g_hudEgg->SetFavoriteKey("FAV_HUD_EGG"); g_hudEgg->SetFavoriteAlias(getLanguage->Get("FAV_HUD_EGG"));
         g_hudPanel  = new MenuEntry(getLanguage->Get("MENU_HUD_PANEL"), HudNoop, getLanguage->Get("NOTE_HUD_PANEL"));
         g_hudPanel->SetFavoriteKey("FAV_HUD_PANEL"); g_hudPanel->SetFavoriteAlias(getLanguage->Get("FAV_HUD_PANEL"));
         g_hudPanel->SetGridFullWidth(true); // panel toggle spans the whole row
 
-        *hud += g_hudMaster;
+        // NOTE: g_hudMaster ("Display HUD") is intentionally NOT added here — it lives one level up, in the
+        // Screen Overlays folder (added via HudMasterEntry() in Main.cpp, below Notifications). Config HUD keeps
+        // only the field toggles + opacity/position.
         *hud += g_hudMoney;
         *hud += g_hudClock;
         *hud += g_hudBP;
@@ -5702,6 +5858,14 @@ namespace CTRPluginFramework {
         *hud += g_hudXY;
         *hud += g_hudRepel;
         *hud += g_hudMapId;
+        *hud += g_hudItem;
+        *hud += g_hudEnc;
+        *hud += g_hudSteps;
+        *hud += rngHdr;
+        *hud += g_hudTsv;
+        *hud += g_hudFrame;
+        *hud += g_hudAdv;
+        *hud += g_hudEgg;
         *hud += g_hudPanel;
         MenuEntry *hudOpac = new MenuEntry(getLanguage->Get("MENU_HUD_OPACITY"), nullptr, HudSetOpacity, getLanguage->Get("NOTE_HUD_OPACITY"));
         hudOpac->SetGridPaired(true); // pair side-by-side in the 2-column layout
@@ -5714,5 +5878,11 @@ namespace CTRPluginFramework {
         hud->SetTwoColumns(true);
 
         return hud;
+    }
+
+    // Exposes the "Display HUD" master toggle (created in CreateHudMenu) so Main.cpp can place it one level up,
+    // in the Screen Overlays folder, below Notifications. CreateHudMenu must run first.
+    MenuEntry *HudMasterEntry(void) {
+        return g_hudMaster;
     }
 }

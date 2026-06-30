@@ -134,7 +134,7 @@ namespace CTRPluginFramework {
         // keyboard prompts re-read live each time they open.
         static const char *fwKeys[] = {
             "FW_FAVORITES", "FW_MAPPER", "FW_GAME_GUIDE", "FW_SEARCH", "FW_APP_GUIDE", "FW_ACTIONREPLAY", "FW_TOOLS",
-            "FW_ABOUT", "FW_HOTKEYS", "FW_CHANGE_THEME", "FW_SETTINGS", "FW_SCREENSHOTS", "FW_HEXEDITOR",
+            "FW_ABOUT", "FW_HOTKEYS", "FW_CHANGE_THEME", "FW_SETTINGS", "FW_LANGUAGE", "FW_SCREENSHOTS", "FW_HEXEDITOR",
             "FW_RAM_DUMPER", "FW_MISC", "FW_REBOOT", "FW_POWEROFF",
             "FW_HK_MENU", "FW_HK_FAV", "FW_HK_INFO", "FW_HK_EDIT", "FW_HK_CARD",
             "FW_SET_SAVEFAV", "FW_SET_LOADFAV", "FW_SET_SAVECHEATS", "FW_SET_LOADCHEATS", "FW_SET_FLOATBTN", "FW_SET_BACKLIGHT",
@@ -155,25 +155,16 @@ namespace CTRPluginFramework {
             SetFrameworkLang(langCodes[pos]);
     }
 
-    void Configuration(MenuEntry *entry) {
-        static const vector<string> options = {getLanguage->Get("CONFIG_LANGUAGE")};
-        Keyboard keyboard(entry->Name(), options);
-        int selection = keyboard.Open();
-
-        switch (selection) {
-            case 0:
-                Keyboard kb(options[selection] + ":", {getLanguage->Get("CONFIG_LANGUAGE_RESET")});
-                int resetLanguage = kb.Open();
-
-                if (resetLanguage != -1 && resetLanguage == 0) {
-                    if (File::Exists(PATH_LANGUAGE_SETTINGS) == 1) {
-                        File::Remove(PATH_LANGUAGE_SETTINGS);
-                        MessageBox(CenterAlign(getLanguage->Get("PLUGIN_SUCCESS") + " " + getLanguage->Get("PLUGIN_HOME_MENU")), DialogType::DialogOk, ClearScreen::Both)();
-                        Process::ReturnToHomeMenu();
-                    }
-                }
-
-                break;
+    // Parameterless language reset, wired into the framework "Tools > Language" entry via
+    // FwkSettings::OnLanguage. Goes straight to the Reset confirmation (the Tools entry is already labelled
+    // "Language", so the old nested Language->Reset step is redundant). On confirm: delete the saved language
+    // file and return to HOME so the chooser re-runs on next launch.
+    void LanguageReset(void) {
+        Keyboard kb(getLanguage->Get("CONFIG_LANGUAGE") + ":", {getLanguage->Get("CONFIG_LANGUAGE_RESET")});
+        if (kb.Open() == 0 && File::Exists(PATH_LANGUAGE_SETTINGS) == 1) {
+            File::Remove(PATH_LANGUAGE_SETTINGS);
+            MessageBox(CenterAlign(getLanguage->Get("PLUGIN_SUCCESS") + " " + getLanguage->Get("PLUGIN_HOME_MENU")), DialogType::DialogOk, ClearScreen::Both)();
+            Process::ReturnToHomeMenu();
         }
     }
 
@@ -482,6 +473,9 @@ namespace CTRPluginFramework {
     void PatchProcess(FwkSettings &settings) {
         DetectGame(Process::GetTitleID());
         IsUpdateSupported(Process::GetVersion());
+        // Do NOT set settings.UseGameHidMemory = true here: HW-tested and it breaks the plugin's own input —
+        // the plugin loads (toast shows) but the menu hotkey (Select) stops registering, leaving it deaf to
+        // buttons. So Controller::InjectKey/InjectTouch cannot reach the game in this build. (v0.6.1 test.)
     }
 
     // This function is called when the process exits. Useful to save settings, undo patchs or clean up things
@@ -663,23 +657,47 @@ namespace CTRPluginFramework {
         }));
         *box += Fav(new MenuEntry(getLanguage->Get("EDITOR_PC_EXPORT_IMPORT"), nullptr, ExportImport, getLanguage->Get("NOTE_PC_EXPORT_IMPORT")), "FAV_PC_EXPORT_IMPORT"); // <W, tested: O3DS/O2DS - Y/OR
         // ----- "Pokémon Spawner & Trainer (PKHeX)" assembly: obtain + edit Pokémon / save -----
-        // Encounters & Catching: control wild encounters, catching aids, and shiny toggles.
-        MenuFolder *catchShiny = new MenuFolder(getLanguage->Get("MENU_ENCOUNTERS_CATCHING"), getLanguage->Get("NOTE_ENCOUNTERS_CATCHING"), {
+        // Encounters & Catching: control wild encounters, catching aids, and shiny toggles. Built as a
+        // vector so the ORAS-only "Max DexNav Search Lv." can be inserted right after Capture Trainer Pokemon.
+        vector<MenuEntry*> ccItems = {
             Fav(new MenuEntry(getLanguage->Get("BATTLE_NO_WILD_POKEMON"), NoWildPokemon, getLanguage->Get("NOTE_BATTLE_NO_WILD_POKEMON")), "FAV_BATTLE_NO_WILD_POKEMON"), // <W, tested: O3DS/O2DS - Y/OR
             Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_RATE_100"), CaptureRate, getLanguage->Get("NOTE_BATTLE_CAPTURE_RATE_100")), "FAV_BATTLE_CAPTURE_RATE_100"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_TRAINER_POKEMON"), CatchTrainerPokemon, getLanguage->Get("NOTE_BATTLE_CAPTURE_TRAINER_POKEMON")), "FAV_BATTLE_CAPTURE_TRAINER_POKEMON"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_ALWAYS_SHINY"), AlwaysShiny, getLanguage->Get("NOTE_BATTLE_ALWAYS_SHINY")), "FAV_BATTLE_ALWAYS_SHINY"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("BATTLE_DISABLE_SHINY_LOCK"), DisableShinyLock, getLanguage->Get("NOTE_BATTLE_DISABLE_SHINY_LOCK")), "FAV_BATTLE_DISABLE_SHINY_LOCK"), // <W, tested: O3DS/O2DS - Y/OR
-            // ---- merged from the old "Quick Edits" folder ----
-            Fav(new MenuEntry(getLanguage->Get("MENU_RENAME_ANY"), RenameAnyPokemon, getLanguage->Get("NOTE_RENAME_ANY")), "FAV_RENAME_ANY"), // <W, tested: O3DS/O2DS - Y/OR
-            Fav(new MenuEntry(getLanguage->Get("MISC_LEARN_ANY"), LearnAnyTeachable, getLanguage->Get("NOTE_MISC_LEARN_ANY")), "FAV_MISC_LEARN_ANY") // <W, tested: O3DS/O2DS - Y/OR
-        });
+            Fav(new MenuEntry(getLanguage->Get("BATTLE_CAPTURE_TRAINER_POKEMON"), CatchTrainerPokemon, getLanguage->Get("NOTE_BATTLE_CAPTURE_TRAINER_POKEMON")), "FAV_BATTLE_CAPTURE_TRAINER_POKEMON") // <W, tested: O3DS/O2DS - Y/OR
+        };
+        // DexNav Search Level max (ORAS only — XY has no DexNav). One-shot, irreversible, asks to confirm,
+        // so the row is flagged dangerous (solid red warning background, like the "unlocks" folder).
+        if (currGameSeries == GameSeries::ORAS) {
+            MenuEntry *dexNavMax = new MenuEntry(getLanguage->Get("DEXNAV_MAX_SEARCH"), nullptr, MaxDexNavSearchLevel, getLanguage->Get("NOTE_DEXNAV_MAX_SEARCH"));
+            dexNavMax->SetDangerous(true);
+            ccItems.push_back(Fav(dexNavMax, "FAV_DEXNAV_MAX_SEARCH"));
+        }
+        ccItems.push_back(Fav(new MenuEntry(getLanguage->Get("BATTLE_ALWAYS_SHINY"), AlwaysShiny, getLanguage->Get("NOTE_BATTLE_ALWAYS_SHINY")), "FAV_BATTLE_ALWAYS_SHINY")); // <W, tested: O3DS/O2DS - Y/OR
+        ccItems.push_back(Fav(new MenuEntry(getLanguage->Get("BATTLE_DISABLE_SHINY_LOCK"), DisableShinyLock, getLanguage->Get("NOTE_BATTLE_DISABLE_SHINY_LOCK")), "FAV_BATTLE_DISABLE_SHINY_LOCK")); // <W, tested: O3DS/O2DS - Y/OR
+        // ---- merged from the old "Quick Edits" folder ----
+        ccItems.push_back(Fav(new MenuEntry(getLanguage->Get("MENU_RENAME_ANY"), RenameAnyPokemon, getLanguage->Get("NOTE_RENAME_ANY")), "FAV_RENAME_ANY")); // <W, tested: O3DS/O2DS - Y/OR
+        ccItems.push_back(Fav(new MenuEntry(getLanguage->Get("MISC_LEARN_ANY"), LearnAnyTeachable, getLanguage->Get("NOTE_MISC_LEARN_ANY")), "FAV_MISC_LEARN_ANY")); // <W, tested: O3DS/O2DS - Y/OR
+        MenuFolder *catchShiny = new MenuFolder(getLanguage->Get("MENU_ENCOUNTERS_CATCHING"), getLanguage->Get("NOTE_ENCOUNTERS_CATCHING"), ccItems);
         Fav(catchShiny, "FAV_ENCOUNTERS_CATCHING");
 
         // Top level: frequent one-shot actions first, then the subfolders.
         *pkhex += Fav(new MenuEntry(getLanguage->Get("BATTLE_WILD_POKEMON_SPAWNER"), nullptr, WildSpawner, spawnerNote), "FAV_WILD_POKEMON_SPAWNER"); // <W, tested: O3DS/O2DS - Y/OR
         *pkhex += Fav(new MenuEntry(getLanguage->Get("BATTLE_RESPAWN_LEGENDARY"), nullptr, RespawnLegendary, getLanguage->Get("NOTE_RESPAWN_LEGENDARY")), "FAV_RESPAWN_LEGENDARY"); // <W, tested: O3DS/O2DS - Y/OR
         *pkhex += Fav(new MenuEntry(getLanguage->Get("MENU_POKEMART_ANYWHERE"), nullptr, BagItemFinder, bagNote), "FAV_POKEMART_ANYWHERE"); // <W
+        // Health & Mana: "Always MAX" = Infinite freezes (toggle, battle no-faint); "Instant Refill" = Refill
+        // toggles — opt-in (default OFF): turning one ON ARMS its hotkey (ZL/ZR); pressing it refills instantly,
+        // OFF frees the button. Headers are non-selectable; ZL/ZR are New3DS/2DS (rebind on O3DS/O2DS).
+        MenuEntry *hmHdrMax  = new MenuEntry(getLanguage->Get("HM_HDR_ALWAYS_MAX")); hmHdrMax->CanBeSelected(false);
+        MenuEntry *hmHdrBind = new MenuEntry(getLanguage->Get("HM_HDR_BIND"));       hmHdrBind->CanBeSelected(false); hmHdrBind->UseTopSeparator(Separator::Stippled);
+        MenuFolder *healthMana = new MenuFolder(getLanguage->Get("MENU_HEALTH_MANA"), getLanguage->Get("NOTE_HEALTH_MANA"), {
+            hmHdrMax,
+            Fav(new MenuEntry(getLanguage->Get("INFINITE_HEALTH"), PKHeX::InfiniteHealth, getLanguage->Get("NOTE_INFINITE_HEALTH")), "FAV_INFINITE_HEALTH"),
+            Fav(new MenuEntry(getLanguage->Get("INFINITE_MANA"),   PKHeX::InfiniteMana,   getLanguage->Get("NOTE_INFINITE_MANA")),   "FAV_INFINITE_MANA"),
+            hmHdrBind,
+            Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("REFILL_HEALTH"), PKHeX::RefillHealthBind, getLanguage->Get("NOTE_REFILL_HEALTH")), {Hotkey(Key::ZL, getLanguage->Get("HOTKEY_REFILL_HEALTH"))}), "FAV_REFILL_HEALTH"),
+            Fav(HotkeyEntry(new MenuEntry(getLanguage->Get("REFILL_MANA"),   PKHeX::RefillManaBind,   getLanguage->Get("NOTE_REFILL_MANA")),   {Hotkey(Key::ZR, getLanguage->Get("HOTKEY_REFILL_MANA"))}),   "FAV_REFILL_MANA")
+        });
+        Fav(healthMana, "FAV_HEALTH_MANA");
+        *pkhex += healthMana;
         *pkhex += box;
         *pkhex += catchShiny;
         *pkhex += trainer;
@@ -736,6 +754,8 @@ namespace CTRPluginFramework {
         FwkSettings::ThemeCount = ThemeCountCb;
         FwkSettings::ThemeName = ThemeNameCb;
         FwkSettings::ApplyThemeByIndex = ApplyThemeByIndexCb;
+        // "Language" entry in the framework "Tools" screen (under Settings) — resets the plugin's saved language.
+        FwkSettings::OnLanguage = LanguageReset;
 
         // HUD overlay (Slice 3): small optional on-screen display during gameplay.
         MenuFolder *hud = CreateHudMenu();
@@ -747,11 +767,11 @@ namespace CTRPluginFramework {
         Fav(notifEntry, "FAV_SHOW_NOTIFICATIONS");
         g_entryToggleNotifSrc = (void *)notifEntry; // let the menu give this checkbox a single instant toast (no double)
 
-        // Screen Overlays order: notifications, HUD, then this plugin's own settings (language).
-        // (Themes moved to the framework "Tools" screen.)
+        // Screen Overlays order: notifications, then HUD. (Themes + Language moved to the framework "Tools"
+        // screen — Language is registered via FwkSettings::OnLanguage below.)
         *misc += notifEntry;
+        *misc += HudMasterEntry(); // "Display HUD" master — lifted out of Config HUD, sits right below Notifications
         *misc += hud;
-        *misc += Fav(new MenuEntry(getLanguage->Get("MENU_PLUGIN_SETTINGS"), nullptr, Configuration, getLanguage->Get("NOTE_PLUGIN_SETTINGS")), "MENU_PLUGIN_SETTINGS");
 
         MenuFolder *viewParty = new MenuFolder(getLanguage->Get("MENU_VIEW_PARTY_SUMMARY"), getLanguage->Get("NOTE_VIEW_PARTY_SUMMARY"));
         Fav(viewParty, "FAV_VIEW_PARTY_SUMMARY");
@@ -777,7 +797,7 @@ namespace CTRPluginFramework {
         // Tools menu, which read their labels via SetFrameworkText/FwText. SetLanguage() pushes those
         // translations, so it must run BEFORE the menu is constructed (InitMenu later reuses the parsed instance).
         SetLanguage(false);
-        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 6, 0, getLanguage->Get("FW_ABOUT_BODY"));
+        PluginMenu *menu = new PluginMenu("Gen6CTRPFramework Overhauled", 0, 6, 1, getLanguage->Get("FW_ABOUT_BODY"));
         // Enable menu synchronization with the game's frame rate
         menu->SynchronizeWithFrame(true);
         // Pause the execution for 100 milliseconds to ensure the menu is properly initialized

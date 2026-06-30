@@ -139,6 +139,12 @@
       void PartyBattleEditor(MenuEntry *entry); // Change Party Stats: visual battle-party editor (in-battle)
       void EnemyHelper(MenuEntry *entry);       // Enemy Helper: in-battle coach card for the enemy (in-battle)
       void FunHub(MenuEntry *entry);            // Fun Stuff: mini-games hub (root-menu folder-as-button)
+
+      // Health & Mana folder (under PokéMart Anywhere): Infinite (freeze) toggles + Refill (one-shot) actions.
+      void InfiniteHealth(MenuEntry *entry);    // toggle: freeze HP at max in battle (no-faint)
+      void InfiniteMana(MenuEntry *entry);      // toggle: freeze PP at max in battle
+      void RefillHealthBind(MenuEntry *entry);  // toggle: ON arms the hotkey -> press = one-shot HP refill
+      void RefillManaBind(MenuEntry *entry);    // toggle: ON arms the hotkey -> press = one-shot PP refill
       void SetPartyMode(bool party);        // toggle PC/party target (called from folder OnAction)
       void Shiny(MenuEntry *entry);
       void Species(MenuEntry *entry);

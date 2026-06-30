@@ -243,6 +243,7 @@ KB_PSS_PROFILE_HISTORY :: 履歴
 KB_PSS_PROFILE_ICONS :: アイコン
 KB_PSS_PROFILE_LINKS :: リンク
 KB_PSS_PROFILE_MESSAGE :: メッセージ:
+KB_PSS_PROFILE_MESSAGE_2 :: メッセージ
 KB_PSS_PROFILE_MESSAGE_2:: メッセージ
 KB_PSS_PROFILE_MINI_SURVEY :: ミニアンケート
 KB_PSS_PROFILE_NICES :: いいね
@@ -389,20 +390,85 @@ SPAWNER_INVALID :: 無効な種族が選択されました
 SPAWNER_SPAWNING :: 出現中:
 
 # --- O-Power Center (visual panel) ---
-PSS_O_POWER_CENTER :: O-Power Center
-NOTE_PSS_O_POWER_CENTER :: O-Power Center - a visual board of all 18 O-Powers and your charge gauge.\n\nTop screen:\n- D-Pad: pick a power\n- L / R: change its level (A cycles)\n- Y: raw view (advanced)\n\nButtons:\n- Max All: every O-Power to its max level\n- Unlock: every O-Power to level 1\n- Lock: re-lock all (back to level 0)\n- Refill: refill the gauge to full now (tap anytime)\n- Keep: keep the gauge always full (no recharge wait)\n\nSave the game to keep changes.
-OPC_TITLE :: O-Power Center
-OPC_GAUGE :: Gauge:
+PSS_O_POWER_CENTER :: Oパワーセンター
+NOTE_PSS_O_POWER_CENTER :: Oパワーセンター - 全18種のOパワーとチャージゲージを一覧表示するボードです。\n\n上画面:\n- D-Pad: パワーを選ぶ\n- L / R: レベルを変える（Aで切り替え）\n- Y: 生データ表示（上級者向け）\n\nボタン:\n- すべて最大: 全Oパワーを最大レベルに\n- 解放: 全Oパワーをレベル1に\n- ロック: すべて再ロック（レベル0に戻す）\n- 補充: 今すぐゲージを満タンに（いつでも押せます）\n- 維持: ゲージを常に満タンに保つ（チャージ待ちなし）\n\n変更を保持するにはゲームをセーブしてください。
+OPC_TITLE :: Oパワーセンター
+OPC_GAUGE :: ゲージ:
 OPC_LOCKED :: --
-OPC_NAMES :: Attack Power :: Defense Power :: Sp. Atk Power :: Sp. Def Power :: Speed Power :: Accuracy Power :: Critical Power :: HP Restoring :: PP Restoring :: Encounter Power :: Stealth Power :: Exp. Point :: Prize Money :: Capture Power :: Hatching Power :: Bargain Power :: Befriending :: Full Recovery
-OPC_RAW_HDR :: Raw block (position = index):
-OPC_RAW_IDX :: Index
-OPC_HINT_NAV :: D-Pad: select    Y: raw view
-OPC_HINT_LVL :: L / R: change level    A: cycle
-OPC_HINT_RAW :: B: back    SELECT: close plugin
-OPC_BTN_MAXALL :: Max All
-OPC_BTN_UNLOCKALL :: Unlock
-OPC_BTN_LOCKALL :: Lock
-OPC_BTN_FILLGAUGE :: Refill
-OPC_HINT_KEEP :: Keep: gauge stays full, no waiting
-OPC_BTN_KEEPFULL :: Keep
+OPC_NAMES :: こうげきのOパワー :: ぼうぎょのOパワー :: とくこうのOパワー :: とくぼうのOパワー :: すばやさのOパワー :: めいちゅうのOパワー :: きゅうしょのOパワー :: HPかいふくのOパワー :: PPかいふくのOパワー :: であいのOパワー :: しのびあしのOパワー :: けいけんちのOパワー :: しょうきんのOパワー :: つかまえやすさのOパワー :: タマゴふ化のOパワー :: おねだりのOパワー :: なかよしのOパワー :: かんぜんかいふくのOパワー
+OPC_RAW_HDR :: 生データブロック（位置 = 番号）:
+OPC_RAW_IDX :: 番号
+OPC_HINT_NAV :: D-Pad: 選択    Y: 生データ表示
+OPC_HINT_LVL :: L / R: レベル変更    A: 切り替え
+OPC_HINT_RAW :: B: 戻る    SELECT: プラグインを閉じる
+OPC_BTN_MAXALL :: すべて最大
+OPC_BTN_UNLOCKALL :: 解放
+OPC_BTN_LOCKALL :: ロック
+OPC_BTN_FILLGAUGE :: 補充
+OPC_HINT_KEEP :: 維持: ゲージが満タンのまま、待ち時間なし
+OPC_BTN_KEEPFULL :: 維持
+
+
+REFILL_DONE :: 手持ちを回復しました！
+
+MENU_HEALTH_MANA :: HPとPP
+NOTE_HEALTH_MANA :: 手持ちのHPとPPを回復・固定します。\n\n常に最大（切り替え）: 戦闘中HP/PPを満タンに固定 - ひんしにならず、PP切れもなし。\n即時補充（切り替え）: ひとつONにするとショートカットが有効になり、押すと一度だけ補充します（初期はOFF - 任意設定。OFFでボタンが解放されます）。HP補充はフィールドで動作し、戦闘中はむげんのHPを使ってください。
+HM_HDR_ALWAYS_MAX :: 常に最大
+HM_HDR_BIND :: 即時補充 / ボタン操作
+INFINITE_HEALTH :: むげんのHP (HP)
+NOTE_INFINITE_HEALTH :: 戦闘中これをONにすると手持ちのHPを最大に保ちます - 次の攻撃でバーが満タンに戻り、ひんしになりません。
+INFINITE_MANA :: むげんのPP (PP)
+NOTE_INFINITE_MANA :: 戦闘中これをONにすると全わざのPPを最大に保ちます - わざが切れません。
+REFILL_HEALTH :: HPを補充 (HP)
+NOTE_REFILL_HEALTH :: 手持ち全員のHPを補充します。\n\n- ON: ショートカットを有効化（初期はZL）。\n- OFF: ボタンを解放。\n\nフィールド: ショートカットを押すと手持ち全員が完全回復。\n戦闘中: リアルタイムのみ - 攻撃を受けたとき、HPバーのアニメーション中にショートカットを押すとバーが減らずに満タンになります。常に満タンにするにはむげんのHPを使ってください。\n\nショートカットメニューで再設定できます。
+REFILL_MANA :: PPを補充 (PP)
+NOTE_REFILL_MANA :: 手持ち全員のPPを補充します。\n\n- ON: ショートカットを有効化（初期はZR）。\n- ショートカットを押す: 今すぐ補充。\n- OFF: ボタンを解放。\n\n戦闘中もフィールドでも動作します。\n\nショートカットメニューで再設定できます。
+HOTKEY_REFILL_HEALTH :: HPを補充
+HOTKEY_REFILL_MANA :: PPを補充
+FAV_INFINITE_HEALTH :: むげんHP
+FAV_INFINITE_MANA :: むげんPP
+FAV_REFILL_HEALTH :: HP補充
+FAV_REFILL_MANA :: PP補充
+FAV_HEALTH_MANA :: HPとPP
+DEXNAV_MAX_SEARCH :: サーチLv最大
+NOTE_DEXNAV_MAX_SEARCH :: 全721種のDexNavサーチレベルを最大にします（ORASのみ）。\n\nサーチレベルが高いほど、DexNavで色違い・隠れ特性・タマゴわざ・レアな隠れポケモンの出現率が上がります。\n\n一度きり: 選ぶと適用され、ゲームに保存されます。\n\n警告: これは元に戻せません。
+FAV_DEXNAV_MAX_SEARCH :: DexNav最大
+DEXNAV_MAX_DONE :: DexNavサーチレベルを最大にしました！
+DEXNAV_CONFIRM_BODY :: 全721種のDexNav\nサーチレベルを\n最大にします。\nゲームに保存され\n元に戻せません。
+
+FW_LANGUAGE :: 言語
+MENU_HUD_ITEM :: もちもの
+FAV_HUD_ITEM :: もちもの
+MENU_HUD_ENC :: エンカウント
+FAV_HUD_ENC :: エンカウント
+MENU_HUD_STEPS :: 歩数
+FAV_HUD_STEPS :: 歩数
+HUD_ITEM :: もちもの: %s
+HUD_ENC :: 遭遇: %lu
+HUD_STEPS :: 歩数: %lu
+HUD_RESET_DONE :: カウンターをリセットしました
+NOTE_HUD_ITEM :: 先頭のポケモンのもちものをHUDに表示します（無い場合は「-」）。
+NOTE_HUD_ENC :: このセッションで開始したバトル数を数えます（色違い厳選に便利）。\n\nこの項目でエディタのショートカット（既定はSTART）を押すとリセットします。
+NOTE_HUD_STEPS :: このセッションで歩いた歩数を数えます。\n\nこの項目でエディタのショートカット（既定はSTART）を押すとリセットします。
+MENU_HUD_RNGHDR :: RNG Tracking
+MENU_HUD_SEED :: Initial seed
+FAV_HUD_SEED :: Initial seed
+MENU_HUD_FRAME :: Current seed
+FAV_HUD_FRAME :: Current seed
+MENU_HUD_ADV :: Frame
+FAV_HUD_ADV :: Frame
+HUD_SEED :: iSeed: %08X
+HUD_FRAME :: cSeed: %08X
+HUD_ADV :: Frame: %lu
+NOTE_HUD_SEED :: 起動時の「initial seed」は3DS上ではライブで読めません（---- と表示）。代わりに「Current seed」を読み、PCの3DSTimeFinder／3DSRNGToolで特定してください。
+NOTE_HUD_FRAME :: 今の乱数の値（「current seed」）です。ゲームが進むと変化し、止まっていると固定されます。
+NOTE_HUD_ADV :: 現在のRNG「frame」（見始めてからどれだけ進んだか）。RNG厳選では目標フレームに合わせて操作します。
+MENU_HUD_EGG :: Egg seed
+FAV_HUD_EGG :: Egg seed
+HUD_EGG :: Egg: %08X
+HUD_SEED_PENDING :: iSeed: ----
+NOTE_HUD_EGG :: 「egg seed」。セーブ時の乱数スナップショットで、タマゴ／預け屋のRNG（PKSeedなど）に使います。セーブすると更新されます。
+MENU_HUD_TSV :: TSV
+FAV_HUD_TSV :: TSV
+HUD_TSV :: TSV: %u
+NOTE_HUD_TSV :: あなたの「TSV」（Trainer Shiny Value）。タマゴや遭遇のPSVがこれと一致すると色違いになります。RNG厳選に必要です。
