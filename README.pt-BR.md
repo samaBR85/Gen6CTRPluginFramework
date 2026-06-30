@@ -1,4 +1,4 @@
-# Gen6CTRPluginFrameworkOverhauled — v0.6.0
+# Gen6CTRPluginFrameworkOverhauled — v0.6.1
 
 [English](README.md) · **Português**
 
@@ -222,6 +222,7 @@ Uma breve história, do mais antigo ao mais novo — sem detalhe, só o formato 
   pastas do plugin organizadas em **Assets/**.
 - **v0.5.0** — **multi-jogo**: conteúdo dedicado para os quatro títulos Gen 6 (X, Y, Omega Ruby, Alpha Sapphire), um mapa de teleporte completo de Kalos, e a UI em **7 idiomas**.
 - **v0.6.0** — o **O-Power Center**: um painel visual de todos os 18 O-Powers e do medidor de cargas (Refill com um toque, Max All, e um toggle Keep pra não esperar recarga).
+- **v0.6.1** — **RNG Tracking**: leia o RNG do jogo ao vivo no HUD (TSV, current seed, frame, egg seed) pra shiny hunting e RNG abuse — além de novos campos de HUD (item segurado, encontros, passos da sessão), **Max DexNav Search Lv.**, **Health & Mana**, e o **Language** movido pra Tools.
 
 ## 📥 Instalando
 
@@ -330,7 +331,7 @@ Este projeto se apoia numa longa linha de trabalho voluntário — do primeirís
 - **Dynamite** — pela ordem das O-Powers; **Likemeon** — pela dica de chaining na Granite Cave.
 
 **Este fork**
-- Fork, repaginação e adições da v0.3.0 → v0.6.0 por [samaBR85](https://github.com/samaBR85), feitos em colaboração
+- Fork, repaginação e adições da v0.3.0 → v0.6.1 por [samaBR85](https://github.com/samaBR85), feitos em colaboração
   com o **Claude** (Anthropic).
 
 ## Licença
