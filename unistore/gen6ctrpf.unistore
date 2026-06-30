@@ -8,7 +8,7 @@
     "sheet": "gen6ctrpf.t3x",
     "sheetURL": "https://raw.githubusercontent.com/samaBR85/Gen6CTRPFrameworkOverhauled/main/unistore/gen6ctrpf.t3x",
     "version": 4,
-    "revision": 8
+    "revision": 9
   },
   "storeContent": [
     {
@@ -24,7 +24,7 @@
         "license": "gpl-3.0",
         "version": "0.6.1"
       },
-      "Download": [
+      "Download & Install Plugin": [
         {
           "type": "downloadRelease",
           "repo": "samaBR85/Gen6CTRPFrameworkOverhauled",
